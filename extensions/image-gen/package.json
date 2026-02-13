@@ -1,0 +1,20 @@
+{
+  "name": "openclaw-image-gen",
+  "version": "0.2.0",
+  "description": "OpenClaw plugin: generate images from text prompts via OpenRouter",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "tsx --test test/*.test.ts",
+    "generate": "tsx generate.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.5"
+  },
+  "openclaw": {
+    "extensions": ["./index.ts"]
+  }
+}

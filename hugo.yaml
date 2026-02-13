@@ -1,0 +1,100 @@
+# OpenClaw Guide — Hugo + Hextra configuration
+# Docs: https://imfing.github.io/hextra/docs/guide/configuration/
+
+baseURL: "https://IT-HUSET.github.io/openclaw-guide/"
+title: "OpenClaw Guide"
+description: "Progressive, security-first guide for deploying and hardening OpenClaw."
+
+# Theme via Hugo Modules (requires Go for `hugo mod` commands)
+# Install: brew install hugo go
+module:
+  hugoVersion:
+    extended: true
+    min: "0.146.0"
+  imports:
+    - path: github.com/imfing/hextra
+
+enableRobotsTXT: true
+enableGitInfo: true
+
+defaultContentLanguage: en
+languages:
+  en:
+    languageName: English
+    weight: 1
+
+# Mermaid + math support
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+    extensions:
+      passthrough:
+        enable: true
+        delimiters:
+          block: [['\[', '\]'], ['$$', '$$']]
+          inline: [['\(', '\)']]
+  highlight:
+    noClasses: false
+
+# Top navigation
+menu:
+  main:
+    - name: Guide
+      pageRef: /docs
+      weight: 1
+    - name: Reference
+      pageRef: /docs/reference
+      weight: 2
+    - name: Architecture
+      pageRef: /docs/architecture
+      weight: 3
+    - name: Search
+      weight: 4
+      params:
+        type: search
+    - name: GitHub
+      weight: 5
+      url: "https://github.com/IT-HUSET/openclaw-guide"
+      params:
+        icon: github
+
+params:
+  navbar:
+    displayTitle: true
+    displayLogo: false
+    width: wide
+
+  theme:
+    default: system
+    displayToggle: true
+
+  footer:
+    enable: true
+    displayCopyright: true
+    displayPoweredBy: false
+
+  # FlexSearch (enabled by default)
+  search:
+    enable: true
+    type: flexsearch
+    flexsearch:
+      index: content
+      tokenize: forward
+
+  # "Edit this page on GitHub" link
+  editURL:
+    enable: true
+    base: "https://github.com/IT-HUSET/openclaw-guide/edit/main/content"
+
+  # Show last-modified date from git
+  displayUpdatedDate: true
+  dateFormat: "January 2, 2006"
+
+  page:
+    width: normal
+
+  highlight:
+    copy:
+      enable: true
+      display: hover

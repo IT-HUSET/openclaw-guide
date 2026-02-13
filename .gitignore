@@ -1,0 +1,39 @@
+# macOS
+.DS_Store
+
+# Node / JS / TS
+**/node_modules/
+**/.mock-bin
+
+# Editor / tool temp files
+*~
+*.swp
+*.swo
+.*.sw?
+
+# Temp docs
+.agent_temp/
+docs/temp/
+docs/research
+
+# Cowork docs
+cowork/
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Docker isolation runtime data
+scripts/docker-isolation/.instances
+
+# Test OpenClaw instance (runtime data, not config)
+.openclaw-test/workspaces/
+.openclaw-test/state/
+.openclaw-test/node_modules/
+.openclaw-test/package-lock.json
+
+# Hugo
+public/
+resources/
+.hugo_build.lock

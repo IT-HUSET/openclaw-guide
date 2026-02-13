@@ -1,0 +1,22 @@
+{
+  "name": "openclaw-web-guard",
+  "version": "0.2.0",
+  "description": "OpenClaw plugin: scan web_fetch content for prompt injection using local DeBERTa ONNX model",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "tsx --test test/*.test.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.5"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3"
+  },
+  "openclaw": {
+    "extensions": ["./index.ts"]
+  }
+}

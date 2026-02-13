@@ -1,0 +1,43 @@
+{{- /* render-link.html — Overrides Hextra's hook to resolve relative .md links.
+     Hextra only handles absolute (/-prefixed) links. Relative .md links pass through
+     as literal file references, causing 404s. This hook uses .PageInner.GetPage to
+     resolve them to their correct Hugo permalinks. */ -}}
+
+{{- $dest := .Destination -}}
+{{- $isExternal := or (hasPrefix $dest "http://") (hasPrefix $dest "https://") (hasPrefix $dest "//") -}}
+{{- $isAnchor := hasPrefix $dest "#" -}}
+{{- $isMail := hasPrefix $dest "mailto:" -}}
+
+{{- if not (or $isExternal $isAnchor $isMail) -}}
+  {{- $url := urls.Parse $dest -}}
+
+  {{- if strings.HasSuffix $url.Path ".md" -}}
+    {{- /* Relative .md link — resolve via Hugo's page lookup */ -}}
+    {{- $pagePath := strings.TrimSuffix ".md" $url.Path -}}
+    {{- with .PageInner.GetPage $pagePath -}}
+      {{- $fragment := cond $url.Fragment (printf "#%s" $url.Fragment) "" -}}
+      {{- $dest = printf "%s%s" .RelPermalink $fragment -}}
+    {{- else -}}
+      {{- /* Also try with .md extension in case GetPage needs it */ -}}
+      {{- with $.PageInner.GetPage $url.Path -}}
+        {{- $fragment := cond $url.Fragment (printf "#%s" $url.Fragment) "" -}}
+        {{- $dest = printf "%s%s" .RelPermalink $fragment -}}
+      {{- end -}}
+    {{- end -}}
+
+  {{- else if hasPrefix $dest "/" -}}
+    {{- /* Absolute path — Hextra's original logic */ -}}
+    {{- with or (.PageInner.GetPage $url.Path) (.PageInner.Resources.Get $url.Path) (resources.Get $url.Path) -}}
+      {{- $query := cond $url.RawQuery (printf "?%s" $url.RawQuery) "" -}}
+      {{- $fragment := cond $url.Fragment (printf "#%s" $url.Fragment) "" -}}
+      {{- $dest = printf "%s%s%s" .RelPermalink $query $fragment -}}
+    {{- else -}}
+      {{- $dest = (relURL (strings.TrimPrefix "/" $dest)) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+<a href="{{ $dest | safeURL }}"
+   {{- with .Title }} title="{{ . }}"{{ end -}}
+   {{- if $isExternal }} target="_blank" rel="noopener"{{ end -}}
+>{{ .Text | safeHTML }}</a>

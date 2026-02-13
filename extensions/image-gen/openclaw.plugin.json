@@ -1,0 +1,80 @@
+{
+  "id": "image-gen",
+  "name": "Image Generator",
+  "description": "Generates images from text prompts via OpenRouter (FLUX, Gemini, GPT, Sourceful). Registers a generate_image tool that agents can call directly. Requires OpenRouter API key.",
+  "version": "0.2.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "apiKey": {
+        "type": "string",
+        "description": "OpenRouter API key. Defaults to $OPENROUTER_API_KEY env var."
+      },
+      "baseUrl": {
+        "type": "string",
+        "default": "https://openrouter.ai/api/v1",
+        "description": "OpenRouter API base URL. Must use HTTPS (except localhost for dev)."
+      },
+      "defaultModel": {
+        "type": "string",
+        "default": "openai/gpt-5-image-mini",
+        "description": "Default image model. Override per-call via the model parameter."
+      },
+      "defaultAspectRatio": {
+        "type": "string",
+        "enum": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
+        "default": "1:1",
+        "description": "Default aspect ratio."
+      },
+      "defaultImageSize": {
+        "type": "string",
+        "enum": ["1K", "2K", "4K"],
+        "default": "2K",
+        "description": "Default output resolution."
+      },
+      "maxPromptLength": {
+        "type": "number",
+        "minimum": 1,
+        "maximum": 10000,
+        "default": 4000,
+        "description": "Max prompt characters (1–10000). Longer prompts are truncated."
+      },
+      "timeoutMs": {
+        "type": "number",
+        "minimum": 1000,
+        "maximum": 300000,
+        "default": 60000,
+        "description": "Request timeout in milliseconds (1000–300000). Image generation can take 10-30s."
+      },
+      "maxImageBytes": {
+        "type": "number",
+        "minimum": 1024,
+        "default": 10485760,
+        "description": "Max decoded image size in bytes. Default: 10485760 (10 MB). Rejects oversized outputs."
+      },
+      "allowedModels": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "If set, only these model IDs can be used. Empty = all models allowed."
+      },
+      "allowedImageHosts": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Allowlist for remote image URL hosts (supports wildcard entries like *.example.com). Default: baseUrl host only."
+      }
+    }
+  },
+  "uiHints": {
+    "apiKey": { "label": "API Key", "sensitive": true },
+    "baseUrl": { "label": "Base URL" },
+    "defaultModel": { "label": "Default Model" },
+    "defaultAspectRatio": { "label": "Aspect Ratio" },
+    "defaultImageSize": { "label": "Image Size" },
+    "maxPromptLength": { "label": "Max Prompt Length" },
+    "timeoutMs": { "label": "Timeout (ms)" },
+    "maxImageBytes": { "label": "Max Image Size (bytes)" },
+    "allowedModels": { "label": "Allowed Models" },
+    "allowedImageHosts": { "label": "Allowed Image Hosts" }
+  }
+}

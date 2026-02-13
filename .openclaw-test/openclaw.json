@@ -1,0 +1,56 @@
+{
+  // Test config for plugin development and integration tests.
+  // Start: OPENCLAW_CONFIG_PATH=.openclaw-test/openclaw.json OPENCLAW_STATE_DIR=.openclaw-test/state openclaw gateway run --verbose
+  // Requires ANTHROPIC_API_KEY and OPENCLAW_GATEWAY_TOKEN in env (or .env file).
+
+  "gateway": {
+    "mode": "local",
+    "port": 18789,
+    "bind": "loopback",
+    "auth": {
+      "token": "${OPENCLAW_GATEWAY_TOKEN}"
+    },
+    "http": {
+      "endpoints": {
+        "chatCompletions": { "enabled": true }
+      }
+    }
+  },
+
+  "agents": {
+    "list": [{
+      "id": "main",
+      "default": true,
+      "workspace": ".openclaw-test/workspaces/main"
+    }]
+  },
+
+  "plugins": {
+    "enabled": true,
+    "load": {
+      "paths": [
+        "./extensions/channel-guard",
+        "./extensions/web-guard"
+      ]
+    },
+    "entries": {
+      "channel-guard": {
+        "enabled": true,
+        "config": {
+          "sensitivity": 0.5,
+          "warnThreshold": 0.4,
+          "blockThreshold": 0.8,
+          "failOpen": false,
+          "logDetections": true
+        }
+      },
+      "web-guard": {
+        "enabled": true,
+        "config": {
+          "sensitivity": 0.5,
+          "failOpen": false
+        }
+      }
+    }
+  }
+}

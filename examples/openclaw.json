@@ -1,0 +1,383 @@
+{
+  // ============================================================
+  // OpenClaw Configuration — Complete Annotated Example
+  // ============================================================
+  // NOTE: This file uses JSON5 comments (//) for documentation.
+  // OpenClaw supports JSON5 natively — no need to strip comments.
+  //
+  // Implements all recommendations from the openclaw-guide:
+  // - Security baseline (Phase 2)
+  // - Six agents: main, whatsapp, signal, googlechat, search, browser (Phases 3-4 + Google Chat)
+  // - Docker sandboxing for channel agents (Phase 5, Docker isolation)
+  // - Production deployment settings (Phase 5)
+  //
+  // DEPLOYMENT OPTIONS:
+  //   Docker isolation — Dedicated OS user + Docker/OrbStack (this config): stronger
+  //                      internal agent isolation via Docker sandboxing.
+  //   VM: macOS VMs — Lume / Parallels: stronger host isolation, no Docker inside VM.
+  //                   Remove all "sandbox" blocks; tool policy provides internal isolation.
+  //   VM: Linux VMs — Multipass / KVM: strongest combined posture (VM boundary + Docker).
+  //                   Keep "sandbox" blocks — Docker works inside Linux VMs.
+  //   See Phase 2 — Security for the full trade-off analysis.
+  //
+  // Replace placeholder values:
+  //   +46XXXXXXXXX  → your phone number
+  //   Workspace paths → your actual paths
+  //
+  // Environment variables (set in LaunchDaemon/LaunchAgent plist or systemd EnvironmentFile):
+  //   OPENCLAW_GATEWAY_TOKEN
+  //   ANTHROPIC_API_KEY
+  //   BRAVE_API_KEY (or OPENROUTER_API_KEY for Perplexity / image-gen)
+  //   OPENROUTER_API_KEY (required for image-gen plugin; also used by Perplexity)
+  //   GITHUB_TOKEN
+  //   GOOGLE_CHAT_SERVICE_ACCOUNT_FILE (path to service account JSON key for Google Chat)
+  // See Phase 5 — Deployment > Secrets Management for details.
+  // ============================================================
+
+  // --- Chat Commands ---
+  // Disable dangerous chat commands. These allow users to
+  // run shell commands, edit config, or restart the gateway
+  // from within a chat message.
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "bash": false,       // Blocks !command shell access
+    "config": false,     // Blocks /config writes
+    "debug": false,      // Blocks /debug runtime overrides
+    "restart": false     // Blocks /restart
+  },
+
+  // --- Global Tool Restrictions ---
+  "tools": {
+    // Only deny tools globally that NO agent should ever have.
+    // web_search, web_fetch, browser are denied per-agent (not here) —
+    // global deny overrides agent-level allow, which would break the search/browser agents.
+    "deny": ["canvas", "gateway"],
+
+    // Disable elevated mode — prevents sandbox escape
+    "elevated": { "enabled": false },
+
+    // Web search provider config (accessible only to agents that allow the tool)
+    "web": {
+      "search": {
+        "enabled": true,
+        "provider": "brave",
+        "apiKey": "${BRAVE_API_KEY}"
+
+        // Alternative: Perplexity via OpenRouter
+        // "provider": "perplexity",
+        // "perplexity": {
+        //   "apiKey": "${OPENROUTER_API_KEY}",
+        //   "baseUrl": "https://openrouter.ai/api/v1",
+        //   "model": "perplexity/sonar-pro"
+        // }
+      }
+    }
+  },
+
+  // --- Skills ---
+  // Only allow known-good bundled skills. No skill installer configured
+  // means no new skills can be added from ClawHub.
+  "skills": {
+    "allowBundled": ["coding-agent", "github", "healthcheck", "weather", "video-frames"]
+  },
+
+  // --- Session Isolation ---
+  "session": {
+    // Each sender on each channel gets their own isolated session
+    "dmScope": "per-channel-peer",
+
+    // Inter-agent communication settings
+    "agentToAgent": {
+      "maxPingPongTurns": 5
+    }
+  },
+
+  // --- Scheduled Tasks ---
+  "cron": {
+    "jobs": [
+      {
+        // Workspace git sync — runs on main agent only (has exec access).
+        // Channel agents (no exec) can also request on-demand sync via sessions_send.
+        "jobId": "workspace-git-sync",
+        "agentId": "main",
+        "schedule": { "kind": "cron", "expr": "0 */6 * * *" },
+        "sessionTarget": "isolated",
+        "payload": {
+          "kind": "agentTurn",
+          "message": "Run workspace git sync: for each workspace in ~/.openclaw/workspaces/*, check for uncommitted changes, commit with a descriptive message, pull --rebase, and push. Report any conflicts or failures."
+        },
+        "delivery": { "mode": "none" }  // Silent — no channel delivery
+      }
+    ]
+  },
+
+  // --- Agents ---
+  "agents": {
+    "defaults": {
+      // Pre-compaction memory flush — saves important context to memory before compacting.
+      // Without this, the agent forgets everything from the compacted conversation portion.
+      // Flush triggers silently when token estimate nears the reserve floor.
+      "compaction": {
+        "mode": "safeguard",
+        "reserveTokensFloor": 20000,
+        "memoryFlush": {
+          "enabled": true,
+          "softThresholdTokens": 4000,
+          "systemPrompt": "Session nearing compaction. Store durable memories now.",
+          "prompt": "Write any lasting notes to memory/YYYY-MM-DD.md; reply with NO_REPLY if nothing to store."
+        }
+      },
+
+      // Memory search — semantic + keyword hybrid search across memory files.
+      // Local provider: no API key, ~500MB disk, full privacy (nothing leaves your machine).
+      // Remote alternatives: "openai", "gemini", "voyage" (require separate API keys).
+      // See Phase 1.5 — Memory for full provider comparison.
+      "memorySearch": {
+        "enabled": true,
+        "provider": "local",
+        "query": {
+          "hybrid": {
+            "enabled": true,
+            "vectorWeight": 0.7,
+            "textWeight": 0.3
+          }
+        },
+        "cache": {
+          "enabled": true,
+          "maxEntries": 50000
+        }
+      },
+      "maxConcurrent": 4,
+      "subagents": {
+        "maxConcurrent": 8,
+        "model": "anthropic/claude-sonnet-4-5",
+        "thinking": "low"
+      },
+      // Default sandbox (Docker isolation / Linux VMs): non-main sessions run in Docker with no network.
+      // Channel agents inherit this — their sessions are always non-main.
+      // macOS VM isolation: remove this block — no Docker available inside macOS VM.
+      // Linux VM isolation: keep this block — Docker works inside Linux VMs.
+      "sandbox": {
+        "mode": "non-main",
+        "scope": "agent",
+        "workspaceAccess": "rw"
+      }
+    },
+    "list": [
+      {
+        // MAIN AGENT — operator access via Control UI / CLI
+        // Full tool access, no channel binding, not sandboxed.
+        // This is your direct interface. Web tools denied at agent level;
+        // web access delegated to search/browser agents via sessions_send.
+        // Handles privileged operations (git sync, builds) on behalf of channel agents.
+        "id": "main",
+        "default": true,
+        "workspace": "/Users/openclaw/.openclaw/workspaces/main",
+        "tools": {
+          "deny": ["web_search", "web_fetch", "browser"]
+        },
+        "sandbox": { "mode": "off" },
+        "subagents": { "allowAgents": ["search", "browser"] }
+      },
+      {
+        // WHATSAPP AGENT — daily work, research, planning
+        // No exec/process/web — delegates web to search/browser, privileged ops to main.
+        // Docker isolation / Linux VMs: Sandboxed (no network).
+        // macOS VM isolation: No sandbox — tool policy provides isolation.
+        "id": "whatsapp",
+        "workspace": "/Users/openclaw/.openclaw/workspaces/whatsapp",
+        "agentDir": "/Users/openclaw/.openclaw/agents/whatsapp/agent",
+        "tools": {
+          "deny": ["web_search", "web_fetch", "browser", "exec", "process"],
+          "elevated": { "enabled": false }
+        },
+        "subagents": { "allowAgents": ["main", "search", "browser"] }
+      },
+      {
+        // SIGNAL AGENT — same capabilities as WhatsApp agent
+        // No exec/process/web — delegates web to search/browser, privileged ops to main.
+        // Separate workspace and credentials for isolation.
+        "id": "signal",
+        "workspace": "/Users/openclaw/.openclaw/workspaces/signal",
+        "agentDir": "/Users/openclaw/.openclaw/agents/signal/agent",
+        "tools": {
+          "deny": ["web_search", "web_fetch", "browser", "exec", "process"],
+          "elevated": { "enabled": false }
+        },
+        // Signal has no native @mention — use regex patterns for group mention gating
+        "groupChat": {
+          "mentionPatterns": ["@openclaw", "hey openclaw"]
+        },
+        "subagents": { "allowAgents": ["main", "search", "browser"] }
+      },
+      {
+        // SEARCH AGENT — isolated web search + content processing
+        // Only reachable via sessions_send from other agents.
+        // No channel binding = can't be messaged directly.
+        // No filesystem tools — nothing to read or exfiltrate.
+        // Docker isolation / Linux VMs: Sandboxed — can't read auth-profiles.json (on host, outside container).
+        // macOS VM isolation: No sandbox — tool policy provides isolation (only API keys at risk within VM).
+        "id": "search",
+        "workspace": "/Users/openclaw/.openclaw/workspaces/search",
+        "agentDir": "/Users/openclaw/.openclaw/agents/search/agent",
+        "model": "anthropic/claude-sonnet-4-5",
+        "tools": {
+          "allow": ["web_search", "web_fetch", "sessions_send", "session_status"],
+          "deny": ["exec", "read", "write", "edit", "apply_patch", "process", "browser", "gateway", "cron"]
+        },
+        "subagents": { "allowAgents": [] },
+        "sandbox": {
+          "mode": "all",
+          "scope": "agent",
+          "workspaceAccess": "none"
+        }
+      },
+      {
+        // BROWSER AGENT — isolated browser automation
+        // Handles page navigation, screenshots, form interaction.
+        // Only reachable via sessions_send from other agents.
+        // No channel binding = can't be messaged directly.
+        // No filesystem tools, no web search — only navigates to URLs provided by callers.
+        "id": "browser",
+        "workspace": "/Users/openclaw/.openclaw/workspaces/browser",
+        "agentDir": "/Users/openclaw/.openclaw/agents/browser/agent",
+        "model": "anthropic/claude-sonnet-4-5",
+        "tools": {
+          "allow": ["browser", "web_fetch", "sessions_send", "session_status"],
+          "deny": ["exec", "read", "write", "edit", "apply_patch", "process", "web_search", "gateway", "cron"]
+        },
+        "subagents": { "allowAgents": [] },
+        "sandbox": {
+          "mode": "all",
+          "scope": "agent",
+          "workspaceAccess": "none"
+        }
+      },
+      {
+        // GOOGLE CHAT AGENT — same capabilities as WhatsApp/Signal agents
+        // No exec/process/web — delegates web to search/browser, privileged ops to main.
+        // Separate workspace and credentials for isolation.
+        // Requires public webhook URL (Tailscale Funnel recommended) — see Google Chat Setup guide.
+        "id": "googlechat",
+        "workspace": "/Users/openclaw/.openclaw/workspaces/googlechat",
+        "agentDir": "/Users/openclaw/.openclaw/agents/googlechat/agent",
+        "tools": {
+          "deny": ["web_search", "web_fetch", "browser", "exec", "process"],
+          "elevated": { "enabled": false }
+        },
+        "subagents": { "allowAgents": ["main", "search", "browser"] }
+      }
+    ]
+  },
+
+  // --- Channel Routing ---
+  // Each channel routes to its dedicated agent.
+  // Main agent has no binding — accessible via Control UI / CLI only.
+  // Search + browser agents have no binding — only reachable via sessions_send.
+  "bindings": [
+    { "agentId": "whatsapp", "match": { "channel": "whatsapp" } },
+    { "agentId": "signal", "match": { "channel": "signal" } },
+    { "agentId": "googlechat", "match": { "channel": "googlechat" } }
+  ],
+
+  // --- Channel Configuration ---
+  "channels": {
+    "whatsapp": {
+      "dmPolicy": "pairing",
+      "selfChatMode": false,
+      "allowFrom": ["+46XXXXXXXXX"],
+      "groupPolicy": "allowlist",
+      "groups": { "*": { "requireMention": true } },
+      "mediaMaxMb": 50,
+      "debounceMs": 0
+    },
+    "signal": {
+      "enabled": true,
+      "account": "+46XXXXXXXXX",
+      "dmPolicy": "pairing",
+      "allowFrom": ["+46XXXXXXXXX"],
+      "groupPolicy": "allowlist",
+      "groups": { "*": { "requireMention": true } },
+      "mediaMaxMb": 8
+    },
+    "googlechat": {
+      "enabled": true,
+      "serviceAccountFile": "${GOOGLE_CHAT_SERVICE_ACCOUNT_FILE}",
+      "audienceType": "app-url",
+      "audience": "https://<node-name>.<tailnet>.ts.net/googlechat",
+      "dm": {
+        "policy": "pairing",
+        "allowFrom": ["user@yourdomain.com"]
+      },
+      "groupPolicy": "allowlist",
+      "groups": { "*": { "requireMention": true } },
+      "mediaMaxMb": 20
+    }
+  },
+
+  // --- Browser ---
+  // Required for the browser agent. Uses a managed profile — never your personal Chrome.
+  "browser": {
+    "enabled": true,
+    "defaultProfile": "openclaw",
+    "headless": true,
+    "evaluateEnabled": false,
+    "profiles": {
+      "openclaw": { "cdpPort": 18800, "color": "#FF4500" }
+    }
+  },
+
+  // --- Gateway ---
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "loopback",
+    "auth": {
+      "mode": "token",
+      "token": "${OPENCLAW_GATEWAY_TOKEN}"
+    },
+    "nodes": {
+      "browser": { "mode": "managed" }
+    }
+  },
+
+  // --- Network Discovery ---
+  "discovery": {
+    "mdns": { "mode": "minimal" }
+  },
+
+  // --- Logging ---
+  "logging": {
+    "redactSensitive": "tools",
+    "redactPatterns": ["pplx-[A-Za-z0-9]+"]
+  },
+
+  // --- Plugins ---
+  "plugins": {
+    "entries": {
+      "whatsapp": { "enabled": true },
+      "signal": { "enabled": true },
+      "web-guard": {
+        "enabled": true,
+        "config": {
+          "failOpen": false,
+          "timeoutMs": 10000,
+          "maxContentLength": 50000,
+          "sensitivity": 0.5
+        }
+      },
+      "googlechat": { "enabled": true },
+      "image-gen": {
+        "enabled": true,
+        "config": {
+          // Uses $OPENROUTER_API_KEY from env (same key as Perplexity if configured)
+          "defaultModel": "openai/gpt-5-image-mini",
+          "defaultAspectRatio": "1:1",
+          "defaultImageSize": "2K",
+          "timeoutMs": 60000
+        }
+      }
+    }
+  }
+}

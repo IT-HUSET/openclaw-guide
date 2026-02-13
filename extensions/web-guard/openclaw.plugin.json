@@ -1,0 +1,52 @@
+{
+  "id": "web-guard",
+  "name": "Web Content Guard",
+  "description": "Scans web_fetch content for prompt injection using a local DeBERTa ONNX model. No API key required — model is downloaded on first use and cached locally. Requires OpenClaw >= 2026.2.1.",
+  "version": "0.2.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "sensitivity": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.5,
+        "description": "Detection threshold (0.0–1.0). Lower = more aggressive (fewer false negatives, more false positives)."
+      },
+      "maxContentLength": {
+        "type": "number",
+        "default": 50000,
+        "description": "Max characters to send to guard. Longer content is truncated."
+      },
+      "timeoutMs": {
+        "type": "number",
+        "default": 10000,
+        "description": "Pre-fetch timeout in milliseconds."
+      },
+      "failOpen": {
+        "type": "boolean",
+        "default": false,
+        "description": "If true, allow content when model is unavailable. If false (default), block on model failure."
+      },
+      "cacheDir": {
+        "type": "string",
+        "description": "Directory to cache the ONNX model. Defaults to @huggingface/transformers default cache location."
+      },
+      "dtype": {
+        "type": "string",
+        "enum": ["fp32"],
+        "default": "fp32",
+        "description": "ONNX precision. Only fp32 is shipped by this model."
+      }
+    }
+  },
+  "uiHints": {
+    "sensitivity": { "label": "Sensitivity" },
+    "maxContentLength": { "label": "Max Content Length" },
+    "timeoutMs": { "label": "Timeout (ms)" },
+    "failOpen": { "label": "Fail Open" },
+    "cacheDir": { "label": "Model Cache Dir" },
+    "dtype": { "label": "Quantization" }
+  }
+}

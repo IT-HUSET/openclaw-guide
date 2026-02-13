@@ -1,0 +1,11 @@
+{
+  "name": "openclaw-integration-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "tsx --test integration.test.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.5"
+  }
+}
