@@ -153,4 +153,4 @@ openclaw security audit --deep
 openclaw security audit --fix
 ```
 
-See [Security](../phases/phase-2-security.md) for the full security baseline.
+See [Security](../phases/phase-3-security.md) for the full security baseline.

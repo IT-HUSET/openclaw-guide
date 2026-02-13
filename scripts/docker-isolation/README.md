@@ -1,6 +1,6 @@
 # Docker Isolation Setup Scripts
 
-Automates the [recommended Docker isolation deployment](../../content/docs/phases/phase-5-deployment.md#docker-isolation) for a dedicated macOS machine. Supports single-gateway (one user, all channels) and multi-gateway (separate user per channel for stronger isolation).
+Automates the [recommended Docker isolation deployment](../../content/docs/phases/phase-6-deployment.md#docker-isolation) for a dedicated macOS machine. Supports single-gateway (one user, all channels) and multi-gateway (separate user per channel for stronger isolation).
 
 ## Architecture
 
@@ -267,4 +267,4 @@ sudo -u openclaw-sig openclaw plugins list
 
 Full annotated 6-agent config: [`examples/openclaw.json`](../../examples/openclaw.json)
 
-Security trade-off analysis: [Security: Deployment Isolation Options](../../content/docs/phases/phase-2-security.md#deployment-isolation-options)
+Security trade-off analysis: [Security: Deployment Isolation Options](../../content/docs/phases/phase-3-security.md#deployment-isolation-options)

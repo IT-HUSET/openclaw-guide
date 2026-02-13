@@ -1,12 +1,12 @@
 ---
-title: "Phase 4 — Web Search Isolation"
+title: "Phase 5 — Web Search Isolation"
 description: "Isolated search and browser agents, web-guard plugin."
-weight: 40
+weight: 50
 ---
 
 This is the key security pattern in this guide: give your agents internet access without giving them the ability to exfiltrate data.
 
-**Prerequisite:** [Phase 3 (Multi-Agent)](phase-3-multi-agent.md) — this phase adds search and browser agents to your existing multi-agent gateway.
+**Prerequisite:** [Phase 4 (Multi-Agent)](phase-4-multi-agent.md) — this phase adds search and browser agents to your existing multi-agent gateway.
 
 > **VM isolation:** macOS VMs — skip the `sandbox` config blocks (no Docker). Linux VMs — keep the `sandbox` blocks (Docker works inside the VM). Both run the same search/browser delegation pattern.
 
@@ -186,13 +186,13 @@ Add to `openclaw.json`:
 Key points:
 - Channel agents (e.g. `whatsapp`) deny `web_search`, `web_fetch`, and `browser` at the **agent level** — this is where web isolation is enforced
 - Channel agents have `subagents.allowAgents: ["main", "search", "browser"]` — this lets them delegate via `sessions_send`
-- Channel agents inherit the default sandbox (`non-main`, no network) — see [Phase 3](phase-3-multi-agent.md#creating-channel-agents)
+- Channel agents inherit the default sandbox (`non-main`, no network) — see [Phase 4](phase-4-multi-agent.md#creating-channel-agents)
 - `search` agent has `web_search` and `web_fetch` via its `allow` list. No filesystem tools — eliminates any data exfiltration risk
 - `search` agent has `sessions_send` and `session_status` — to respond and check status
 - `search` agent denies all dangerous tools explicitly
 - `sandbox.workspaceAccess: "none"` — no filesystem access even within sandbox
 
-> **No Docker?** If Docker sandboxing is unavailable, omit the `sandbox` block. The tool deny/allow lists provide the primary isolation. The sandbox is defense-in-depth, not the only layer. See [Phase 5: Docker Sandboxing](phase-5-deployment.md#docker-sandboxing) for setup.
+> **No Docker?** If Docker sandboxing is unavailable, omit the `sandbox` block. The tool deny/allow lists provide the primary isolation. The sandbox is defense-in-depth, not the only layer. See [Phase 6: Docker Sandboxing](phase-6-deployment.md#docker-sandboxing) for setup.
 
 > **Why per-agent deny, not global?** Global `tools.deny` overrides agent-level `tools.allow` — a tool denied globally cannot be re-enabled on any agent. Web tools must be denied per-agent so the search agent's `allow` list works. `deny` always wins over `allow` at the *same* level — so adding `web_search` to both `allow` and `deny` on the search agent would deny it. See [Reference: Tool Policy Precedence](../reference.md#tool-policy-precedence) for details.
 
@@ -611,7 +611,7 @@ openclaw plugins install -l ./extensions/channel-guard
 
 ## Next Steps
 
-→ **[Phase 5: Deployment](phase-5-deployment.md)** — run as a system service with full network isolation
+→ **[Phase 6: Deployment](phase-6-deployment.md)** — run as a system service with full network isolation
 
 Or:
 - [Reference](../reference.md) — full tool list, config keys, gotchas

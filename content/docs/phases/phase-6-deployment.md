@@ -1,13 +1,13 @@
 ---
-title: "Phase 5 — Deployment"
+title: "Phase 6 — Deployment"
 description: "VM isolation, LaunchDaemon/systemd, secrets, firewall, Tailscale, Signal."
-weight: 50
+weight: 60
 ---
 
 Run OpenClaw as a system service that starts at boot, survives reboots, and is locked down at the network level.
 
 - **Coming from Phase 1 quick start?** Each isolation model section below covers migrating your existing config to the dedicated user/VM — stop the personal gateway first, then follow the migration steps in your chosen section.
-- **Fresh dedicated machine?** Each section installs OpenClaw from scratch in the right place — no prior installation needed. A dedicated machine also changes the isolation trade-offs — see [Security: dedicated machine note](phase-2-security.md#comparison).
+- **Fresh dedicated machine?** Each section installs OpenClaw from scratch in the right place — no prior installation needed. A dedicated machine also changes the isolation trade-offs — see [Security: dedicated machine note](phase-3-security.md#comparison).
 
 **Pick one isolation model and skip the others** — each section is self-contained with full installation, configuration, and service setup:
 - [Docker Isolation](#docker-isolation) *(recommended)* — macOS or Linux, single gateway with Docker sandboxing
@@ -33,7 +33,7 @@ For anything beyond testing, run as a system service.
 
 ## Deployment: Choose Your Isolation Model
 
-Before setting up the service, choose your isolation model. See [Security: Deployment Isolation Options](phase-2-security.md#deployment-isolation-options) for the full trade-off analysis.
+Before setting up the service, choose your isolation model. See [Security: Deployment Isolation Options](phase-3-security.md#deployment-isolation-options) for the full trade-off analysis.
 
 - **Docker isolation** *(recommended)* — single 6-agent gateway as `openclaw` user with Docker sandboxing. macOS or Linux.
 - **VM isolation: macOS VMs** (Lume / Parallels) — single macOS VM, 6-agent gateway, no Docker inside VM. macOS hosts only.
@@ -65,7 +65,7 @@ On Linux, global install places the binary at `/usr/local/bin/openclaw` — acce
 
 ### Dedicated OS User
 
-If you haven't already (from [Phase 2](phase-2-security.md)), create a dedicated non-admin user:
+If you haven't already (from [Phase 3](phase-3-security.md)), create a dedicated non-admin user:
 
 > **VM isolation:** Skip this section — you'll create a dedicated user inside the VM instead. macOS VMs: see [Dedicated user (inside VM)](#dedicated-user-inside-vm). Linux VMs: see [Dedicated user (inside Linux VM)](#dedicated-user-inside-linux-vm).
 
@@ -98,7 +98,7 @@ sudo passwd openclaw
 > - **Shared temp directories** — `/tmp` and `/var/tmp` are accessible by all users
 > - **Mounted volumes** — external drives and NAS mounts are typically world-readable
 >
-> These are standard multi-user OS risks, not OpenClaw-specific. On a **dedicated machine** with no personal data, these are non-issues — see the [dedicated machine note](phase-2-security.md#comparison).
+> These are standard multi-user OS risks, not OpenClaw-specific. On a **dedicated machine** with no personal data, these are non-issues — see the [dedicated machine note](phase-3-security.md#comparison).
 
 #### Install OpenClaw
 
@@ -504,9 +504,9 @@ Create one LaunchDaemon (macOS) or systemd unit (Linux) per user. Use the same t
 
 Each user gets their own `openclaw.json` with only the relevant channel, agents, and bindings. Start from [`examples/openclaw.json`](../examples/config.md) and remove everything that belongs to the other channel.
 
-> **Tool deny/allow split:** When a gateway has mixed tool needs (main agent denies web tools, search agent allows them), deny web tools at the **agent level** on the main agent — not globally. Global `tools.deny` overrides agent-level `tools.allow`, so a global deny on `web_search` breaks the search agent even if it has `web_search` in its `tools.allow`. See [Phase 4](phase-4-web-search.md) for the correct pattern.
+> **Tool deny/allow split:** When a gateway has mixed tool needs (main agent denies web tools, search agent allows them), deny web tools at the **agent level** on the main agent — not globally. Global `tools.deny` overrides agent-level `tools.allow`, so a global deny on `web_search` breaks the search agent even if it has `web_search` in its `tools.allow`. See [Phase 5](phase-5-web-search.md) for the correct pattern.
 
-> **Simplified workspace sync:** Since each channel-connected agent is the main agent of its own gateway (with full exec access), it can run `git` commands directly. The [delegation-based workspace git sync](phase-3-multi-agent.md#workspace-git-sync) — needed when channel agents lack exec in a single-gateway setup — is unnecessary here. Each agent manages its own workspace repo without `sessions_send`.
+> **Simplified workspace sync:** Since each channel-connected agent is the main agent of its own gateway (with full exec access), it can run `git` commands directly. The [delegation-based workspace git sync](phase-4-multi-agent.md#workspace-git-sync) — needed when channel agents lack exec in a single-gateway setup — is unnecessary here. Each agent manages its own workspace repo without `sessions_send`.
 
 > **Trade-off:** Multiple gateways, configs, service files, and secrets to manage — but user-level isolation between channels without VM overhead. A root exploit still compromises all users (shared kernel). Both users share the Docker daemon if using Docker sandboxing.
 
@@ -689,7 +689,7 @@ sudo chmod -R 600 /Users/openclaw/.openclaw/credentials/whatsapp/default/*
 sudo chmod 700 /Users/openclaw/.openclaw/credentials/whatsapp
 ```
 
-Then follow [Phase 3](phase-3-multi-agent.md) and [Phase 4](phase-4-web-search.md) to configure the 6-agent gateway. Use [`examples/openclaw.json`](../examples/config.md) as a starting point.
+Then follow [Phase 4](phase-4-multi-agent.md) and [Phase 5](phase-5-web-search.md) to configure the 6-agent gateway. Use [`examples/openclaw.json`](../examples/config.md) as a starting point.
 
 #### LaunchDaemon (Inside VM)
 
@@ -1095,7 +1095,7 @@ Keep `openclaw.json` secrets-free — use `${ENV_VAR}` references in config, sto
 | Brave search key | `BRAVE_API_KEY` | Referenced as `${BRAVE_API_KEY}` in config |
 | OpenRouter key | `OPENROUTER_API_KEY` | If using Perplexity via OpenRouter |
 | GitHub token | `GITHUB_TOKEN` | Fine-grained PAT — see [GitHub token setup](#github-token-setup) below |
-| *(web-guard & channel-guard use local ONNX models — no API keys needed)* | | See [plugin setup](phase-4-web-search.md#advanced-prompt-injection-guard) |
+| *(web-guard & channel-guard use local ONNX models — no API keys needed)* | | See [plugin setup](phase-5-web-search.md#advanced-prompt-injection-guard) |
 
 ### GitHub token setup
 

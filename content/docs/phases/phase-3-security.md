@@ -1,7 +1,7 @@
 ---
-title: "Phase 2 — Security"
+title: "Phase 3 — Security"
 description: "Threat model, security baseline, SOUL.md, file permissions, isolation options."
-weight: 20
+weight: 30
 ---
 
 Your agent works. Now lock it down. This phase applies the security baseline that every OpenClaw installation should have.
@@ -94,7 +94,7 @@ Generate a gateway token:
 openclaw doctor --generate-gateway-token
 ```
 
-For now, export it in your shell (`export OPENCLAW_GATEWAY_TOKEN=<token>`). For production, store it in the service plist or environment file — see [Phase 5](phase-5-deployment.md#secrets-management). Don't put it in `openclaw.json` directly.
+For now, export it in your shell (`export OPENCLAW_GATEWAY_TOKEN=<token>`). For production, store it in the service plist or environment file — see [Phase 6](phase-6-deployment.md#secrets-management). Don't put it in `openclaw.json` directly.
 
 ---
 
@@ -286,20 +286,20 @@ chmod 700 ~/.openclaw/credentials/whatsapp
 chmod 600 ~/.openclaw/identity/*.json
 ```
 
-This ensures only your user (or the dedicated `openclaw` user — see [Phase 5](phase-5-deployment.md)) can read sensitive files.
+This ensures only your user (or the dedicated `openclaw` user — see [Phase 6](phase-6-deployment.md)) can read sensitive files.
 
 > **Dedicated user setup:** If files were created or copied as root (e.g., via `sudo cp`), set ownership **before** permissions — otherwise the service user gets `EACCES` at runtime:
 > ```bash
 > sudo chown -R openclaw:staff /Users/openclaw/.openclaw  # macOS
 > sudo chown -R openclaw:openclaw /home/openclaw/.openclaw # Linux
 > ```
-> See [Phase 5](phase-5-deployment.md) for the full dedicated user setup.
+> See [Phase 6](phase-6-deployment.md) for the full dedicated user setup.
 
 ---
 
 ## Running as a Dedicated OS User
 
-For maximum isolation, run OpenClaw as a separate non-admin user. This limits blast radius — if the agent is compromised, it can't access your files (provided your home directory is `chmod 700` — see [Phase 5](phase-5-deployment.md#dedicated-os-user)) or install system software.
+For maximum isolation, run OpenClaw as a separate non-admin user. This limits blast radius — if the agent is compromised, it can't access your files (provided your home directory is `chmod 700` — see [Phase 6](phase-6-deployment.md#dedicated-os-user)) or install system software.
 
 **macOS:**
 ```bash
@@ -314,7 +314,7 @@ sudo useradd -m -s /bin/bash openclaw
 sudo passwd openclaw
 ```
 
-Full dedicated user setup is covered in [Phase 5: Deployment](phase-5-deployment.md).
+Full dedicated user setup is covered in [Phase 6: Deployment](phase-6-deployment.md).
 
 ---
 
@@ -344,9 +344,9 @@ Host (macOS or Linux)
 
 **Key property:** Docker closes the `read→exfiltrate` chain — channel agents can't access `~/.openclaw/openclaw.json` (filesystem rooted to workspace inside container). All 6 agents share one gateway, one config, one process — with `sessions_send` for delegation.
 
-**Option:** For channel separation without VMs, run one gateway per channel under separate OS users on different ports. See [Phase 5: Multi-user channel separation](phase-5-deployment.md#option-multi-user-channel-separation).
+**Option:** For channel separation without VMs, run one gateway per channel under separate OS users on different ports. See [Phase 6: Multi-user channel separation](phase-6-deployment.md#option-multi-user-channel-separation).
 
-See [Phase 5: Docker Isolation](phase-5-deployment.md#docker-isolation) for setup.
+See [Phase 6: Docker Isolation](phase-6-deployment.md#docker-isolation) for setup.
 
 ### VM Isolation
 
@@ -367,9 +367,9 @@ macOS Host (personal use, untouched)
 
 **Key property:** If the VM is fully compromised, the attacker is inside the VM — your host is unreachable. The `read→exfiltrate` chain is open within the VM (no Docker), but only OpenClaw data is at risk.
 
-**Option:** For stricter channel separation, run one VM per channel (2 VMs, 4 agents each). See [Phase 5: Two VMs](phase-5-deployment.md#option-two-vms-for-channel-separation).
+**Option:** For stricter channel separation, run one VM per channel (2 VMs, 4 agents each). See [Phase 6: Two VMs](phase-6-deployment.md#option-two-vms-for-channel-separation).
 
-See [Phase 5: VM Isolation — macOS VMs](phase-5-deployment.md#vm-isolation-macos-vms) for installation.
+See [Phase 6: VM Isolation — macOS VMs](phase-6-deployment.md#vm-isolation-macos-vms) for installation.
 
 #### Linux VMs (Multipass / KVM / UTM)
 
@@ -391,14 +391,14 @@ Host (macOS or Linux, untouched)
 
 **Key property:** Both isolation chains are closed — Docker roots the filesystem (closing `read→exfiltrate`) while the VM boundary protects the host (closing platform escape). No macOS 2-VM limit applies; run as many VMs as resources allow.
 
-See [Phase 5: VM Isolation — Linux VMs](phase-5-deployment.md#vm-isolation-linux-vms) for installation.
+See [Phase 6: VM Isolation — Linux VMs](phase-6-deployment.md#vm-isolation-linux-vms) for installation.
 
 ### Comparison
 
 |  | **Docker isolation** *(recommended)* | **VM: macOS VMs** | **VM: Linux VMs** |
 |--|---|---|---|
 | Host OS | macOS or Linux | macOS only | macOS or Linux |
-| Gateways | 1 (6 agents) — or [multi-user](phase-5-deployment.md#option-multi-user-channel-separation) for channel separation | 1 (6 agents) — or 2 with [two-VM option](phase-5-deployment.md#option-two-vms-for-channel-separation) | 1 (6 agents) — unlimited VMs |
+| Gateways | 1 (6 agents) — or [multi-user](phase-6-deployment.md#option-multi-user-channel-separation) for channel separation | 1 (6 agents) — or 2 with [two-VM option](phase-6-deployment.md#option-two-vms-for-channel-separation) | 1 (6 agents) — unlimited VMs |
 | Isolation from host | Process-level (OS user) | Kernel-level (VM) | Kernel-level (VM) |
 | Internal agent isolation | Docker sandbox | Tool policy + SOUL.md (no Docker) | Docker sandbox |
 | `read→exfiltrate` within platform | Closed (Docker roots filesystem) | Open within VM (only OpenClaw data at risk) | Closed (Docker roots filesystem) |
@@ -418,11 +418,11 @@ See [Phase 5: VM Isolation — Linux VMs](phase-5-deployment.md#vm-isolation-lin
 **Docker isolation:**
 - **Shared gateway process** — all 6 agents run in one process. `openclaw.json` is readable by the gateway. Tool policy is the primary mitigation.
 - **Weaker outer boundary** — if the platform is compromised beyond Docker, the attacker is on the host as `openclaw` user. External drives and world-readable paths are accessible.
-- **Workspace data is mounted into containers** — channel agents run with `workspaceAccess: "rw"`, so SOUL.md, USER.md, MEMORY.md, and `memory/` are readable (and writable) inside the container. Docker protects *credentials* (`openclaw.json`, `auth-profiles.json`) — not workspace knowledge. Mitigated by Docker `network: none` (no outbound from container) and tool policy (no `exec`). See [Workspace Isolation](phase-3-multi-agent.md#workspace-isolation).
+- **Workspace data is mounted into containers** — channel agents run with `workspaceAccess: "rw"`, so SOUL.md, USER.md, MEMORY.md, and `memory/` are readable (and writable) inside the container. Docker protects *credentials* (`openclaw.json`, `auth-profiles.json`) — not workspace knowledge. Mitigated by Docker `network: none` (no outbound from container) and tool policy (no `exec`). See [Workspace Isolation](phase-4-multi-agent.md#workspace-isolation).
 
 **VM isolation (macOS VMs):**
 - **No Docker within VM** — the `read→exfiltrate` chain is open within the VM. Channel agents can read `~/.openclaw/openclaw.json` inside the VM. Mitigated by the VM containing only OpenClaw data.
-- **All channels share one VM** — a compromise affects all channels. For channel separation, use the [two-VM option](phase-5-deployment.md#option-two-vms-for-channel-separation).
+- **All channels share one VM** — a compromise affects all channels. For channel separation, use the [two-VM option](phase-6-deployment.md#option-two-vms-for-channel-separation).
 
 **VM isolation (Linux VMs):**
 - **More moving parts** — Linux guest OS + Docker inside VM adds operational surface (package updates, Docker daemon management). Mitigated by the simplicity of headless Linux (e.g., Ubuntu Server).
@@ -434,10 +434,10 @@ See [Phase 5: VM Isolation — Linux VMs](phase-5-deployment.md#vm-isolation-lin
   - **Send arbitrary requests to the main agent** — highest impact. The main agent is unsandboxed with full exec access. Attack flow: incoming WhatsApp message → channel agent (prompt-injected) → `sessions_send("main", "<attacker payload>")` → main agent executes with full privileges.
   - **Partial defenses:** (1) two-hop architecture — the attacker's payload must survive two model contexts (channel agent's and main agent's), (2) the main agent evaluates requests against its own AGENTS.md independently, (3) `subagents.allowAgents` restricts which agents can be reached, (4) workspace scoping limits what data is accessible. These reduce but don't eliminate the risk.
   - **No deployment topology addresses this** — `sessions_send` is intra-process communication within the gateway. Docker, VMs, and OS user boundaries don't apply. The main agent's AGENTS.md instructions are the last line of defense.
-  - See [Privileged Operation Delegation](phase-3-multi-agent.md#privileged-operation-delegation) for the delegation architecture.
+  - See [Privileged Operation Delegation](phase-4-multi-agent.md#privileged-operation-delegation) for the delegation architecture.
 - **SOUL.md is soft** — model-level guardrails can be bypassed by sophisticated prompt injection. Tool policy (`deny`/`allow`) is the hard enforcement layer.
-- **Web content injection** — poisoned web pages can inject instructions into search/browser agent responses. The [web-guard plugin](phase-4-web-search.md#advanced-prompt-injection-guard) provides optional pre-fetch content scanning, but detection is probabilistic — tool policy remains the hard enforcement layer.
-- **Channel message injection** — adversarial messages from WhatsApp/Signal can attempt to hijack channel agents. The [channel-guard plugin](phase-4-web-search.md#inbound-message-guard-channel-guard) provides optional inbound message scanning (same DeBERTa model as web-guard), but detection is probabilistic — tool policy and `sessions_send` restrictions remain the hard enforcement layers.
+- **Web content injection** — poisoned web pages can inject instructions into search/browser agent responses. The [web-guard plugin](phase-5-web-search.md#advanced-prompt-injection-guard) provides optional pre-fetch content scanning, but detection is probabilistic — tool policy remains the hard enforcement layer.
+- **Channel message injection** — adversarial messages from WhatsApp/Signal can attempt to hijack channel agents. The [channel-guard plugin](phase-5-web-search.md#inbound-message-guard-channel-guard) provides optional inbound message scanning (same DeBERTa model as web-guard), but detection is probabilistic — tool policy and `sessions_send` restrictions remain the hard enforcement layers.
 
 ---
 
@@ -484,10 +484,10 @@ After applying the security baseline, verify:
 
 Your agent is now hardened with secure defaults.
 
-→ **[Phase 3: Multi-Agent](phase-3-multi-agent.md)** — separate agents for different roles and channels
+→ **[Phase 4: Multi-Agent](phase-4-multi-agent.md)** — separate agents for different roles and channels
 
 Or jump to:
-- [Phase 1.5: Memory & Search](phase-1-5-memory.md) — persistent memory and semantic search (if you skipped it)
-- [Phase 4: Web Search Isolation](phase-4-web-search.md) — safe internet access via delegated search
-- [Phase 5: Deployment](phase-5-deployment.md) — run as a system service
+- [Phase 2: Memory & Search](phase-2-memory.md) — persistent memory and semantic search (if you skipped it)
+- [Phase 5: Web Search Isolation](phase-5-web-search.md) — safe internet access via delegated search
+- [Phase 6: Deployment](phase-6-deployment.md) — run as a system service
 - [Reference](../reference.md) — full config cheat sheet

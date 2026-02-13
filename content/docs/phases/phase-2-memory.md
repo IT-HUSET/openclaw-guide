@@ -1,7 +1,7 @@
 ---
-title: "Phase 1.5 — Memory & Search"
+title: "Phase 2 — Memory & Search"
 description: "Two-layer memory architecture, semantic search, pre-compaction flush."
-weight: 15
+weight: 20
 ---
 
 Your agent works. Now give it memory. This phase covers how OpenClaw stores and retrieves persistent knowledge — from automatic daily logs to semantic search across your agent's full history.
@@ -293,7 +293,7 @@ openclaw memory index
 
 ## Multi-Agent Memory
 
-> **Note:** This section applies after completing [Phase 3: Multi-Agent Setup](phase-3-multi-agent.md). Skip if running a single agent.
+> **Note:** This section applies after completing [Phase 4: Multi-Agent Setup](phase-4-multi-agent.md). Skip if running a single agent.
 
 Each agent has its own workspace, which means **separate memory stores**. The WhatsApp agent's memory is isolated from the Signal agent's memory.
 
@@ -357,7 +357,7 @@ Memory files inherit workspace permissions. Ensure they're restricted:
 chmod -R 700 ~/.openclaw/workspaces/*/memory/
 ```
 
-For dedicated user setups (see [Phase 5](phase-5-deployment.md)):
+For dedicated user setups (see [Phase 6](phase-6-deployment.md)):
 
 ```bash
 sudo chown -R openclaw:staff ~/.openclaw/workspaces/*/memory/  # macOS
@@ -378,7 +378,7 @@ If your memory files contain sensitive data, either exclude them from git or use
 
 Your workspace — memory files, SOUL.md, AGENTS.md — is the agent's persistent identity. Back it up to a private git repo for recovery, audit trail, and multi-device sync.
 
-> **Multi-agent?** This section covers single-agent git backup. For multi-agent setups where channel agents lack exec access and delegate to the main agent, see [Phase 3: Workspace Git Sync](phase-3-multi-agent.md#workspace-git-sync).
+> **Multi-agent?** This section covers single-agent git backup. For multi-agent setups where channel agents lack exec access and delegate to the main agent, see [Phase 4: Workspace Git Sync](phase-4-multi-agent.md#workspace-git-sync).
 
 ### Setup
 
@@ -503,7 +503,7 @@ Make the token available to the gateway:
 export GITHUB_TOKEN=github_pat_...
 ```
 
-Both `gh` CLI and `git push` over HTTPS read from this env var. See [Phase 5: GitHub Token Setup](phase-5-deployment.md#github-token-setup) for production deployment details.
+Both `gh` CLI and `git push` over HTTPS read from this env var. See [Phase 6: GitHub Token Setup](phase-6-deployment.md#github-token-setup) for production deployment details.
 
 ### Verification
 
@@ -575,8 +575,8 @@ After configuring memory search, verify everything works:
 
 Your agent now has persistent memory and semantic search.
 
-→ **[Phase 2: Security](phase-2-security.md)** — lock down your agent with secure defaults
+→ **[Phase 3: Security](phase-3-security.md)** — lock down your agent with secure defaults
 
 Or jump to:
-- [Phase 3: Multi-Agent](phase-3-multi-agent.md) — run multiple agents with different roles
+- [Phase 4: Multi-Agent](phase-4-multi-agent.md) — run multiple agents with different roles
 - [Reference](../reference.md) — config cheat sheet, memory CLI commands

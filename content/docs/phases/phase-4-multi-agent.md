@@ -1,12 +1,12 @@
 ---
-title: "Phase 3 — Multi-Agent Setup"
+title: "Phase 4 — Multi-Agent Setup"
 description: "Multiple agents, routing, workspace isolation, dedicated channels."
-weight: 30
+weight: 40
 ---
 
 Run multiple agents with different roles, channels, and permissions. Each agent gets its own workspace, credentials, and tool restrictions.
 
-**Prerequisite:** [Phase 2 (Security)](phase-2-security.md) — this phase builds on the security baseline, tool deny policies, and AGENTS.md safety rules established there.
+**Prerequisite:** [Phase 3 (Security)](phase-3-security.md) — this phase builds on the security baseline, tool deny policies, and AGENTS.md safety rules established there.
 
 ---
 
@@ -41,7 +41,7 @@ Then update `openclaw.json` to point the main agent at the new path:
 - Channel agents should not have `exec` — they're the most exposed to prompt injection. Delegate privileged operations to the main agent via `sessions_send`
 - Different security postures per context (strict for groups, relaxed for trusted DMs)
 - Credential isolation (different API keys per agent)
-- Web search/browser isolation via delegation (see [Phase 4](phase-4-web-search.md))
+- Web search/browser isolation via delegation (see [Phase 5](phase-5-web-search.md))
 
 **No:**
 - You just want different behavior per group — use AGENTS.md instructions instead
@@ -73,8 +73,8 @@ The recommended architecture separates your operator agent (full access, no chan
 
 - **Main agent** — direct access via Control UI / CLI, no sandbox, full tools; handles privileged operations on behalf of channel agents
 - **Channel agents** — one per messaging channel, no exec/process, sandboxed with Docker (Docker isolation or Linux VMs) or tool-policy-only (macOS VM isolation); delegate privileged operations to main via `sessions_send`
-- **Search agent** — added in [Phase 4](phase-4-web-search.md)
-- **Browser agent** — added in [Phase 4](phase-4-web-search.md)
+- **Search agent** — added in [Phase 5](phase-5-web-search.md)
+- **Browser agent** — added in [Phase 5](phase-5-web-search.md)
 
 ### 1. Create workspace and agent directories
 
@@ -394,7 +394,7 @@ OpenClaw evaluates tool access in two steps:
 
 **Step 2: What does this agent get?** Each agent's `tools.allow` and `tools.deny` are evaluated independently. However, global `deny` overrides agent-level `allow` — a tool denied globally cannot be re-enabled at the agent level.
 
-This is why [web search isolation](phase-4-web-search.md) uses per-agent deny: web tools (`web_search`, `web_fetch`, `browser`) are denied on each agent that shouldn't have them, rather than globally. This lets the search agent's `allow` list work.
+This is why [web search isolation](phase-5-web-search.md) uses per-agent deny: web tools (`web_search`, `web_fetch`, `browser`) are denied on each agent that shouldn't have them, rather than globally. This lets the search agent's `allow` list work.
 
 **Key rules:**
 - `deny` always wins over `allow` at the same level
@@ -443,7 +443,7 @@ This works because:
 
 **Important:** Delegation is prompt-based, not ACL-enforced. The main agent decides whether to execute based on its AGENTS.md instructions. See [Workspace Git Sync](#workspace-git-sync) for a worked example.
 
-> **Security: `sessions_send` is the dominant residual risk.** A prompt-injected channel agent can send arbitrary requests to the main agent (unsandboxed, full exec) via `sessions_send`. No deployment boundary addresses this — it's intra-process communication. The main agent's AGENTS.md is the last line of defense. Write restrictive instructions: explicitly list what the main agent should and should not do on behalf of other agents. See [Security: Accepted Risks](phase-2-security.md#accepted-risks) for the full analysis.
+> **Security: `sessions_send` is the dominant residual risk.** A prompt-injected channel agent can send arbitrary requests to the main agent (unsandboxed, full exec) via `sessions_send`. No deployment boundary addresses this — it's intra-process communication. The main agent's AGENTS.md is the last line of defense. Write restrictive instructions: explicitly list what the main agent should and should not do on behalf of other agents. See [Security: Accepted Risks](phase-3-security.md#accepted-risks) for the full analysis.
 
 ---
 
@@ -451,7 +451,7 @@ This works because:
 
 Track workspace changes in git for backup, audit trail, and multi-device sync. In a multi-agent setup, only the main agent has exec access — channel agents request sync via `sessions_send` delegation.
 
-> **Single-agent setup?** See [Phase 1.5: Workspace Git Backup](phase-1-5-memory.md#workspace-git-backup) for the simpler single-workspace pattern with HEARTBEAT.md or cron.
+> **Single-agent setup?** See [Phase 2: Workspace Git Backup](phase-2-memory.md#workspace-git-backup) for the simpler single-workspace pattern with HEARTBEAT.md or cron.
 
 ### Setup: initialize workspaces as git repos
 
@@ -563,7 +563,7 @@ Do not attempt to run git commands directly — they will fail.
 ### Security notes
 
 - **Token:** The `GITHUB_TOKEN` env var is available to the main agent's exec environment (set in the LaunchDaemon/systemd unit). Channel agents can't access it (no exec).
-- **Scope:** Use a fine-grained PAT scoped to only your workspace repos with **Contents: Read and write** permission. See [Deployment: GitHub token setup](phase-5-deployment.md#github-token-setup) for step-by-step instructions.
+- **Scope:** Use a fine-grained PAT scoped to only your workspace repos with **Contents: Read and write** permission. See [Deployment: GitHub token setup](phase-6-deployment.md#github-token-setup) for step-by-step instructions.
 - **Audit:** Commit history provides an audit trail of workspace changes, including self-modifications to SOUL.md/AGENTS.md.
 - **Private repos only:** Workspaces contain agent personality, user context, and memory — always use private repositories.
 - **Conflict resolution:** The main agent aborts on rebase conflicts rather than force-pushing. Manual intervention required — this is intentional.
@@ -588,8 +588,8 @@ After completing multi-agent setup, verify:
 
 ## Next Steps
 
-→ **[Phase 4: Web Search Isolation](phase-4-web-search.md)** — the key differentiator: safe internet access via a dedicated search agent
+→ **[Phase 5: Web Search Isolation](phase-5-web-search.md)** — the key differentiator: safe internet access via a dedicated search agent
 
 Or:
-- [Phase 5: Deployment](phase-5-deployment.md) — VM isolation (macOS VMs, Linux VMs), LaunchDaemon/LaunchAgent/systemd, firewall, Tailscale
+- [Phase 6: Deployment](phase-6-deployment.md) — VM isolation (macOS VMs, Linux VMs), LaunchDaemon/LaunchAgent/systemd, firewall, Tailscale
 - [Reference](../reference.md) — full tool list, config keys, gotchas

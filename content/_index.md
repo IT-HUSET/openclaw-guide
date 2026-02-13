@@ -19,6 +19,8 @@ layout: hextra-home
 
 {{< hextra/hero-button text="Get Started" link="docs/phases/phase-1-getting-started" >}}
 
+<div style="margin-top: 3rem"></div>
+
 {{< hextra/feature-grid >}}
   {{< hextra/feature-card title="Multi-Agent" subtitle="6 isolated agents with channel routing, workspace isolation, and per-agent tool restrictions." >}}
   {{< hextra/feature-card title="Security First" subtitle="Threat model, SOUL.md boundaries, prompt injection scanning, and deployment isolation." >}}

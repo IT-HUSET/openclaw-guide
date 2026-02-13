@@ -13,7 +13,7 @@ Connect OpenClaw to Google Chat via HTTP webhooks. Unlike WhatsApp (QR pairing) 
 - **Phase 1 completed** (working agent)
 - A **Google Workspace** domain (Chat apps require Workspace — free Gmail accounts can't use them)
 - **Google Workspace admin access** (to enable Chat apps at the org level)
-- A **public HTTPS URL** for the webhook endpoint (Tailscale Funnel recommended — see [Phase 5](phases/phase-5-deployment.md))
+- A **public HTTPS URL** for the webhook endpoint (Tailscale Funnel recommended — see [Phase 6](phases/phase-6-deployment.md))
 - A **GCP project** with the Google Chat API enabled
 
 > **Personal Google accounts** (gmail.com) can't use Google Chat apps. This channel requires Google Workspace (Business, Enterprise, Education, etc.).
@@ -172,7 +172,7 @@ Add to `~/.openclaw/openclaw.json`:
 
 > **Both `channels.googlechat` and `plugins.entries.googlechat` are required.** Missing either causes a 405 error on the webhook endpoint.
 
-### Multi-agent setup (Phase 3+)
+### Multi-agent setup (Phase 4+)
 
 Add a dedicated Google Chat agent alongside the existing WhatsApp/Signal agents:
 
@@ -320,7 +320,7 @@ For each organization:
 OpenClaw's `channels.googlechat` config supports a **single service account**. For multi-org with different service accounts:
 
 - **Single org active at a time:** Switch `serviceAccountFile` between orgs (not practical for simultaneous use)
-- **Separate gateway instances:** Run one gateway per org, each with its own service account and port. Use the [multi-user channel separation](phases/phase-5-deployment.md#option-multi-user-channel-separation) pattern from Phase 5.
+- **Separate gateway instances:** Run one gateway per org, each with its own service account and port. Use the [multi-user channel separation](phases/phase-6-deployment.md#option-multi-user-channel-separation) pattern from Phase 6.
 - **Shared service account:** If both orgs trust the same GCP project, a single service account works — but this requires cross-org GCP access.
 
 Monitor OpenClaw docs for native multi-tenant Google Chat support.
@@ -421,10 +421,10 @@ Find the bot's user ID in gateway logs or via the Google Chat API.
 
 ## Next Steps
 
-→ **[Phase 2: Security](phases/phase-2-security.md)** — apply security baseline to your Google Chat deployment
+→ **[Phase 3: Security](phases/phase-3-security.md)** — apply security baseline to your Google Chat deployment
 
 Or:
-- [Phase 3: Multi-Agent](phases/phase-3-multi-agent.md) — add a dedicated Google Chat agent
-- [Phase 4: Web Search Isolation](phases/phase-4-web-search.md) — safe internet access for your agent
-- [Phase 5: Deployment](phases/phase-5-deployment.md) — production service with webhook exposure
+- [Phase 4: Multi-Agent](phases/phase-4-multi-agent.md) — add a dedicated Google Chat agent
+- [Phase 5: Web Search Isolation](phases/phase-5-web-search.md) — safe internet access for your agent
+- [Phase 6: Deployment](phases/phase-6-deployment.md) — production service with webhook exposure
 - [Reference](reference.md) — config cheat sheet, gotchas

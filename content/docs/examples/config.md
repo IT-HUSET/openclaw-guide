@@ -4,9 +4,9 @@ description: "Complete annotated OpenClaw config with 6 agents, Docker sandboxin
 weight: 121
 ---
 
-Complete annotated `openclaw.json` implementing all recommendations from the guide: security baseline (Phase 2), six agents with channel routing (Phases 3-4 + Google Chat), Docker sandboxing (Phase 5), and production deployment settings. Uses JSON5 comments for inline documentation — OpenClaw supports JSON5 natively.
+Complete annotated `openclaw.json` implementing all recommendations from the guide: security baseline (Phase 3), six agents with channel routing (Phases 4-5 + Google Chat), Docker sandboxing (Phase 6), and production deployment settings. Uses JSON5 comments for inline documentation — OpenClaw supports JSON5 natively.
 
-Three deployment postures are covered: Docker isolation (this config), macOS VM isolation (remove sandbox blocks), and Linux VM isolation (keep sandbox blocks). See [Phase 2 — Security](../phases/phase-2-security.md#deployment-isolation-options) for the full trade-off analysis.
+Three deployment postures are covered: Docker isolation (this config), macOS VM isolation (remove sandbox blocks), and Linux VM isolation (keep sandbox blocks). See [Phase 3 — Security](../phases/phase-3-security.md#deployment-isolation-options) for the full trade-off analysis.
 
 ```json5
 {
@@ -17,10 +17,10 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
   // OpenClaw supports JSON5 natively — no need to strip comments.
   //
   // Implements all recommendations from the openclaw-guide:
-  // - Security baseline (Phase 2)
-  // - Six agents: main, whatsapp, signal, googlechat, search, browser (Phases 3-4 + Google Chat)
-  // - Docker sandboxing for channel agents (Phase 5, Docker isolation)
-  // - Production deployment settings (Phase 5)
+  // - Security baseline (Phase 3)
+  // - Six agents: main, whatsapp, signal, googlechat, search, browser (Phases 4-5 + Google Chat)
+  // - Docker sandboxing for channel agents (Phase 6, Docker isolation)
+  // - Production deployment settings (Phase 6)
   //
   // DEPLOYMENT OPTIONS:
   //   Docker isolation — Dedicated OS user + Docker/OrbStack (this config): stronger
@@ -29,7 +29,7 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
   //                   Remove all "sandbox" blocks; tool policy provides internal isolation.
   //   VM: Linux VMs — Multipass / KVM: strongest combined posture (VM boundary + Docker).
   //                   Keep "sandbox" blocks — Docker works inside Linux VMs.
-  //   See Phase 2 — Security for the full trade-off analysis.
+  //   See Phase 3 — Security for the full trade-off analysis.
   //
   // Replace placeholder values:
   //   +46XXXXXXXXX  → your phone number
@@ -42,7 +42,7 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
   //   OPENROUTER_API_KEY (required for image-gen plugin; also used by Perplexity)
   //   GITHUB_TOKEN
   //   GOOGLE_CHAT_SERVICE_ACCOUNT_FILE (path to service account JSON key for Google Chat)
-  // See Phase 5 — Deployment > Secrets Management for details.
+  // See Phase 6 — Deployment > Secrets Management for details.
   // ============================================================
 
   // --- Chat Commands ---
@@ -143,7 +143,7 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
       // Memory search — semantic + keyword hybrid search across memory files.
       // Local provider: no API key, ~500MB disk, full privacy (nothing leaves your machine).
       // Remote alternatives: "openai", "gemini", "voyage" (require separate API keys).
-      // See Phase 1.5 — Memory for full provider comparison.
+      // See Phase 2 — Memory for full provider comparison.
       "memorySearch": {
         "enabled": true,
         "provider": "local",

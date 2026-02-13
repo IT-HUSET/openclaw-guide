@@ -28,7 +28,7 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
 | `sessions_send` | Send message to another agent's session |
 | `sessions_spawn` | Spawn background sub-agent task |
 | `session_status` | Check session status |
-| `memory_search` | Semantic/hybrid search across memory files. Requires `memorySearch` config. See [Phase 1.5](phases/phase-1-5-memory.md) |
+| `memory_search` | Semantic/hybrid search across memory files. Requires `memorySearch` config. See [Phase 2](phases/phase-2-memory.md) |
 | `memory_get` | Retrieve a specific memory entry by date or path |
 | `message` | Send messages to channels |
 | `cron` | Schedule recurring tasks |
@@ -261,7 +261,7 @@ OpenClaw applies tool restrictions in an 8-layer cascade:
 | 7 | Sandbox tool policy | `tools.sandbox.tools` |
 | 8 | Subagent tool policy | `tools.subagents.tools` |
 
-**Critical:** Global deny (layer 3) overrides agent-level allow (layer 5). A tool in `tools.deny` **cannot** be re-enabled by an agent's `tools.allow`. For tools needed by some agents but not others (e.g., `web_search` for a search agent), deny per-agent instead of globally. See [Phase 4](phases/phase-4-web-search.md) for the correct isolation pattern.
+**Critical:** Global deny (layer 3) overrides agent-level allow (layer 5). A tool in `tools.deny` **cannot** be re-enabled by an agent's `tools.allow`. For tools needed by some agents but not others (e.g., `web_search` for a search agent), deny per-agent instead of globally. See [Phase 5](phases/phase-5-web-search.md) for the correct isolation pattern.
 
 ---
 
@@ -385,7 +385,7 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 | `channel-guard` | Inbound message injection scanning for WhatsApp/Signal/Google Chat | — (local ONNX model) |
 | `image-gen` | Generate images from text prompts via OpenRouter | `OPENROUTER_API_KEY` |
 
-The `web-guard` plugin intercepts `web_fetch` calls, pre-fetches the URL, and scans content for prompt injection before the agent sees it. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing. Both use the same local DeBERTa ONNX model, are fail-closed by default (`failOpen: false`), and share the model cache. See [web-search-isolation.md](phases/phase-4-web-search.md#advanced-prompt-injection-guard) for full setup and limitations.
+The `web-guard` plugin intercepts `web_fetch` calls, pre-fetches the URL, and scans content for prompt injection before the agent sees it. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing. Both use the same local DeBERTa ONNX model, are fail-closed by default (`failOpen: false`), and share the model cache. See [web-search-isolation.md](phases/phase-5-web-search.md#advanced-prompt-injection-guard) for full setup and limitations.
 
 The `image-gen` plugin registers a `generate_image` tool that agents can call to create images from text prompts. Uses OpenRouter's unified API — supports FLUX, Gemini, GPT, and Sourceful models. See [extensions/image-gen/](extensions/image-gen.md) for source.
 

@@ -4,7 +4,10 @@ description: "Install OpenClaw, connect WhatsApp, and verify your first agent."
 weight: 10
 ---
 
-Get a working OpenClaw agent in minutes. This phase installs on your personal user account for learning and evaluation — production deployment to a dedicated user or VM is covered in [Phase 5](phase-5-deployment.md).
+Get a working OpenClaw agent in minutes. 
+
+> **IMPORTANT NOTE:**   
+> This phase installs on your personal user account for _**learning and evaluation**_ — **production deployment** to a dedicated user or VM is covered in **[Phase 6](phase-6-deployment.md)**.
 
 ---
 
@@ -26,11 +29,11 @@ Before installing, decide where OpenClaw will run:
 | Path | Where you install | When to choose |
 |------|-------------------|----------------|
 | **Quick start** (below) | Your personal user account | Evaluating, developing, learning |
-| **Production** ([Phase 5](phase-5-deployment.md)) | Dedicated user or VM | Dedicated machine, always-on service |
+| **Production** ([Phase 6](phase-6-deployment.md)) | Dedicated user or VM | Dedicated machine, always-on service |
 
-> **Setting up a dedicated machine (e.g. Mac Mini)?** Skip straight to [Phase 5: Deployment](phase-5-deployment.md) — it covers installation in the right place for each isolation model. Installing here first means moving files later. For the recommended Docker isolation setup, the [`scripts/docker-isolation/`](https://github.com/IT-HUSET/openclaw-guide/tree/main/scripts/docker-isolation/) scripts automate the entire process.
+> **Setting up a dedicated machine (e.g. Mac Mini)?** Skip straight to [Phase 6: Deployment](phase-6-deployment.md) — it covers installation in the right place for each isolation model. Installing here first means moving files later. For the recommended Docker isolation setup, the [`scripts/docker-isolation/`](https://github.com/IT-HUSET/openclaw-guide/tree/main/scripts/docker-isolation/) scripts automate the entire process.
 
-Continuing below installs on your personal user — you can follow Phases 2–4 to learn the platform, then migrate to a dedicated user/VM in Phase 5.
+Continuing below installs on your personal user — you can follow Phases 3–5 to learn the platform, then migrate to a dedicated user/VM in Phase 6.
 
 ---
 
@@ -44,7 +47,7 @@ The installer runs `npm install -g openclaw`, placing it in the global npm prefi
 - **macOS (Homebrew Node):** binary at `/opt/homebrew/bin/openclaw`, package in `/opt/homebrew/lib/node_modules/openclaw`
 - **Linux:** typically `/usr/local/bin/openclaw` and `/usr/local/lib/node_modules/openclaw`
 
-All users in the `staff` group (macOS default) can run the binary — relevant if you later create a dedicated `openclaw` user (see [Phase 5](phase-5-deployment.md)).
+All users in the `staff` group (macOS default) can run the binary — relevant if you later create a dedicated `openclaw` user (see [Phase 6](phase-6-deployment.md)).
 
 Verify:
 ```bash
@@ -174,7 +177,7 @@ These markdown files in `workspace/` shape your agent's behavior:
 | **IDENTITY.md** | Agent metadata — name, creature type, vibe, emoji, avatar | Referenced as needed |
 | **TOOLS.md** | Environment-specific notes — camera names, SSH hosts, device nicknames | Every session |
 | **HEARTBEAT.md** | Proactive task checklist | Heartbeat cycle (~30 min) |
-| **MEMORY.md** | Curated long-term memory — durable facts, decisions, lessons. Not auto-created; the agent creates it over time. See [Phase 1.5](phase-1-5-memory.md) | Main session only |
+| **MEMORY.md** | Curated long-term memory — durable facts, decisions, lessons. Not auto-created; the agent creates it over time. See [Phase 2](phase-2-memory.md) | Main session only |
 | **BOOTSTRAP.md** | First-run onboarding script — self-deletes when done | First run only |
 | **BOOT.md** | Startup automation hooks (requires `hooks.internal.enabled`) | On startup |
 
@@ -205,14 +208,14 @@ The gateway runs on your machine and connects outbound to WhatsApp servers and y
 
 Your agent works, but it's running with default settings. Next:
 
-→ **[Phase 1.5: Memory & Search](phase-1-5-memory.md)** — give your agent persistent memory and semantic search
+→ **[Phase 2: Memory & Search](phase-2-memory.md)** — give your agent persistent memory and semantic search
 
 Then lock it down:
 
-→ **[Phase 2: Security](phase-2-security.md)** — secure defaults before going further
+→ **[Phase 3: Security](phase-3-security.md)** — secure defaults before going further
 
 When you're ready:
-- [Phase 3: Multi-Agent](phase-3-multi-agent.md) — run multiple agents with different roles
-- [Phase 4: Web Search Isolation](phase-4-web-search.md) — safe internet access
-- [Phase 5: Deployment](phase-5-deployment.md) — run as a system service (includes migration from this quick-start setup)
+- [Phase 4: Multi-Agent](phase-4-multi-agent.md) — run multiple agents with different roles
+- [Phase 5: Web Search Isolation](phase-5-web-search.md) — safe internet access
+- [Phase 6: Deployment](phase-6-deployment.md) — run as a system service (includes migration from this quick-start setup)
 - [Reference](../reference.md) — config cheat sheet, tool list, gotchas

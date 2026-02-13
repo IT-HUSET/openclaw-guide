@@ -918,7 +918,7 @@ graph LR
 ```
 ~/.openclaw/
 ├── openclaw.json              # Main config (JSON5)
-├── workspace/                 # Single-agent workspace (Phase 1-2)
+├── workspace/                 # Single-agent workspace (Phase 1-3)
 │   ├── AGENTS.md              # Operating procedures
 │   ├── SOUL.md                # Identity, personality, values, boundaries
 │   ├── TOOLS.md               # Environment-specific notes
@@ -930,7 +930,7 @@ graph LR
 │   ├── memory/                # Persistent memories (markdown)
 │   ├── skills/                # Custom skills
 │   └── hooks/                 # Workspace-scoped hooks
-├── workspaces/                # Multi-agent workspaces (Phase 3+)
+├── workspaces/                # Multi-agent workspaces (Phase 4+)
 │   ├── main/                  # Main agent workspace (same structure as above)
 │   ├── whatsapp/              # Channel agent workspace
 │   ├── signal/                # Channel agent workspace

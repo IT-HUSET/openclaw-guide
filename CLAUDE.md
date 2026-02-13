@@ -20,11 +20,11 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 ### Guide (progressive, each phase builds on previous)
 - `README.md` — Project README with link to live site
 - `content/docs/phases/phase-1-getting-started.md` — Phase 1: Install → single agent → first channel → verify
-- `content/docs/phases/phase-1-5-memory.md` — Phase 1.5: Two-layer memory architecture, semantic/hybrid search, pre-compaction flush, memory CLI
-- `content/docs/phases/phase-2-security.md` — Phase 2: Threat model, security baseline, SOUL.md, file permissions
-- `content/docs/phases/phase-3-multi-agent.md` — Phase 3: Multiple agents, routing, workspace isolation
-- `content/docs/phases/phase-4-web-search.md` — Phase 4: Isolated search + browser agents, web-guard plugin
-- `content/docs/phases/phase-5-deployment.md` — Phase 5: VM isolation, LaunchDaemon/LaunchAgent/systemd, secrets management, firewall, Tailscale, Signal setup
+- `content/docs/phases/phase-2-memory.md` — Phase 2: Two-layer memory architecture, semantic/hybrid search, pre-compaction flush, memory CLI
+- `content/docs/phases/phase-3-security.md` — Phase 3: Threat model, security baseline, SOUL.md, file permissions
+- `content/docs/phases/phase-4-multi-agent.md` — Phase 4: Multiple agents, routing, workspace isolation
+- `content/docs/phases/phase-5-web-search.md` — Phase 5: Isolated search + browser agents, web-guard plugin
+- `content/docs/phases/phase-6-deployment.md` — Phase 6: VM isolation, LaunchDaemon/LaunchAgent/systemd, secrets management, firewall, Tailscale, Signal setup
 - `content/docs/google-chat.md` — Google Chat: GCP setup, webhook exposure, multi-agent, multi-org, known issues
 - `content/docs/reference.md` — Config cheat sheet, tool groups, plugins, gotchas, useful commands
 - `content/docs/architecture.md` — System internals: core components, module dependencies, networking, diagrams

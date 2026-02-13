@@ -22,8 +22,8 @@ A pragmatic, security-first guide to [OpenClaw](https://docs.openclaw.ai) — th
 
 Drop-in OpenClaw plugins that add prompt injection detection at two perimeters. Both use the same local DeBERTa ONNX model (~370 MB, downloaded on first use) — no API keys, no cloud calls.
 
-- [`extensions/web-guard/`](extensions/web-guard/) — Intercepts `web_fetch` tool calls, pre-fetches the URL, and scans content for prompt injection before the agent sees it. Also blocks SSRF attempts to private/internal IPs. See [Phase 4 — web-guard](https://IT-HUSET.github.io/openclaw-guide/docs/phases/phase-4-web-search/#advanced-prompt-injection-guard).
-- [`extensions/channel-guard/`](extensions/channel-guard/) — Scans inbound WhatsApp/Signal/Google Chat messages for prompt injection with three-tier response: pass, warn (inject advisory into agent context), or block. See [Phase 4 — channel-guard](https://IT-HUSET.github.io/openclaw-guide/docs/phases/phase-4-web-search/#inbound-message-guard-channel-guard).
+- [`extensions/web-guard/`](extensions/web-guard/) — Intercepts `web_fetch` tool calls, pre-fetches the URL, and scans content for prompt injection before the agent sees it. Also blocks SSRF attempts to private/internal IPs. See [Phase 5 — web-guard](https://IT-HUSET.github.io/openclaw-guide/docs/phases/phase-5-web-search/#advanced-prompt-injection-guard).
+- [`extensions/channel-guard/`](extensions/channel-guard/) — Scans inbound WhatsApp/Signal/Google Chat messages for prompt injection with three-tier response: pass, warn (inject advisory into agent context), or block. See [Phase 5 — channel-guard](https://IT-HUSET.github.io/openclaw-guide/docs/phases/phase-5-web-search/#inbound-message-guard-channel-guard).
 
 ## Other Extensions
 
@@ -33,7 +33,7 @@ Drop-in OpenClaw plugins that add prompt injection detection at two perimeters. 
 
 - [`examples/openclaw.json`](examples/openclaw.json) — Complete annotated config with 6 agents (main, whatsapp, signal, googlechat, search, browser), Docker sandboxing, and all security hardening applied
 - [`examples/security-audit.md`](https://IT-HUSET.github.io/openclaw-guide/docs/examples/security-audit/) — Worked example of interpreting `openclaw security audit` output
-- [`scripts/docker-isolation/`](scripts/docker-isolation/) — Three-script automated setup for Docker isolation deployment: host preparation, gateway configuration, and secrets management. See [Phase 5 — Docker isolation](https://IT-HUSET.github.io/openclaw-guide/docs/phases/phase-5-deployment/#docker-isolation).
+- [`scripts/docker-isolation/`](scripts/docker-isolation/) — Three-script automated setup for Docker isolation deployment: host preparation, gateway configuration, and secrets management. See [Phase 6 — Docker isolation](https://IT-HUSET.github.io/openclaw-guide/docs/phases/phase-6-deployment/#docker-isolation).
 
 ---
 
