@@ -1,16 +1,78 @@
 ---
-title: "Phase 4 — Multi-Agent Setup"
-description: "Multiple agents, routing, workspace isolation, dedicated channels."
+title: "Phase 4 — Channels & Multi-Agent"
+description: "Connect messaging channels, then optionally split into multiple agents with routing and workspace isolation."
 weight: 40
 ---
 
-Run multiple agents with different roles, channels, and permissions. Each agent gets its own workspace, credentials, and tool restrictions.
+Connect WhatsApp or Signal to your agent, then optionally split into multiple agents with different roles, channels, and permissions.
 
-**Prerequisite:** [Phase 3 (Security)](phase-3-security.md) — this phase builds on the security baseline, tool deny policies, and AGENTS.md safety rules established there.
+**Prerequisite:** [Phase 3 (Security)](phase-3-security.md) — this phase builds on the security baseline, tool deny policies, and AGENTS.md safety rules established there. **Channels open an external attack surface — don't skip security.**
 
 ---
 
-> **VM isolation:** macOS VMs — skip the `sandbox` config blocks (no Docker). Linux VMs — keep the `sandbox` blocks (Docker works inside the VM). Both run the same 6-agent gateway.
+## Connect Your First Channel
+
+Your agent has been local-only via the Control UI until now. Connecting a messaging channel opens it to external messages — which is why we applied the security baseline first.
+
+### WhatsApp
+
+WhatsApp is the easiest channel to start with — just scan a QR code.
+
+**1. Add channel config**
+
+Edit `~/.openclaw/openclaw.json` and add:
+
+```json
+{
+  "channels": {
+    "whatsapp": {
+      "dmPolicy": "allowlist",
+      "allowFrom": ["+YOUR_PHONE_NUMBER"]
+    }
+  }
+}
+```
+
+Replace `+YOUR_PHONE_NUMBER` with your phone number in E.164 format (e.g., `+15551234567`).
+
+> **Warning:** If you leave a placeholder value in `allowFrom`, all incoming messages are **silently dropped** — no error, no log warning. Always verify your real phone number is configured.
+
+**2. Link WhatsApp**
+
+```bash
+openclaw channels login
+```
+
+Scan the QR code with **WhatsApp > Linked Devices > Link a Device**.
+
+> **Tip:** If the QR code expires, run `openclaw channels login` again.
+
+**3. Restart the gateway**
+
+```bash
+# Stop the running gateway (Ctrl-C if foreground), then:
+openclaw start
+```
+
+**4. Verify**
+
+Send a message from your phone:
+
+> "Hello, what can you do?"
+
+If you get a response, your channel is working. Check `openclaw logs` if not.
+
+### Signal
+
+Signal requires more setup (signal-cli, phone number registration). See [Phase 6: Signal Setup](phase-6-deployment.md#signal-setup) for the full walkthrough — it's covered there because Signal setup is typically done on the production deployment.
+
+### Single Agent Is Enough?
+
+If you only need one channel and one agent, you're done — skip to [Phase 5](phase-5-web-search.md). The multi-agent setup below is for when you need separate agents per channel with different permissions.
+
+---
+
+> **VM isolation:** macOS VMs — skip the `sandbox` config blocks (no Docker). Linux VMs — keep the `sandbox` blocks (Docker works inside the VM). Both run the same multi-agent gateway.
 
 ---
 
@@ -67,14 +129,25 @@ Agent = Workspace + agentDir + Session Store + Tools
 
 ---
 
-## Creating Channel Agents
+## Optional: Channel Agents
 
-The recommended architecture separates your operator agent (full access, no channel) from channel-facing agents (restricted, sandboxed):
+Every gateway has three **core agents** (always present):
 
 - **Main agent** — direct access via Control UI / CLI, no sandbox, full tools; handles privileged operations on behalf of channel agents
-- **Channel agents** — one per messaging channel, no exec/process, sandboxed with Docker (Docker isolation or Linux VMs) or tool-policy-only (macOS VM isolation); delegate privileged operations to main via `sessions_send`
 - **Search agent** — added in [Phase 5](phase-5-web-search.md)
 - **Browser agent** — added in [Phase 5](phase-5-web-search.md)
+
+**Channel agents are optional.** You have two approaches for channel routing:
+
+| Approach | How it works | Trade-off |
+|----------|-------------|-----------|
+| **Dedicated channel agents** (defense-in-depth) | One agent per channel, no exec/process, sandboxed. Channels bound via `bindings` config. | Adds a secondary defense layer — if [channel-guard](phase-5-web-search.md#inbound-message-guard-channel-guard) misses a prompt injection, the agent can't execute commands directly. But `sessions_send` to main bypasses this restriction ([accepted risk](phase-3-security.md#accepted-risks)). More agents to configure and maintain. |
+| **Route to main** (simpler) | No channel agent definitions needed. Unbound channels automatically route to the default agent (main). | Fewer moving parts. Relies on channel-guard + Docker/VM sandboxing as primary defenses. Main agent has full tool access including exec. |
+
+Both are valid — choose based on your threat model and operational preferences. The rest of this section shows dedicated channel agents; to use the simpler approach, skip the channel agent definitions and bindings.
+
+<!-- TODO: remove after openclaw#15176 merges -->
+> **OpenClaw 2026.2.12:** Channel bindings to non-default agents are broken (session path hardening regression, [fix PR #15176](https://github.com/nicepkg/openclaw/pull/15176)). Route channels to main as a workaround until the fix lands.
 
 ### 1. Create workspace and agent directories
 
@@ -172,7 +245,7 @@ See [Workspace Git Sync](#workspace-git-sync) for full setup — initialize each
 
 ## Channel Routing with Bindings
 
-Bindings route incoming messages to specific agents. Most-specific match wins.
+Bindings route incoming messages to specific agents. Most-specific match wins. Each agent maintains its own session store — see [Session Management: Multi-Agent Sessions](../sessions.md#multi-agent-sessions) for how session keys incorporate agent IDs.
 
 ```json
 {
@@ -408,7 +481,7 @@ This is why [web search isolation](phase-5-web-search.md) uses per-agent deny: w
 
 ## Worked Example: Operator + Channel Agents
 
-Using the agent config from [Creating Channel Agents](#creating-channel-agents) above:
+Using the agent config from [Creating Channel Agents](#optional-channel-agents) above:
 
 - **Main agent** (operator) — full access via Control UI / CLI, no sandbox, no channel binding; handles privileged operations (git sync, builds) on behalf of channel agents
 - **WhatsApp agent** — daily work, research, planning; no exec/process; sandboxed with Docker (no network); delegates web search to search agent, privileged operations to main
@@ -416,7 +489,7 @@ Using the agent config from [Creating Channel Agents](#creating-channel-agents) 
 - `gateway` and `canvas` denied globally; web tools (`web_search`, `web_fetch`, `browser`) denied per-agent; channel agents also deny `exec`, `process`, `elevated`
 - Each channel is explicitly bound to its agent; main catches any unbound messages
 
-For the complete annotated config (6 agents including web search and browser automation), see [`examples/openclaw.json`](../examples/config.md).
+For the complete annotated config (core + channel agents, web search and browser automation), see [`examples/openclaw.json`](../examples/config.md).
 
 ---
 
@@ -427,10 +500,10 @@ Channel agents have `exec` and `process` denied — they can't run shell command
 Instead, channel agents delegate privileged operations to the main agent via `sessions_send`:
 
 ```
-Channel Agent (no exec) → sessions_send("main", "Build the Xcode project at ~/project")
+Channel Agent (no exec) → sessions_send("main", "Run the test suite in ~/project")
                                │
                                ▼
-                         Main Agent (unsandboxed) → exec("xcodebuild ...")
+                         Main Agent (unsandboxed) → exec("npm test ...")
                                │
                                ▼
                          Results announced back to channel agent
@@ -455,10 +528,14 @@ Track workspace changes in git for backup, audit trail, and multi-device sync. I
 
 ### Setup: initialize workspaces as git repos
 
+Git-init workspaces that hold persistent state. Sandboxed agents (search, browser) have no persistent workspace worth tracking — focus on `main` and any channel agent workspaces:
+
 ```bash
 for ws in ~/.openclaw/workspaces/*/; do
   cd "$ws"
   git init
+  git config user.name "OpenClaw"
+  git config user.email "openclaw@localhost"
   cat > .gitignore << 'EOF'
 .DS_Store
 .env
@@ -471,32 +548,33 @@ EOF
 done
 ```
 
+> **Note:** The `git config` lines set repo-local identity. This is required on service accounts that have no global `~/.gitconfig`.
+
 Push each to a **private** repository:
 ```bash
 cd ~/.openclaw/workspaces/main
 gh repo create openclaw-workspace-main --private --source . --remote origin --push
 ```
 
-### Scheduled sync (cron)
+### Scheduled sync
 
-The main agent runs git sync every 6 hours via a cron job:
+Automate workspace syncs on a schedule. Two approaches:
 
-```json5
-{
-  "cron": {
-    "jobs": [{
-      "jobId": "workspace-git-sync",
-      "agentId": "main",          // Only main agent (has exec)
-      "schedule": { "kind": "cron", "expr": "0 */6 * * *" },
-      "sessionTarget": "isolated",
-      "payload": {
-        "kind": "agentTurn",
-        "message": "Run workspace git sync: for each workspace in ~/.openclaw/workspaces/*, check for uncommitted changes, commit with a descriptive message, pull --rebase, and push. Report any conflicts or failures."
-      },
-      "delivery": { "mode": "none" }   // Silent — no channel delivery
-    }]
-  }
-}
+**Option A: HEARTBEAT.md (recommended)** — add a sync instruction to `~/.openclaw/workspaces/main/HEARTBEAT.md`. The agent checks this file periodically and acts on it:
+
+```markdown
+## Recurring Tasks
+- Every 6 hours: Run workspace git sync for all workspaces in ~/.openclaw/workspaces/*
+```
+
+**Option B: System cron** — use the host's crontab to trigger a sync via the gateway API:
+
+```bash
+# As the openclaw user's crontab
+0 */6 * * * curl -s -X POST http://127.0.0.1:18789/v1/chat/completions \
+  -H "Authorization: Bearer $OPENCLAW_GATEWAY_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"agent":"main","message":"Run workspace git sync: for each workspace in ~/.openclaw/workspaces/*, check for uncommitted changes, commit with a descriptive message, pull --rebase, and push."}'
 ```
 
 ### On-demand sync (channel agent → main)
@@ -555,7 +633,7 @@ When a channel agent requests git sync via sessions_send:
 You do not have exec access. To sync your workspace to git:
 - Use sessions_send to ask the main agent: "Sync the <your-agent-id> workspace to git"
 - The main agent will commit, pull, and push on your behalf
-- Sync also runs automatically every 6 hours via cron on the main agent
+- Sync also runs automatically on a schedule (see [Scheduled sync](#scheduled-sync) above)
 
 Do not attempt to run git commands directly — they will fail.
 ```
@@ -578,11 +656,38 @@ After completing multi-agent setup, verify:
 - [ ] Each agent has its own `agentDir` with a valid `auth-profiles.json`
 - [ ] `openclaw doctor` reports no config errors
 - [ ] Main agent responds via Control UI / CLI
-- [ ] Channel agents respond to WhatsApp/Signal messages
-- [ ] Channel agents cannot use denied tools (try asking the WhatsApp agent to run a shell command — it should refuse)
-- [ ] `sessions_send` delegation works (ask a channel agent to delegate something to main)
-- [ ] Bindings route correctly — WhatsApp messages go to the whatsapp agent, Signal to signal
-- [ ] Workspace git sync cron job is registered: `openclaw cron list`
+- [ ] **If using channel agents:** Channel agents respond to WhatsApp/Signal messages
+- [ ] **If using channel agents:** Channel agents cannot use denied tools (try asking the WhatsApp agent to run a shell command — it should refuse)
+- [ ] **If using channel agents:** `sessions_send` delegation works (ask a channel agent to delegate something to main)
+- [ ] **If using channel agents:** Bindings route correctly — WhatsApp messages go to the whatsapp agent, Signal to signal
+- [ ] Workspace git sync is scheduled (HEARTBEAT.md or system cron — see [Scheduled sync](#scheduled-sync))
+
+---
+
+## Multi-Gateway Deployments
+
+A single gateway handles multiple channels and agents. But you can also run **multiple gateway instances** on the same host — each with its own config, workspaces, secrets, and channels.
+
+**When to use multiple gateways:**
+
+| Use case | Example |
+|----------|---------|
+| Separate personal vs work channels | WhatsApp on one gateway, Signal on another |
+| Different personality/SOUL.md per channel | Different agents with different identities |
+| Channel-level process isolation | Separate OS users, separate crash domains |
+| Different API keys per channel | Billing separation |
+
+**Pattern:** Each instance gets its own OS user, port, and service definition:
+
+| Property | Convention |
+|----------|-----------|
+| OS user | `openclaw-<instance>` (e.g., `openclaw-bob`, `openclaw-tibra`) |
+| Port | `18789`, `18790`, `18791`, ... |
+| Plist/service label | `ai.openclaw.gateway.<instance>` |
+| Config | `/Users/openclaw-<instance>/.openclaw/openclaw.json` |
+| Workspaces | `/Users/openclaw-<instance>/.openclaw/workspaces/` |
+
+Each gateway is fully independent — its own core agents (main + search + browser), its own channel config, its own memory and sessions. See [Phase 6: Deployment](phase-6-deployment.md) for service setup.
 
 ---
 

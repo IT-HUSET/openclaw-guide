@@ -5,14 +5,17 @@
  * from text prompts. Uses OpenRouter's unified chat completions API with
  * image modality support (FLUX, Gemini, GPT, Sourceful models).
  *
- * Returns base64-encoded image data in the tool result. The channel plugin
- * (WhatsApp, Signal, etc.) handles media delivery to the end user.
+ * Saves the generated image to a temp file and returns a MEDIA: directive
+ * so the channel delivery layer (WhatsApp, Signal, etc.) auto-attaches it.
  *
  * Requires: OpenRouter API key (via config or OPENROUTER_API_KEY env var).
  */
 
 import { lookup } from "node:dns/promises";
+import { writeFile, mkdir } from "node:fs/promises";
 import { isIP } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const DEFAULT_MODEL = "openai/gpt-5-image-mini";
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
@@ -469,15 +472,23 @@ export default {
           };
         }
 
+        // Save to temp file so MEDIA: directive can attach it to channel replies
+        const ext = result.mimeType === "image/jpeg" ? "jpg" : "png";
+        const tempDir = join(tmpdir(), "openclaw-image-gen");
+        await mkdir(tempDir, { recursive: true });
+        const tempPath = join(tempDir, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`);
+        await writeFile(tempPath, Buffer.from(result.base64, "base64"));
+
         return {
           content: [
             {
+              type: "text",
+              text: `MEDIA:${tempPath}`,
+            },
+            {
               type: "image",
-              source: {
-                type: "base64",
-                media_type: result.mimeType,
-                data: result.base64,
-              },
+              data: result.base64,
+              mimeType: result.mimeType,
             },
             {
               type: "text",

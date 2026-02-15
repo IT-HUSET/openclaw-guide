@@ -1,5 +1,6 @@
 import { describe, it, mock, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, rmSync } from "node:fs";
 import { validateBaseUrl, generateImage } from "../index.ts";
 import type { PluginConfig } from "../index.ts";
 
@@ -170,17 +171,74 @@ describe("generateImage — API responses", () => {
 // Plugin register
 // ---------------------------------------------------------------------------
 describe("plugin register", () => {
-  it("registers generate_image tool with correct schema", async () => {
+  let registeredTool: any;
+
+  beforeEach(async () => {
     const { default: plugin } = await import("../index.ts");
-    let registeredTool: any;
     const mockApi = {
-      config: { plugins: { entries: {} } },
+      config: { plugins: { entries: { "image-gen": { config: { apiKey: "test-key" } } } } },
       registerTool(tool: any) { registeredTool = tool; },
     };
     plugin.register(mockApi);
+  });
+
+  it("registers generate_image tool with correct schema", () => {
     assert.ok(registeredTool);
     assert.equal(registeredTool.name, "generate_image");
     assert.deepEqual(registeredTool.parameters.required, ["prompt"]);
+  });
+
+  it("execute() returns MEDIA: directive, image block, and description", async () => {
+    const fakeBase64 = Buffer.from("fake-png").toString("base64");
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mock.fn(async () =>
+      new Response(JSON.stringify({
+        choices: [{ message: { images: [{ type: "image_url", image_url: { url: `data:image/png;base64,${fakeBase64}` } }] } }],
+      }), { status: 200 }),
+    ) as any;
+
+    let tempPath: string | undefined;
+    try {
+      const result = await registeredTool.execute("generate_image", { prompt: "test" });
+      assert.ok(!result.isError, "expected success");
+      assert.equal(result.content.length, 3, "expected 3 content blocks");
+
+      // Block 0: MEDIA: directive for channel delivery
+      const mediaBlock = result.content[0];
+      assert.equal(mediaBlock.type, "text");
+      assert.match(mediaBlock.text, /^MEDIA:.+\.png$/);
+      tempPath = mediaBlock.text.replace("MEDIA:", "");
+      assert.ok(existsSync(tempPath), "temp file must exist");
+
+      // Block 1: image content block (model-visible, flat OpenClaw format)
+      const imageBlock = result.content[1];
+      assert.equal(imageBlock.type, "image");
+      assert.equal(imageBlock.data, fakeBase64);
+      assert.equal(imageBlock.mimeType, "image/png");
+      assert.equal(imageBlock.source, undefined, "must not use nested Anthropic source format");
+
+      // Block 2: descriptive text
+      assert.equal(result.content[2].type, "text");
+      assert.match(result.content[2].text, /Image generated successfully/);
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (tempPath) rmSync(tempPath, { force: true });
+    }
+  });
+
+  it("execute() returns isError on failure", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mock.fn(async () =>
+      new Response("server error", { status: 500 }),
+    ) as any;
+
+    try {
+      const result = await registeredTool.execute("generate_image", { prompt: "test" });
+      assert.equal(result.isError, true);
+      assert.match(result.content[0].text, /failed/i);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });
 

@@ -67,11 +67,11 @@ During script 01, you'll be asked:
 ```
 How many gateway instances?
 
-  1) Single gateway (recommended) — one user, all channels, 6 agents
+  1) Single gateway (recommended) — one user, all channels, multi-agent
   2) Multiple gateways — separate user per channel for stronger isolation
 ```
 
-**Single gateway** creates one `openclaw` user with all 6 agents — the simplest setup.
+**Single gateway** creates one `openclaw` user with all agents — the simplest setup.
 
 **Multiple gateways** prompts for each instance:
 - **Name** — short identifier (e.g. `wa`, `sig`)
@@ -91,7 +91,7 @@ The plan is confirmed before proceeding, and saved to `scripts/docker-isolation/
 | Browser CDP port | 18800 | 18800, 18801, ... |
 | Plist label | `ai.openclaw.gateway` | `ai.openclaw.gateway.{name}` |
 | Gateway token | one | unique per instance |
-| Config | full 6-agent JSON5 | filtered JSON per instance |
+| Config | full multi-agent JSON5 | filtered JSON per instance |
 
 ## Environment Variables
 
@@ -178,18 +178,36 @@ sudo -u openclaw-sig vi /Users/openclaw-sig/.openclaw/workspaces/main/SOUL.md
 
 ### Workspace Git Sync
 
-Initialize git repos in each workspace for version-controlled memory:
+Initialize git repos in workspaces that hold persistent state (typically `main` — search and browser agents are sandboxed with no persistent workspace worth tracking):
+
 ```bash
 # Single instance
-for ws in main whatsapp signal; do
-    sudo -u openclaw git -C /Users/openclaw/.openclaw/workspaces/$ws init
-done
+OC_USER=openclaw
+WS_DIR="/Users/$OC_USER/.openclaw/workspaces/main"
 
-# Multi-instance (repeat per instance user)
-for ws in main whatsapp; do
-    sudo -u openclaw-wa git -C /Users/openclaw-wa/.openclaw/workspaces/$ws init
-done
+sudo -u "$OC_USER" git -C "$WS_DIR" init
+sudo -u "$OC_USER" git -C "$WS_DIR" config user.name "OpenClaw"
+sudo -u "$OC_USER" git -C "$WS_DIR" config user.email "openclaw@localhost"
+
+sudo -u "$OC_USER" tee "$WS_DIR/.gitignore" > /dev/null << 'EOF'
+.DS_Store
+.env
+**/*.key
+**/*.pem
+**/secrets*
+EOF
+
+sudo -u "$OC_USER" git -C "$WS_DIR" add .
+sudo -u "$OC_USER" git -C "$WS_DIR" commit -m "Initial workspace"
+
+# Optional: push to private remote (requires GITHUB_TOKEN in environment)
+sudo -u "$OC_USER" git -C "$WS_DIR" remote add origin https://github.com/YOUR_ORG/openclaw-workspace-main.git
+sudo -u "$OC_USER" git -C "$WS_DIR" push -u origin main
 ```
+
+For multi-instance setups, repeat for each instance user (e.g. `OC_USER=openclaw-wa`).
+
+See [Phase 4: Workspace Git Sync](../../content/docs/phases/phase-4-multi-agent.md#workspace-git-sync) for scheduled sync setup (HEARTBEAT.md or cron).
 
 ### Log Rotation
 
@@ -265,6 +283,6 @@ sudo -u openclaw-sig openclaw plugins list
 
 ## Config Source
 
-Full annotated 6-agent config: [`examples/openclaw.json`](../../examples/openclaw.json)
+Full annotated multi-agent config: [`examples/openclaw.json`](../../examples/openclaw.json)
 
 Security trade-off analysis: [Security: Deployment Isolation Options](../../content/docs/phases/phase-3-security.md#deployment-isolation-options)

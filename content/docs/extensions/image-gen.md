@@ -68,6 +68,16 @@ Restart the gateway. Any agent that doesn't explicitly deny `generate_image` can
 
 Aspect ratios: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9`
 
+## How media delivery works
+
+The plugin returns three content blocks per generated image:
+
+1. **`MEDIA:<path>`** text block — triggers channel delivery (`splitMediaFromOutput()` extracts the path and attaches the file as a WhatsApp/Signal media message)
+2. **Image content block** — lets the LLM see the generated image (model-visible only, NOT forwarded to channels)
+3. **Descriptive text** — human-readable generation metadata
+
+Images are saved to `$TMPDIR/openclaw-image-gen/`. macOS clears `/tmp` on reboot. Long-running servers may want periodic cleanup: `find /tmp/openclaw-image-gen -mtime +1 -delete`.
+
 ## Security notes
 
 - **Prompt data leaves the host** — prompts are sent to OpenRouter's API for image generation. Do not include secrets, PII, or sensitive context in prompts. Ensure this aligns with your organization's data handling policy.

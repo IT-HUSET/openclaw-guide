@@ -195,6 +195,8 @@ Replying to a bot message counts as an implicit mention on WhatsApp, Google Chat
 
 ### Session Scope Options
 
+See [Session Management](sessions.md) for the full deep-dive on session keys, lifecycle, compaction, and pruning.
+
 | Value | Behavior |
 |-------|----------|
 | `main` | All DMs share one session |
@@ -346,31 +348,53 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 
 16. **Google Chat per-space rate limit is 60/min** (1 write/sec) — the 600/min figure in some documentation applies only to data import operations, not normal messaging.
 
+17. **Placeholder `allowFrom` values cause silent message drops** — `allowFrom: ["+46XXXXXXXXX"]` or any non-matching number silently drops all incoming messages with no error or log warning. Always replace placeholders with real phone numbers.
+
+18. **Empty env vars cause config validation failure** — `${BRAVE_API_KEY}` as an empty string triggers `EX_CONFIG` (exit 78). Use a non-empty placeholder like `"not-configured"` for optional keys not yet provisioned.
+
 ### Sandbox & Docker
 
-17. **Sandbox `network: "none"` blocks package installs** — if your `setupCommand` needs packages, set `network: "bridge"` for setup only.
+19. **Sandbox `network: "none"` blocks package installs** — if your `setupCommand` needs packages, set `network: "bridge"` for setup only.
 
-18. **Bind mounts pierce sandbox filesystem** — always use `:ro` suffix. Never bind `docker.sock`.
+20. **Bind mounts pierce sandbox filesystem** — always use `:ro` suffix. Never bind `docker.sock`.
 
 ### Config & Gateway
 
-19. **`gateway.mode` is required** — the gateway refuses to start unless `gateway.mode: "local"` is set in config. Use `--allow-unconfigured` for ad-hoc/dev runs.
+21. **`gateway.mode` is required** — the gateway refuses to start unless `gateway.mode: "local"` is set in config. Use `--allow-unconfigured` for ad-hoc/dev runs.
 
-20. **Config validation is strict** — unknown keys, malformed types, or invalid values cause the gateway to refuse to start. Run `openclaw doctor` to diagnose.
+22. **Config validation is strict** — unknown keys, malformed types, or invalid values cause the gateway to refuse to start. Run `openclaw doctor` to diagnose.
 
-21. **Environment variable substitution only matches `[A-Z_][A-Z0-9_]*`** — lowercase vars won't resolve. Missing vars throw errors at config load.
+23. **Environment variable substitution only matches `[A-Z_][A-Z0-9_]*`** — lowercase vars won't resolve. Missing vars throw errors at config load.
 
-22. **`openclaw gateway stop/restart` targets user-level services only** — OpenClaw's built-in gateway commands (`openclaw gateway stop`, `openclaw gateway restart`, `openclaw onboard --install-daemon`) manage LaunchAgents (`gui/<uid>` domain) and systemd user services. If you run the gateway as a **LaunchDaemon** (`system` domain) or systemd **system** service, these commands won't find it. Always use `launchctl bootout`/`bootstrap` or `systemctl restart` directly. Additionally, `KeepAlive: true` (launchd) or `Restart=always` (systemd) causes the service manager to immediately respawn a killed process, which can race with OpenClaw's own restart logic.
+24. **`openclaw gateway stop/restart` targets user-level services only** — OpenClaw's built-in gateway commands (`openclaw gateway stop`, `openclaw gateway restart`, `openclaw onboard --install-daemon`) manage LaunchAgents (`gui/<uid>` domain) and systemd user services. If you run the gateway as a **LaunchDaemon** (`system` domain) or systemd **system** service, these commands won't find it. Always use `launchctl bootout`/`bootstrap` or `systemctl restart` directly. Additionally, `KeepAlive: true` (launchd) or `Restart=always` (systemd) causes the service manager to immediately respawn a killed process, which can race with OpenClaw's own restart logic.
+
+### Plugins
+
+25. **Plugin changes require a gateway restart** — plugin source files (`.ts`) are loaded at startup. Config hot-reload does NOT reload plugins. After updating a plugin in `~/.openclaw/extensions/`, restart the gateway.
+
+26. **Broken tool results poison session history** — if a plugin returns malformed content blocks (wrong format, missing fields), the broken entry persists in the session `.jsonl` file. Every subsequent message replays it, causing the same error even after the plugin is fixed. **Fix:** delete the affected session file. Identify it by grepping for the error pattern, then remove:
+
+    ```bash
+    # Find sessions with broken image blocks (example)
+    grep -l 'media_type' ~/.openclaw/agents/*/sessions/*.jsonl
+    # Delete the affected session file — next message creates a fresh one
+    ```
+
+27. **Image content blocks are model-visible only** — tool result image blocks let the LLM see the image but are NOT forwarded as media to channels. To deliver images via WhatsApp/Signal/Google Chat, include a `MEDIA:<path>` directive in a text content block. OpenClaw's `splitMediaFromOutput()` scans text for these directives and attaches matching files as media.
+
+28. **OpenClaw uses a flat image content block format** — `{type: "image", data: "<base64>", mimeType: "image/png"}`. This differs from the Anthropic API format (`{type: "image", source: {type: "base64", media_type, data}}`). Plugins must use the flat format; OpenClaw converts to API format before sending to the LLM.
+
+29. **Plugin-generated temp files accumulate** — plugins that save images via `MEDIA:` pattern write to `$TMPDIR`. macOS clears `/tmp` on reboot, but long-running servers accumulate files. Consider a cron job: `find /tmp/openclaw-image-gen -mtime +1 -delete`.
 
 ### Memory
 
-23. **Remote memory search providers need a separate API key** — the embedding key (e.g., `OPENAI_API_KEY` for OpenAI embeddings) is not the same as your AI provider key (`ANTHROPIC_API_KEY`). Both must be set.
+30. **Remote memory search providers need a separate API key** — the embedding key (e.g., `OPENAI_API_KEY` for OpenAI embeddings) is not the same as your AI provider key (`ANTHROPIC_API_KEY`). Both must be set.
 
-24. **Local memory search requires native build approval** — run `pnpm approve-builds` then `pnpm rebuild node-llama-cpp` (from the OpenClaw install directory). Without this, `memory_search` falls back to a remote provider (if configured) or returns no results.
+31. **Local memory search requires native build approval** — run `pnpm approve-builds` then `pnpm rebuild node-llama-cpp` (from the OpenClaw install directory). Without this, `memory_search` falls back to a remote provider (if configured) or returns no results.
 
-25. **Memory search auto-reindexes on provider/model change** — OpenClaw tracks the embedding provider, model, and chunking params in the index. Changing any of these triggers an automatic reindex. Run `openclaw memory index` to force an immediate rebuild.
+32. **Memory search auto-reindexes on provider/model change** — OpenClaw tracks the embedding provider, model, and chunking params in the index. Changing any of these triggers an automatic reindex. Run `openclaw memory index` to force an immediate rebuild.
 
-26. **Daily memory files are auto-loaded for today + yesterday only** — older files are only accessible via `memory_search`. If search isn't configured, the agent can't recall anything beyond yesterday.
+33. **Daily memory files are auto-loaded for today + yesterday only** — older files are only accessible via `memory_search`. If search isn't configured, the agent can't recall anything beyond yesterday.
 
 ---
 
@@ -388,6 +412,24 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 The `web-guard` plugin intercepts `web_fetch` calls, pre-fetches the URL, and scans content for prompt injection before the agent sees it. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing. Both use the same local DeBERTa ONNX model, are fail-closed by default (`failOpen: false`), and share the model cache. See [web-search-isolation.md](phases/phase-5-web-search.md#advanced-prompt-injection-guard) for full setup and limitations.
 
 The `image-gen` plugin registers a `generate_image` tool that agents can call to create images from text prompts. Uses OpenRouter's unified API — supports FLUX, Gemini, GPT, and Sourceful models. See [extensions/image-gen/](extensions/image-gen.md) for source.
+
+### Plugin Installation
+
+Plugin directories must be named to match the **manifest ID** in `openclaw.plugin.json` (e.g., `web-guard/`, not `openclaw-web-guard/`). The `name` field in `package.json` should also match the manifest ID.
+
+<!-- TODO: remove "known issues" note after openclaw fixes plugin install CLI -->
+**Manual installation** (recommended — CLI install has known issues):
+```bash
+cp -r extensions/web-guard ~/.openclaw/extensions/web-guard
+cp -r extensions/channel-guard ~/.openclaw/extensions/channel-guard
+```
+
+The gateway discovers plugins from `~/.openclaw/extensions/` at startup. Each plugin directory must contain `openclaw.plugin.json`. **Plugin code is loaded once at startup** — changes to deployed plugins require a gateway restart (config hot-reload does NOT reload plugins).
+
+**CLI installation** (when available):
+```bash
+openclaw plugins install --link /path/to/plugin
+```
 
 ```json5
 // openclaw.json — plugins section

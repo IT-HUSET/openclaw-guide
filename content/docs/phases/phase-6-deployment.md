@@ -1,6 +1,6 @@
 ---
 title: "Phase 6 — Deployment"
-description: "VM isolation, LaunchDaemon/systemd, secrets, firewall, Tailscale, Signal."
+description: "Deployment methods, isolation models, LaunchDaemon/systemd, secrets, firewall, Tailscale, Signal."
 weight: 60
 ---
 
@@ -9,12 +9,29 @@ Run OpenClaw as a system service that starts at boot, survives reboots, and is l
 - **Coming from Phase 1 quick start?** Each isolation model section below covers migrating your existing config to the dedicated user/VM — stop the personal gateway first, then follow the migration steps in your chosen section.
 - **Fresh dedicated machine?** Each section installs OpenClaw from scratch in the right place — no prior installation needed. A dedicated machine also changes the isolation trade-offs — see [Security: dedicated machine note](phase-3-security.md#comparison).
 
-**Pick one isolation model and skip the others** — each section is self-contained with full installation, configuration, and service setup:
-- [Docker Isolation](#docker-isolation) *(recommended)* — macOS or Linux, single gateway with Docker sandboxing
+**Choose your deployment method and skip the others** — each section is self-contained:
+- [Docker Containerized](#docker-containerized-gateway) — official Docker setup, simplest path
+- [Docker Isolation](#docker-isolation) *(recommended)* — macOS or Linux, dedicated OS user with Docker sandboxing
 - [VM: macOS VMs](#vm-isolation-macos-vms) — macOS hosts, stronger host isolation, no Docker inside
 - [VM: Linux VMs](#vm-isolation-linux-vms) — any host, strongest combined (VM + Docker)
 
 **Shared sections** (apply to all models, read after completing your chosen model): [Secrets Management](#secrets-management) | [Firewall](#macos-firewall) | [Tailscale ACLs](#tailscale-acls) | [Signal Setup](#signal-setup) | [Verification](#verification-checklist) | [Emergency](#emergency-procedures)
+
+### Deployment Methods Overview
+
+| Method | Isolation | Sandboxing | Best for |
+|--------|-----------|-----------|----------|
+| **Docker Containerized** | Container boundary | Docker (gateway runs inside container) | VPS, cloud, fastest path |
+| **Docker Isolation** *(recommended)* | OS user boundary | Docker (per-agent sandboxing) | Dedicated hardware, full control |
+| **VM: macOS VMs** | Kernel-level VM | Tool policy only (no Docker) | macOS hosts, strongest host isolation |
+| **VM: Linux VMs** | Kernel-level VM | Docker inside VM | Any host, strongest combined |
+
+### Hosting Options
+
+- **Local/dedicated hardware** (Mac Mini, NUC, etc.) — this guide's primary focus
+- **Cloud VPS** (Hetzner, DigitalOcean, Linode) — use Docker Containerized or Linux VM method
+- **GCP/AWS/Azure** — works with any small VM; use Docker Containerized for simplest setup
+- **Hosted Mac** (MacStadium, AWS EC2 Mac) — use macOS VM or Docker Isolation method
 
 ---
 
@@ -31,24 +48,56 @@ For anything beyond testing, run as a system service.
 
 ---
 
-## Deployment: Choose Your Isolation Model
+## Deployment: Choose Your Method
 
-Before setting up the service, choose your isolation model. See [Security: Deployment Isolation Options](phase-3-security.md#deployment-isolation-options) for the full trade-off analysis.
+Before setting up the service, choose your deployment method. See [Security: Deployment Isolation Options](phase-3-security.md#deployment-isolation-options) for the full trade-off analysis of the isolation models.
 
-- **Docker isolation** *(recommended)* — single 6-agent gateway as `openclaw` user with Docker sandboxing. macOS or Linux.
-- **VM isolation: macOS VMs** (Lume / Parallels) — single macOS VM, 6-agent gateway, no Docker inside VM. macOS hosts only.
-- **VM isolation: Linux VMs** (Multipass / KVM / UTM) — Linux VM with Docker inside. Strongest combined posture (VM boundary + Docker sandbox). macOS or Linux hosts.
+- **Docker Containerized** — official `docker-setup.sh`, gateway runs inside a Docker container. Simplest path.
+- **Docker Isolation** *(recommended)* — multi-agent gateway as `openclaw` user with Docker sandboxing. macOS or Linux.
+- **VM: macOS VMs** (Lume / Parallels) — single macOS VM, multi-agent gateway, no Docker inside VM. macOS hosts only.
+- **VM: Linux VMs** (Multipass / KVM / UTM) — Linux VM with Docker inside. Strongest combined posture (VM boundary + Docker sandbox). macOS or Linux hosts.
 
-All three use the same 6-agent architecture with `sessions_send` delegation. They differ in the outer boundary and internal sandboxing:
-- **Docker isolation:** OS user boundary + Docker sandbox. LaunchDaemon/systemd on host.
+The isolation models (Docker Isolation, macOS VMs, Linux VMs) all use the same multi-agent architecture with `sessions_send` delegation. They differ in the outer boundary and internal sandboxing:
+- **Docker Isolation:** OS user boundary + Docker sandbox. LaunchDaemon/systemd on host.
 - **VM: macOS VMs:** Kernel-level VM boundary + standard user (no sudo). LaunchDaemon inside VM. No Docker.
 - **VM: Linux VMs:** Kernel-level VM boundary + Docker sandbox inside VM. systemd inside VM.
 
 ---
 
+## Docker Containerized Gateway
+
+> **Simplest path.** The official Docker setup runs the entire gateway inside a container with persistence, auto-restart, and basic security. No per-agent sandboxing — all agents share the container.
+
+**When to use:** Cloud VPS, quick evaluation on any Docker-capable host, or when per-agent Docker sandboxing isn't needed.
+
+**Quick start:**
+
+```bash
+curl -fsSL https://openclaw.ai/docker-setup.sh | bash
+```
+
+> For production, review the script before piping to shell, or download and inspect first: `curl -fsSL https://openclaw.ai/docker-setup.sh -o docker-setup.sh && less docker-setup.sh && bash docker-setup.sh`
+
+This creates a Docker Compose setup with:
+- Persistent data volume (survives container restarts)
+- Auto-restart on crash (`restart: unless-stopped`)
+- Loopback binding (not exposed to network by default)
+- Environment variable passthrough for secrets
+
+**What it doesn't provide** (compared to Docker Isolation below):
+- No dedicated OS user — the container runs as whatever user Docker assigns
+- No per-agent sandboxing — all agents share the same container filesystem and network
+- No LaunchDaemon/systemd integration — relies on Docker's restart policy
+
+For production deployments on dedicated hardware where you want per-agent isolation and OS-level service management, use Docker Isolation below instead.
+
+> **Official docs:** See [docs.openclaw.ai](https://docs.openclaw.ai) for the latest Docker setup instructions and options.
+
+---
+
 ## Docker Isolation
 
-> **Recommended approach.** Works on both macOS and Linux. Single gateway, 6 agents, Docker sandboxing for internal isolation.
+> **Recommended approach.** Works on both macOS and Linux. Single gateway, multi-agent, Docker sandboxing for internal isolation.
 >
 > **Automated setup:** For a fresh dedicated macOS machine, see [`scripts/docker-isolation/`](https://github.com/IT-HUSET/openclaw-guide/tree/main/scripts/docker-isolation/) — three scripts that automate everything below.
 
@@ -512,6 +561,21 @@ Each user gets their own `openclaw.json` with only the relevant channel, agents,
 
 ---
 
+## Multi-Gateway Deployments
+
+Running multiple gateway instances on the same host gives process-level isolation between channels or identities. Each instance gets its own OS user, port, config, workspaces, and secrets.
+
+See [Phase 4: Multi-Gateway Deployments](phase-4-multi-agent.md#multi-gateway-deployments) for architecture, use cases, and naming conventions. The [Multi-user channel separation](#option-multi-user-channel-separation) section above shows the Docker isolation deployment pattern. The same approach works with VM isolation — run one VM per gateway instance.
+
+**Deployment checklist per instance:**
+- Separate OS user (or separate VM)
+- Separate LaunchDaemon/systemd unit with unique label/name and port
+- Separate `openclaw.json` with only the relevant channels and agents
+- Separate secrets (plist env vars or environment file)
+- `chmod 700` on each user's home directory
+
+---
+
 ## VM Isolation
 
 Run OpenClaw inside a VM for kernel-level host isolation. Your host is untouched — no access to personal files, external drives, or other host resources. Two sub-variants: macOS VMs (macOS hosts) and Linux VMs (any host).
@@ -529,7 +593,7 @@ macOS Host (personal use, untouched)
             └── Gateway (port 18789): main + whatsapp + signal + googlechat + search + browser
 ```
 
-Same 6-agent architecture as Docker isolation (main + channels + search + browser, `sessions_send` delegation), but with a VM boundary instead of an OS user boundary. No Docker inside the VM (macOS doesn't support nested virtualization).
+Same multi-agent architecture as Docker isolation (main + search + browser core, plus channel agents as configured, `sessions_send` delegation), but with a VM boundary instead of an OS user boundary. No Docker inside the VM (macOS doesn't support nested virtualization).
 
 Two hypervisor options:
 
@@ -689,7 +753,7 @@ sudo chmod -R 600 /Users/openclaw/.openclaw/credentials/whatsapp/default/*
 sudo chmod 700 /Users/openclaw/.openclaw/credentials/whatsapp
 ```
 
-Then follow [Phase 4](phase-4-multi-agent.md) and [Phase 5](phase-5-web-search.md) to configure the 6-agent gateway. Use [`examples/openclaw.json`](../examples/config.md) as a starting point.
+Then follow [Phase 4](phase-4-multi-agent.md) and [Phase 5](phase-5-web-search.md) to configure the multi-agent gateway. Use [`examples/openclaw.json`](../examples/config.md) as a starting point.
 
 #### LaunchDaemon (Inside VM)
 
@@ -882,7 +946,7 @@ Host (macOS or Linux, untouched)
                  └── browser (Docker sandbox, no filesystem)
 ```
 
-Same 6-agent architecture as Docker isolation, but running inside a VM. Docker closes the `read→exfiltrate` chain; the VM boundary protects the host. No macOS 2-VM limit — run as many Linux VMs as resources allow.
+Same multi-agent architecture as Docker isolation, but running inside a VM. Docker closes the `read→exfiltrate` chain; the VM boundary protects the host. No macOS 2-VM limit — run as many Linux VMs as resources allow.
 
 #### Hypervisor options
 
@@ -1096,6 +1160,8 @@ Keep `openclaw.json` secrets-free — use `${ENV_VAR}` references in config, sto
 | OpenRouter key | `OPENROUTER_API_KEY` | If using Perplexity via OpenRouter |
 | GitHub token | `GITHUB_TOKEN` | Fine-grained PAT — see [GitHub token setup](#github-token-setup) below |
 | *(web-guard & channel-guard use local ONNX models — no API keys needed)* | | See [plugin setup](phase-5-web-search.md#advanced-prompt-injection-guard) |
+
+> **Empty env vars cause startup failure.** If a `${VAR}` reference resolves to an empty string, the gateway exits with `EX_CONFIG` (exit 78). For optional keys not yet provisioned (e.g., `BRAVE_API_KEY` when using Perplexity instead), use a non-empty placeholder like `"not-configured"` rather than leaving the variable empty or unset.
 
 ### GitHub token setup
 
@@ -1504,6 +1570,61 @@ sudo -u openclaw find /Users/openclaw/.openclaw/agents/*/sessions -name "*.jsonl
 
 ---
 
+## Deployment Gotchas
+
+Operational issues discovered during real deployments. Most are macOS-specific.
+
+### macOS Service User Setup
+
+- **`sysadminctl` doesn't create home directories** — `sysadminctl -addUser` assigns a home path but doesn't create it. After creating the user: `sudo mkdir -p /Users/openclaw && sudo chown openclaw:staff /Users/openclaw`
+- **Home dir ownership** — `sudo mkdir -p` creates directories owned by root. Always `chown user:staff` explicitly after.
+- **Admin access to service user files** — service user home dirs are `drwx------`. Use macOS ACLs for admin read/write access:
+  ```bash
+  # Traverse-only on home dir (minimal — just enough to reach .openclaw)
+  sudo chmod +a "youradmin allow list,search,execute" /Users/openclaw
+
+  # Full read+write with inheritance on .openclaw
+  sudo chmod -R +a "youradmin allow \
+    read,write,append,delete,add_file,add_subdirectory,delete_child,\
+    readattr,writeattr,readextattr,writeextattr,readsecurity,\
+    list,search,execute,\
+    file_inherit,directory_inherit" \
+    /Users/openclaw/.openclaw
+  ```
+- **NOPASSWD sudo** — automated setup tools may need `NOPASSWD` in `/etc/sudoers.d/`. **Remove immediately after setup:** `sudo rm /etc/sudoers.d/<file>`
+
+### Running Commands as Service User
+
+`sudo -u` preserves the caller's working directory. Simple commands (`--version`, `--help`) typically work, but commands that access the filesystem can fail if the current directory isn't accessible to the target user:
+
+```bash
+# Works for simple commands
+sudo -u openclaw openclaw --version
+
+# Required for commands that access files or the working directory
+sudo -u openclaw bash -c 'cd /Users/openclaw && HOME=/Users/openclaw openclaw doctor'
+```
+
+Use the `bash -c` pattern for interactive setup, `openclaw doctor`, `openclaw setup`, or any command that reads/writes files.
+
+### Docker/OrbStack
+
+- **OrbStack docker CLI not in PATH** — OrbStack installs at `/usr/local/bin/docker`, which may not be in PATH for service users or non-interactive shells. Use the full path or ensure the engine is running with `orbctl start`.
+
+### Playwright
+
+- **Per-user install requires correct environment** — `npx -y playwright install chromium` as another user needs `HOME` and `PATH` set correctly, and must `cd` to the user's home first. The npm cache must be writable by that user.
+
+### Signal
+
+- **JAVA_HOME stale after brew upgrade** — signal-cli needs Java 21. After brew upgrades, `JAVA_HOME` may point to a removed version. Set explicitly in plist `EnvironmentVariables`: `JAVA_HOME=/opt/homebrew/Cellar/openjdk@21/<version>/libexec/openjdk.jdk/Contents/Home`
+
+### Migration Between Hosts
+
+For a complete migration guide covering config, credentials, memory, channels, services, and scheduled tasks, see **[Phase 7 — Migration](phase-7-migration.md)**.
+
+---
+
 ## Emergency Procedures
 
 ### Immediate Shutdown
@@ -1580,6 +1701,7 @@ See the [official security docs](https://docs.openclaw.ai/gateway/security) for 
 
 Your OpenClaw deployment is production-ready.
 
+→ **[Phase 7 — Migration](phase-7-migration.md)** — moving a deployment to a new machine
 → **[Reference](../reference.md)** — config cheat sheet, tool list, gotchas, emergency procedures
 
 Or review:

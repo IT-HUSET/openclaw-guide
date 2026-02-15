@@ -1,13 +1,12 @@
 ---
 title: "Phase 1 — Getting Started"
-description: "Install OpenClaw, connect WhatsApp, and verify your first agent."
+description: "Install OpenClaw, start the gateway, and talk to your first agent via the Control UI."
 weight: 10
 ---
 
-Get a working OpenClaw agent in minutes. 
+Get a working OpenClaw agent in minutes — no channels, no external exposure.
 
-> **IMPORTANT NOTE:**   
-> This phase installs on your personal user account for _**learning and evaluation**_ — **production deployment** to a dedicated user or VM is covered in **[Phase 6](phase-6-deployment.md)**.
+> **This phase installs on your personal user account for learning and evaluation.** Production deployment to a dedicated user or VM is covered in [Phase 6](phase-6-deployment.md).
 
 ---
 
@@ -15,7 +14,6 @@ Get a working OpenClaw agent in minutes.
 
 - **Node.js 22+** and npm
 - **macOS** (primary) or Linux
-- A phone with WhatsApp (simplest channel to start with)
 
 > **Linux:** Install Node.js via your package manager or [nvm](https://github.com/nvm-sh/nvm). All commands below work identically.
 > On Ubuntu/Debian: `curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt-get install -y nodejs`
@@ -33,11 +31,11 @@ Before installing, decide where OpenClaw will run:
 
 > **Setting up a dedicated machine (e.g. Mac Mini)?** Skip straight to [Phase 6: Deployment](phase-6-deployment.md) — it covers installation in the right place for each isolation model. Installing here first means moving files later. For the recommended Docker isolation setup, the [`scripts/docker-isolation/`](https://github.com/IT-HUSET/openclaw-guide/tree/main/scripts/docker-isolation/) scripts automate the entire process.
 
-Continuing below installs on your personal user — you can follow Phases 3–5 to learn the platform, then migrate to a dedicated user/VM in Phase 6.
+Continuing below installs on your personal user — you can follow Phases 2–5 to learn the platform, then migrate to a dedicated user/VM in Phase 6.
 
 ---
 
-## Install OpenClaw (Quick Start)
+## Install
 
 ```bash
 curl -fsSL https://openclaw.ai/install.sh | bash
@@ -75,54 +73,33 @@ Follow the interactive prompts to:
 
 ---
 
-## Connect WhatsApp
-
-WhatsApp is the easiest channel to start with — just scan a QR code.
-
-### 1. Add minimal WhatsApp config
-
-Edit `~/.openclaw/openclaw.json` and add:
-
-```json
-{
-  "channels": {
-    "whatsapp": {
-      "dmPolicy": "allowlist",
-      "allowFrom": ["+YOUR_PHONE_NUMBER"]
-    }
-  }
-}
-```
-
-Replace `+YOUR_PHONE_NUMBER` with your phone number in E.164 format (e.g., `+15551234567`).
-
-### 2. Link WhatsApp
-
-```bash
-openclaw channels login
-```
-
-This shows a QR code. Scan it with **WhatsApp > Linked Devices > Link a Device**.
-
-> **Tip:** If the QR code expires, run `openclaw channels login` again.
-
-### 3. Start the gateway
+## Start the Gateway
 
 ```bash
 openclaw start
 ```
 
+The gateway starts on `http://127.0.0.1:18789` — loopback only, nothing exposed to the network.
+
+Open the Control UI in your browser:
+
+```bash
+openclaw dashboard
+```
+
+This is your agent's browser-based interface. You can chat with it, view sessions, and monitor activity — all locally, with no external connections beyond your AI provider.
+
 ---
 
 ## Verify It Works
 
-Send a message to your agent via WhatsApp:
+In the Control UI, send a message:
 
 > "Hello, what can you do?"
 
 The agent should respond based on its default AGENTS.md instructions. If you get a response, your setup is working.
 
-Run diagnostics:
+Run diagnostics from the terminal:
 ```bash
 openclaw doctor                  # Check for config issues
 openclaw health                  # Gateway health check
@@ -132,6 +109,8 @@ View logs:
 ```bash
 openclaw logs
 ```
+
+> **Why no channels yet?** This is a security-first guide. The gateway is currently local-only — the only way in is through the Control UI on your machine. Messaging channels (WhatsApp, Signal) open external connections that accept inbound messages, which is a fundamentally different trust boundary. We'll connect channels in [Phase 4](phase-4-multi-agent.md) *after* the security baseline is in place.
 
 ---
 
@@ -156,8 +135,6 @@ After setup, your OpenClaw installation looks like this:
 │       ├── agent/
 │       │   └── auth-profiles.json   # API credentials for this agent
 │       └── sessions/                # Chat history (one .jsonl per session)
-├── credentials/
-│   └── whatsapp/                    # WhatsApp session data
 └── identity/
     ├── device.json                  # Device identity
     └── device-auth.json             # Gateway auth tokens
@@ -192,15 +169,16 @@ Edit these files to customize your agent. Start with `AGENTS.md` and `SOUL.md` �
 Here's the architecture in brief:
 
 ```
-You (WhatsApp) → OpenClaw Gateway → AI Provider (Anthropic) → Response → You
+You (Control UI) → OpenClaw Gateway → AI Provider (Anthropic) → Response → You
 ```
 
-- **Gateway** is a local Node.js process (default port 18789) that bridges messaging channels to AI providers
+- **Gateway** is a local Node.js process (port 18789) that bridges messaging channels to AI providers
+- **Control UI** is a browser-based dashboard (Vite + Lit SPA) served on the same port — chat, sessions, and monitoring
 - **Workspace files** (AGENTS.md, SOUL.md, etc.) are injected as system context (which files depends on session type — see table above)
 - **Sessions** are per-conversation chat histories stored as `.jsonl` files
 - **Tools** are capabilities the agent can use (file read/write, web search, code execution, etc.)
 
-The gateway runs on your machine and connects outbound to WhatsApp servers and your AI provider. Nothing is exposed to the internet.
+Right now, the only connection leaving your machine is to the AI provider. No channels, no webhooks, no inbound network traffic.
 
 ---
 
@@ -212,10 +190,10 @@ Your agent works, but it's running with default settings. Next:
 
 Then lock it down:
 
-→ **[Phase 3: Security](phase-3-security.md)** — secure defaults before going further
+→ **[Phase 3: Security](phase-3-security.md)** — secure defaults before connecting any channels
 
 When you're ready:
-- [Phase 4: Multi-Agent](phase-4-multi-agent.md) — run multiple agents with different roles
+- [Phase 4: Channels & Multi-Agent](phase-4-multi-agent.md) — connect WhatsApp/Signal, multiple agents, routing
 - [Phase 5: Web Search Isolation](phase-5-web-search.md) — safe internet access
-- [Phase 6: Deployment](phase-6-deployment.md) — run as a system service (includes migration from this quick-start setup)
+- [Phase 6: Deployment](phase-6-deployment.md) — run as a system service
 - [Reference](../reference.md) — config cheat sheet, tool list, gotchas

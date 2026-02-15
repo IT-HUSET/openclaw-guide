@@ -231,7 +231,7 @@ Hybrid search combines **vector similarity** (semantic meaning) with **BM25** (e
 
 ## Pre-Compaction Memory Flush
 
-When the context window fills up, OpenClaw compacts the conversation to free space. **Memory flush** saves important context to memory *before* compaction, so nothing is lost.
+When the context window fills up, OpenClaw compacts the conversation to free space. **Memory flush** saves important context to memory *before* compaction, so nothing is lost. For the full picture of how compaction works (triggers, modes, reserve tokens) and how it differs from session pruning, see [Session Management: Compaction](../sessions.md#compaction).
 
 ```json5
 {
@@ -578,5 +578,5 @@ Your agent now has persistent memory and semantic search.
 → **[Phase 3: Security](phase-3-security.md)** — lock down your agent with secure defaults
 
 Or jump to:
-- [Phase 4: Multi-Agent](phase-4-multi-agent.md) — run multiple agents with different roles
+- [Phase 4: Channels & Multi-Agent](phase-4-multi-agent.md) — connect channels, run multiple agents with different roles
 - [Reference](../reference.md) — config cheat sheet, memory CLI commands

@@ -31,7 +31,7 @@ Drop-in OpenClaw plugins that add prompt injection detection at two perimeters. 
 
 ## Examples & Scripts
 
-- [`examples/openclaw.json`](examples/openclaw.json) — Complete annotated config with 6 agents (main, whatsapp, signal, googlechat, search, browser), Docker sandboxing, and all security hardening applied
+- [`examples/openclaw.json`](examples/openclaw.json) — Complete annotated config with core agents (main, search, browser) and optional channel agents (whatsapp, signal, googlechat), Docker sandboxing, and all security hardening applied
 - [`examples/security-audit.md`](https://IT-HUSET.github.io/openclaw-guide/docs/examples/security-audit/) — Worked example of interpreting `openclaw security audit` output
 - [`scripts/docker-isolation/`](scripts/docker-isolation/) — Three-script automated setup for Docker isolation deployment: host preparation, gateway configuration, and secrets management. See [Phase 6 — Docker isolation](https://IT-HUSET.github.io/openclaw-guide/docs/phases/phase-6-deployment/#docker-isolation).
 

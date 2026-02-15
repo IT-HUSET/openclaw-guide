@@ -424,7 +424,7 @@ Find the bot's user ID in gateway logs or via the Google Chat API.
 → **[Phase 3: Security](phases/phase-3-security.md)** — apply security baseline to your Google Chat deployment
 
 Or:
-- [Phase 4: Multi-Agent](phases/phase-4-multi-agent.md) — add a dedicated Google Chat agent
+- [Phase 4: Channels & Multi-Agent](phases/phase-4-multi-agent.md) — add a dedicated Google Chat agent
 - [Phase 5: Web Search Isolation](phases/phase-5-web-search.md) — safe internet access for your agent
 - [Phase 6: Deployment](phases/phase-6-deployment.md) — production service with webhook exposure
 - [Reference](reference.md) — config cheat sheet, gotchas

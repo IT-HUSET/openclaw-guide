@@ -10,8 +10,9 @@ set -euo pipefail
 #   3. Injects into LaunchDaemon plist(s) via PlistBuddy (stdin mode)
 #   4. Locks down plist permissions
 #   5. Tightens file permissions
-#   6. Starts daemon(s)
-#   7. Verifies health for each instance
+#   6. Initializes workspace git repos (.gitignore, user config, initial commit)
+#   7. Starts daemon(s)
+#   8. Verifies health for each instance
 #
 # Re-runnable: stops existing daemons, updates secrets, restarts.
 # Useful for key rotation.
@@ -240,7 +241,8 @@ EOF
 done
 
 # Clear secret variables from memory
-unset ANTHROPIC_KEY BRAVE_KEY OPENROUTER_KEY GITHUB_TOKEN GATEWAY_TOKENS
+# GITHUB_TOKEN kept for git init in step 6, GATEWAY_TOKENS kept for health check in step 8
+unset ANTHROPIC_KEY BRAVE_KEY OPENROUTER_KEY
 
 echo -e "${GREEN}Done — secrets injected${NC}"
 echo ""
@@ -267,9 +269,59 @@ done
 echo -e "${GREEN}Done${NC}"
 echo ""
 
-# ── Step 6: Start daemon(s) ──────────────────────────────────────
+# ── Step 6: Initialize workspace git repos ────────────────────────
 
-echo -e "${BOLD}--- Step 6: Starting daemon(s) ---${NC}"
+echo -e "${BOLD}--- Step 6: Workspace git init ---${NC}"
+
+for idx in "${!INST_NAMES[@]}"; do
+    local_user="${INST_USERS[$idx]}"
+    local_home="/Users/$local_user"
+    local_ws="$local_home/.openclaw/workspaces/main"
+
+    if [[ ! -d "$local_ws" ]]; then
+        echo -e "  ${YELLOW}${INST_NAMES[$idx]}: no main workspace found, skipping${NC}"
+        continue
+    fi
+
+    if [[ -d "$local_ws/.git" ]]; then
+        echo "  ${INST_NAMES[$idx]}: already initialized, skipping"
+        continue
+    fi
+
+    echo "  ${INST_NAMES[$idx]}: initializing..."
+
+    sudo -u "$local_user" git -C "$local_ws" init
+    sudo -u "$local_user" git -C "$local_ws" config user.name "OpenClaw (${INST_NAMES[$idx]})"
+    sudo -u "$local_user" git -C "$local_ws" config user.email "openclaw@localhost"
+
+    sudo -u "$local_user" tee "$local_ws/.gitignore" > /dev/null << 'GIEOF'
+.DS_Store
+.env
+**/*.key
+**/*.pem
+**/secrets*
+GIEOF
+
+    sudo -u "$local_user" git -C "$local_ws" add .
+    sudo -u "$local_user" git -C "$local_ws" commit -m "Initial workspace" --quiet
+
+    # Set up remote if GITHUB_TOKEN was provided
+    if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+        echo "  ${INST_NAMES[$idx]}: GITHUB_TOKEN available — set up a remote manually:"
+        echo "    sudo -u $local_user git -C $local_ws remote add origin https://github.com/YOUR_ORG/openclaw-workspace-${INST_NAMES[$idx]}.git"
+        echo "    sudo -u $local_user git -C $local_ws push -u origin main"
+    fi
+done
+
+unset GITHUB_TOKEN
+
+echo -e "${GREEN}Done${NC}"
+echo ""
+
+# ── Step 7: Start daemon(s) ──────────────────────────────────────
+# (GATEWAY_TOKENS still needed for health check in step 8)
+
+echo -e "${BOLD}--- Step 7: Starting daemon(s) ---${NC}"
 
 for idx in "${!INST_NAMES[@]}"; do
     local_label="${PLIST_LABELS[$idx]}"
@@ -295,9 +347,9 @@ echo "Waiting for gateway(s) to start (up to 30s)..."
 sleep 5
 echo ""
 
-# ── Step 7: Verify ────────────────────────────────────────────────
+# ── Step 8: Verify ────────────────────────────────────────────────
 
-echo -e "${BOLD}--- Step 7: Verification ---${NC}"
+echo -e "${BOLD}--- Step 8: Verification ---${NC}"
 echo ""
 
 for idx in "${!INST_NAMES[@]}"; do
@@ -339,6 +391,9 @@ for idx in "${!INST_NAMES[@]}"; do
     }
     echo ""
 done
+
+# Clear remaining secrets
+unset GATEWAY_TOKENS
 
 # ── Summary ──────────────────────────────────────────────────────
 

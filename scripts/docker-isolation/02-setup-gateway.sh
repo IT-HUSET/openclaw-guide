@@ -531,13 +531,13 @@ MEMEOF
 
 ## Privileged Operations (Delegation Handler)
 
-You may receive requests from channel agents (whatsapp, signal) via `sessions_send`.
-These agents lack `exec` access and delegate privileged operations to you.
+You may receive delegated requests from other agents via `sessions_send`.
+Sandboxed agents (search, browser) lack `exec` access and delegate privileged operations to you.
 
 ### Workspace Git Sync
 
-When asked to sync workspaces:
-1. For each workspace in `~/.openclaw/workspaces/*/`:
+When asked to sync workspaces (via HEARTBEAT.md schedule or delegated request):
+1. For the main workspace (and any channel agent workspaces, if applicable):
    - Check for uncommitted changes (`git status`)
    - Commit with a descriptive message
    - Pull with rebase (`git pull --rebase`)

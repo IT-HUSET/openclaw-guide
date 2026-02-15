@@ -83,7 +83,7 @@ Add these settings to `~/.openclaw/openclaw.json`. Each one is explained below.
 | `restart: false` | Chat users restarting the gateway via `/restart` |
 | `elevated.enabled: false` | Agent escaping sandbox to run on host |
 | `skills.allowBundled` | Unauthorized skill installation (only listed skills available) |
-| `session.dmScope: "per-channel-peer"` | Cross-sender session leakage (isolates each DM conversation) |
+| `session.dmScope: "per-channel-peer"` | Cross-sender session leakage (isolates each DM conversation). See [Session Management](../sessions.md#direct-messages) for all scope options |
 | `mdns.mode: "minimal"` | Broadcasting filesystem paths and SSH availability on LAN |
 | `logging.redactSensitive: "tools"` | Sensitive data appearing in log files |
 | `gateway.bind: "loopback"` | Network access to gateway from other machines |
@@ -322,7 +322,7 @@ Full dedicated user setup is covered in [Phase 6: Deployment](phase-6-deployment
 
 > **Dedicated machine?** This decision affects where you install OpenClaw. If deploying on a dedicated machine, choose your isolation model *before* installation — see [Phase 1: Deployment Decision](phase-1-getting-started.md#deployment-decision). A dedicated machine also changes the trade-off analysis — see the [note below the comparison table](#comparison).
 
-Three deployment postures for isolating OpenClaw from your personal data, trading off between host isolation, internal sandboxing, and operational complexity. All three use the same 6-agent architecture (main + channels + search + browser per gateway, `sessions_send` delegation). They differ in the outer isolation boundary and internal sandboxing.
+Three deployment postures for isolating OpenClaw from your personal data, trading off between host isolation, internal sandboxing, and operational complexity. All three use the same multi-agent architecture (core agents: main + search + browser, plus channel agents as configured, `sessions_send` delegation). They differ in the outer isolation boundary and internal sandboxing.
 
 ### Docker Isolation *(recommended)*
 
@@ -342,7 +342,7 @@ Host (macOS or Linux)
 
 **Isolation:** OS user boundary + Docker sandbox (channel agents filesystem-rooted, no network) + tool policy + SOUL.md. Search and browser agents exist as separate agents within the gateway, reachable only via `sessions_send`.
 
-**Key property:** Docker closes the `read→exfiltrate` chain — channel agents can't access `~/.openclaw/openclaw.json` (filesystem rooted to workspace inside container). All 6 agents share one gateway, one config, one process — with `sessions_send` for delegation.
+**Key property:** Docker closes the `read→exfiltrate` chain — channel agents can't access `~/.openclaw/openclaw.json` (filesystem rooted to workspace inside container). All agents share one gateway, one config, one process — with `sessions_send` for delegation.
 
 **Option:** For channel separation without VMs, run one gateway per channel under separate OS users on different ports. See [Phase 6: Multi-user channel separation](phase-6-deployment.md#option-multi-user-channel-separation).
 
@@ -360,7 +360,7 @@ macOS host only. Your host macOS is untouched. A dedicated standard (non-admin) 
 macOS Host (personal use, untouched)
   └── macOS VM — "openclaw-vm"
        └── openclaw user (standard, non-admin)
-            └── Gateway: main + whatsapp + signal + googlechat + search + browser (6 agents)
+            └── Gateway: main + search + browser + channel agents as configured
 ```
 
 **Isolation:** Kernel-level VM boundary + standard user (no sudo) + LaunchDaemon (no GUI session) + tool policy + SOUL.md. No Docker inside the VM (macOS doesn't support nested virtualization).
@@ -379,7 +379,7 @@ Works on both macOS and Linux hosts. Docker runs inside the VM, enabling the str
 Host (macOS or Linux, untouched)
   └── Linux VM — "openclaw-vm"
        └── openclaw user (no sudo, docker group)
-            └── Gateway: main + whatsapp + signal + googlechat + search + browser (6 agents)
+            └── Gateway: main + search + browser + channel agents as configured
                  ├── whatsapp (Docker sandbox, no network)
                  ├── signal (Docker sandbox, no network)
                  ├── googlechat (Docker sandbox, no network)
@@ -398,7 +398,7 @@ See [Phase 6: VM Isolation — Linux VMs](phase-6-deployment.md#vm-isolation-lin
 |  | **Docker isolation** *(recommended)* | **VM: macOS VMs** | **VM: Linux VMs** |
 |--|---|---|---|
 | Host OS | macOS or Linux | macOS only | macOS or Linux |
-| Gateways | 1 (6 agents) — or [multi-user](phase-6-deployment.md#option-multi-user-channel-separation) for channel separation | 1 (6 agents) — or 2 with [two-VM option](phase-6-deployment.md#option-two-vms-for-channel-separation) | 1 (6 agents) — unlimited VMs |
+| Gateways | 1 (multi-agent) — or [multi-user](phase-6-deployment.md#option-multi-user-channel-separation) for channel separation | 1 (multi-agent) — or 2 with [two-VM option](phase-6-deployment.md#option-two-vms-for-channel-separation) | 1 (multi-agent) — unlimited VMs |
 | Isolation from host | Process-level (OS user) | Kernel-level (VM) | Kernel-level (VM) |
 | Internal agent isolation | Docker sandbox | Tool policy + SOUL.md (no Docker) | Docker sandbox |
 | `read→exfiltrate` within platform | Closed (Docker roots filesystem) | Open within VM (only OpenClaw data at risk) | Closed (Docker roots filesystem) |
@@ -416,7 +416,7 @@ See [Phase 6: VM Isolation — Linux VMs](phase-6-deployment.md#vm-isolation-lin
 ### Accepted Risks
 
 **Docker isolation:**
-- **Shared gateway process** — all 6 agents run in one process. `openclaw.json` is readable by the gateway. Tool policy is the primary mitigation.
+- **Shared gateway process** — all agents run in one process. `openclaw.json` is readable by the gateway. Tool policy is the primary mitigation.
 - **Weaker outer boundary** — if the platform is compromised beyond Docker, the attacker is on the host as `openclaw` user. External drives and world-readable paths are accessible.
 - **Workspace data is mounted into containers** — channel agents run with `workspaceAccess: "rw"`, so SOUL.md, USER.md, MEMORY.md, and `memory/` are readable (and writable) inside the container. Docker protects *credentials* (`openclaw.json`, `auth-profiles.json`) — not workspace knowledge. Mitigated by Docker `network: none` (no outbound from container) and tool policy (no `exec`). See [Workspace Isolation](phase-4-multi-agent.md#workspace-isolation).
 
@@ -437,7 +437,12 @@ See [Phase 6: VM Isolation — Linux VMs](phase-6-deployment.md#vm-isolation-lin
   - See [Privileged Operation Delegation](phase-4-multi-agent.md#privileged-operation-delegation) for the delegation architecture.
 - **SOUL.md is soft** — model-level guardrails can be bypassed by sophisticated prompt injection. Tool policy (`deny`/`allow`) is the hard enforcement layer.
 - **Web content injection** — poisoned web pages can inject instructions into search/browser agent responses. The [web-guard plugin](phase-5-web-search.md#advanced-prompt-injection-guard) provides optional pre-fetch content scanning, but detection is probabilistic — tool policy remains the hard enforcement layer.
-- **Channel message injection** — adversarial messages from WhatsApp/Signal can attempt to hijack channel agents. The [channel-guard plugin](phase-5-web-search.md#inbound-message-guard-channel-guard) provides optional inbound message scanning (same DeBERTa model as web-guard), but detection is probabilistic — tool policy and `sessions_send` restrictions remain the hard enforcement layers.
+- **Channel message injection** — adversarial messages from WhatsApp/Signal can attempt to hijack channel agents. Three defense layers apply:
+  1. **channel-guard plugin** ([setup](phase-5-web-search.md#inbound-message-guard-channel-guard)) — primary defense, scans incoming messages with DeBERTa ONNX model. Probabilistic — false negatives are possible.
+  2. **Dedicated channel agents (optional)** — secondary defense. If channels route to agents that deny `exec`/`process`, a successful injection can't execute commands directly. However, `sessions_send` to main bypasses this restriction (see dominant risk above). A real but narrow defense — blocks the direct attack path while the delegation path remains open.
+  3. **Docker/VM sandboxing** — tertiary, limits blast radius of any successful attack to the container/VM.
+
+  Both architectures are valid: dedicated channel agents add defense-in-depth at the cost of operational complexity; routing channels to main relies on channel-guard + sandboxing as the primary defenses. See [Phase 4: Channel Agents](phase-4-multi-agent.md#optional-channel-agents) for the trade-off.
 
 ---
 
@@ -484,7 +489,7 @@ After applying the security baseline, verify:
 
 Your agent is now hardened with secure defaults.
 
-→ **[Phase 4: Multi-Agent](phase-4-multi-agent.md)** — separate agents for different roles and channels
+→ **[Phase 4: Channels & Multi-Agent](phase-4-multi-agent.md)** — connect channels, separate agents for different roles
 
 Or jump to:
 - [Phase 2: Memory & Search](phase-2-memory.md) — persistent memory and semantic search (if you skipped it)

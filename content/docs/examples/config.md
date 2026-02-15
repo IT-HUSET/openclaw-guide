@@ -1,10 +1,10 @@
 ---
 title: "Example Configuration"
-description: "Complete annotated OpenClaw config with 6 agents, Docker sandboxing, and all security hardening applied."
+description: "Complete annotated OpenClaw config with core + channel agents, Docker sandboxing, and all security hardening applied."
 weight: 121
 ---
 
-Complete annotated `openclaw.json` implementing all recommendations from the guide: security baseline (Phase 3), six agents with channel routing (Phases 4-5 + Google Chat), Docker sandboxing (Phase 6), and production deployment settings. Uses JSON5 comments for inline documentation — OpenClaw supports JSON5 natively.
+Complete annotated `openclaw.json` implementing all recommendations from the guide: security baseline (Phase 3), core agents (main, search, browser) with channel agents and routing (Phases 4-5 + Google Chat), Docker sandboxing (Phase 6), and production deployment settings. Uses JSON5 comments for inline documentation — OpenClaw supports JSON5 natively.
 
 Three deployment postures are covered: Docker isolation (this config), macOS VM isolation (remove sandbox blocks), and Linux VM isolation (keep sandbox blocks). See [Phase 3 — Security](../phases/phase-3-security.md#deployment-isolation-options) for the full trade-off analysis.
 
@@ -18,7 +18,9 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
   //
   // Implements all recommendations from the openclaw-guide:
   // - Security baseline (Phase 3)
-  // - Six agents: main, whatsapp, signal, googlechat, search, browser (Phases 4-5 + Google Chat)
+  // - Core agents: main, search, browser (Phases 4-5)
+  // - Optional dedicated channel agents: whatsapp, signal, googlechat (defense-in-depth)
+  //   Channels can also route directly to main for a simpler setup — see Phase 4.
   // - Docker sandboxing for channel agents (Phase 6, Docker isolation)
   // - Production deployment settings (Phase 6)
   //
@@ -104,25 +106,6 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
     }
   },
 
-  // --- Scheduled Tasks ---
-  "cron": {
-    "jobs": [
-      {
-        // Workspace git sync — runs on main agent only (has exec access).
-        // Channel agents (no exec) can also request on-demand sync via sessions_send.
-        "jobId": "workspace-git-sync",
-        "agentId": "main",
-        "schedule": { "kind": "cron", "expr": "0 */6 * * *" },
-        "sessionTarget": "isolated",
-        "payload": {
-          "kind": "agentTurn",
-          "message": "Run workspace git sync: for each workspace in ~/.openclaw/workspaces/*, check for uncommitted changes, commit with a descriptive message, pull --rebase, and push. Report any conflicts or failures."
-        },
-        "delivery": { "mode": "none" }  // Silent — no channel delivery
-      }
-    ]
-  },
-
   // --- Agents ---
   "agents": {
     "defaults": {
@@ -192,7 +175,9 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
         "subagents": { "allowAgents": ["search", "browser"] }
       },
       {
-        // WHATSAPP AGENT — daily work, research, planning
+        // WHATSAPP AGENT (optional — defense-in-depth)
+        // Dedicated channel agent with restricted tools. Remove this agent definition
+        // and its binding to route WhatsApp to main instead (simpler alternative).
         // No exec/process/web — delegates web to search/browser, privileged ops to main.
         // Docker isolation / Linux VMs: Sandboxed (no network).
         // macOS VM isolation: No sandbox — tool policy provides isolation.
@@ -206,7 +191,9 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
         "subagents": { "allowAgents": ["main", "search", "browser"] }
       },
       {
-        // SIGNAL AGENT — same capabilities as WhatsApp agent
+        // SIGNAL AGENT (optional — defense-in-depth)
+        // Dedicated channel agent with restricted tools. Remove this agent definition
+        // and its binding to route Signal to main instead (simpler alternative).
         // No exec/process/web — delegates web to search/browser, privileged ops to main.
         // Separate workspace and credentials for isolation.
         "id": "signal",
@@ -266,7 +253,9 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
         }
       },
       {
-        // GOOGLE CHAT AGENT — same capabilities as WhatsApp/Signal agents
+        // GOOGLE CHAT AGENT (optional — defense-in-depth)
+        // Dedicated channel agent with restricted tools. Remove this agent definition
+        // and its binding to route Google Chat to main instead (simpler alternative).
         // No exec/process/web — delegates web to search/browser, privileged ops to main.
         // Separate workspace and credentials for isolation.
         // Requires public webhook URL (Tailscale Funnel recommended) — see Google Chat Setup guide.
@@ -283,9 +272,17 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
   },
 
   // --- Channel Routing ---
-  // Each channel routes to its dedicated agent.
-  // Main agent has no binding — accessible via Control UI / CLI only.
-  // Search + browser agents have no binding — only reachable via sessions_send.
+  // OPTION A (defense-in-depth): Route each channel to a dedicated agent with
+  // restricted tools (no exec/process). Adds a secondary defense layer if
+  // channel-guard misses a prompt injection — but note that sessions_send to
+  // main bypasses the tool restriction (see Phase 3 accepted risks).
+  // OPTION B (simpler): Remove channel agent definitions above, remove bindings
+  // below, and channels route to main agent automatically. Relies on
+  // channel-guard + Docker sandboxing as the primary defenses.
+  // TODO: remove after openclaw#15176 merges
+  // NOTE: Option A requires OpenClaw > 2026.2.12 — channel bindings to
+  // non-default agents are broken in 2026.2.12 (session path regression).
+  // Use Option B as workaround until the fix lands.
   "bindings": [
     { "agentId": "whatsapp", "match": { "channel": "whatsapp" } },
     { "agentId": "signal", "match": { "channel": "signal" } },
@@ -297,7 +294,7 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
     "whatsapp": {
       "dmPolicy": "pairing",
       "selfChatMode": false,
-      "allowFrom": ["+46XXXXXXXXX"],
+      "allowFrom": ["+46XXXXXXXXX"], // REPLACE with real number — placeholder causes silent message drops
       "groupPolicy": "allowlist",
       "groups": { "*": { "requireMention": true } },
       "mediaMaxMb": 50,
@@ -307,9 +304,8 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
       "enabled": true,
       "account": "+46XXXXXXXXX",
       "dmPolicy": "pairing",
-      "allowFrom": ["+46XXXXXXXXX"],
+      "allowFrom": ["+46XXXXXXXXX"], // REPLACE with real number — placeholder causes silent message drops
       "groupPolicy": "allowlist",
-      "groups": { "*": { "requireMention": true } },
       "mediaMaxMb": 8
     },
     "googlechat": {
@@ -319,7 +315,7 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
       "audience": "https://<node-name>.<tailnet>.ts.net/googlechat",
       "dm": {
         "policy": "pairing",
-        "allowFrom": ["user@yourdomain.com"]
+        "allowFrom": ["user@yourdomain.com"] // REPLACE with real email — placeholder causes silent message drops
       },
       "groupPolicy": "allowlist",
       "groups": { "*": { "requireMention": true } },
@@ -347,9 +343,6 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
     "auth": {
       "mode": "token",
       "token": "${OPENCLAW_GATEWAY_TOKEN}"
-    },
-    "nodes": {
-      "browser": { "mode": "managed" }
     }
   },
 
@@ -376,6 +369,15 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
           "timeoutMs": 10000,
           "maxContentLength": 50000,
           "sensitivity": 0.5
+        }
+      },
+      "channel-guard": {
+        "enabled": true,
+        "config": {
+          "failOpen": false,
+          "sensitivity": 0.5,
+          "warnThreshold": 0.4,
+          "blockThreshold": 0.8
         }
       },
       "googlechat": { "enabled": true },

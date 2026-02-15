@@ -1,0 +1,28 @@
+/* Compact footer */
+.hextra-footer > div:last-child {
+  padding-top: 0.5rem !important;
+  padding-bottom: 2rem !important;
+}
+
+/* Sticky footer — push footer to bottom on short pages */
+body {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+body > .hextra-max-page-width {
+  flex: 1;
+}
+/* Override theme's article min-height (redundant with body flexbox above) */
+.hextra-max-page-width > article {
+  min-height: auto !important;
+}
+/* Home page: suppress theme's min-height on last child div */
+.hextra-max-page-width > div:last-child {
+  min-height: auto !important;
+}
+/* Sidebar nav: use max-height so short pages don't force scroll */
+.hextra-sidebar-container > .hextra-scrollbar {
+  height: auto !important;
+  max-height: calc(100vh - var(--navbar-height) - var(--menu-height));
+}

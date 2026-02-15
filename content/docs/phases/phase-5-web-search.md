@@ -6,7 +6,7 @@ weight: 50
 
 This is the key security pattern in this guide: give your agents internet access without giving them the ability to exfiltrate data.
 
-**Prerequisite:** [Phase 4 (Multi-Agent)](phase-4-multi-agent.md) — this phase adds search and browser agents to your existing multi-agent gateway.
+**Prerequisite:** [Phase 4 (Channels & Multi-Agent)](phase-4-multi-agent.md) — this phase adds search and browser agents to your existing multi-agent gateway.
 
 > **VM isolation:** macOS VMs — skip the `sandbox` config blocks (no Docker). Linux VMs — keep the `sandbox` blocks (Docker works inside the VM). Both run the same search/browser delegation pattern.
 
@@ -186,7 +186,7 @@ Add to `openclaw.json`:
 Key points:
 - Channel agents (e.g. `whatsapp`) deny `web_search`, `web_fetch`, and `browser` at the **agent level** — this is where web isolation is enforced
 - Channel agents have `subagents.allowAgents: ["main", "search", "browser"]` — this lets them delegate via `sessions_send`
-- Channel agents inherit the default sandbox (`non-main`, no network) — see [Phase 4](phase-4-multi-agent.md#creating-channel-agents)
+- Channel agents inherit the default sandbox (`non-main`, no network) — see [Phase 4](phase-4-multi-agent.md#optional-channel-agents)
 - `search` agent has `web_search` and `web_fetch` via its `allow` list. No filesystem tools — eliminates any data exfiltration risk
 - `search` agent has `sessions_send` and `session_status` — to respond and check status
 - `search` agent denies all dangerous tools explicitly
@@ -448,7 +448,7 @@ For background research tasks via `sessions_spawn`:
 
 ## Complete Config Fragment
 
-See [`examples/openclaw.json`](../examples/config.md) for the full annotated configuration implementing all 6 agents with these patterns.
+See [`examples/openclaw.json`](../examples/config.md) for the full annotated configuration implementing the multi-agent architecture with these patterns.
 
 ---
 

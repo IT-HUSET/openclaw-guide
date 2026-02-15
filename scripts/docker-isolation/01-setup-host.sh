@@ -180,7 +180,7 @@ fi
 if [[ "${SKIP_PLANNING:-}" != "true" ]]; then
     echo "How many gateway instances?"
     echo ""
-    echo "  1) Single gateway (recommended) — one user, all channels, 6 agents"
+    echo "  1) Single gateway (recommended) — one user, all channels, multi-agent"
     echo "  2) Multiple gateways — separate user per channel for stronger isolation"
     echo ""
     read -rp "Choice [1]: " INSTANCE_CHOICE
