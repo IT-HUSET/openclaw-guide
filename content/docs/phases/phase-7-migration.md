@@ -202,6 +202,8 @@ sudo -u openclaw sed -i '' 's|/home/old-user|/Users/openclaw|g' \
   /Users/openclaw/.openclaw/openclaw.json
 ```
 
+> **`sed -i` differs by OS.** On macOS, use `sed -i ''` (empty quotes required). On Linux, use `sed -i` (no quotes). The examples above show the correct syntax for each platform.
+
 > **Review the config manually after `sed`.** Automated path replacement can miss embedded paths or catch false positives. Open `openclaw.json` and verify: workspace paths, `agentDir` paths, extension paths, `$include` paths, and any absolute paths in tool configurations all point to valid locations on the target.
 
 ---
@@ -261,8 +263,9 @@ Google Chat uses a GCP service account for authentication. The service account J
 3. **Update the webhook URL** — if the target has a different hostname or Tailscale node name, the audience in the Google Chat app configuration must change
 4. **Re-enable Tailscale Funnel** on the target (if used for webhook exposure):
    ```bash
-   tailscale funnel --bg https+insecure://localhost:18789
+   tailscale funnel --bg --set-path /googlechat http://127.0.0.1:18789/googlechat
    ```
+   > Use path-scoped Funnel (`--set-path`) to avoid exposing the entire gateway API to the internet.
 5. **Update the Chat app URL** in the [GCP Console](https://console.cloud.google.com/apis/api/chat.googleapis.com/hangouts-chat) to point to the new host's public URL
 
 See the [Google Chat setup guide](../google-chat.md) for the full configuration process.
@@ -309,7 +312,7 @@ The memory search index uses architecture-dependent native binaries and may not 
 sudo -u openclaw bash -c 'cd /Users/openclaw && HOME=/Users/openclaw openclaw memory index'
 ```
 
-Memory data files (in workspaces) transfer fine — only the search index needs rebuilding. This can take a few minutes for large memory stores.
+Memory data files (in workspaces) transfer fine — only the search index needs rebuilding. This command may run for several minutes with no visible progress output — this is normal. Do not interrupt it.
 
 ### Session history (optional)
 
@@ -317,7 +320,7 @@ Session files (`agents/<id>/sessions/*.jsonl`) contain full conversation history
 
 **Recommended:** Start fresh on the new host. Memory files (in workspaces) preserve the agent's knowledge; sessions are just conversation logs.
 
-**If transferring sessions:** Watch for poisoned sessions — if a session contains malformed data (e.g., broken plugin output), every message to that conversation will fail with the same error. Delete affected session files:
+**If transferring sessions:** Watch for poisoned sessions. A poisoned session is one where prompt injection has been stored in the conversation history — the injected content replays on every subsequent turn, potentially steering the agent's behavior indefinitely. Sessions with malformed data (e.g., broken plugin output) are similarly problematic: every message to that conversation will fail with the same error. Delete affected session files:
 
 ```bash
 # Find sessions with known broken patterns
@@ -391,9 +394,11 @@ sudo -u openclaw bash -c 'cd /Users/openclaw && HOME=/Users/openclaw npx -y play
 
 **macOS** — create `/etc/newsyslog.d/openclaw.conf`:
 ```
-/Users/openclaw/.openclaw/logs/gateway.log     openclaw:staff  644  7  1024  *  J
-/Users/openclaw/.openclaw/logs/gateway.err.log openclaw:staff  644  7  1024  *  J
+/Users/openclaw/.openclaw/logs/gateway.log     openclaw:staff  640  7  1024  *  J
+/Users/openclaw/.openclaw/logs/gateway.err.log openclaw:staff  640  7  1024  *  J
 ```
+
+> `640` restricts log access to owner and group only. Gateway logs may contain sensitive data.
 
 **Linux** — create `/etc/logrotate.d/openclaw`:
 ```
@@ -566,6 +571,14 @@ tail -50 /Users/openclaw/.openclaw/logs/gateway.log
 - [ ] Tailscale device tagged as `tag:openclaw` and ACLs applied (if applicable)
 
 ### Clean up
+
+> **Before stopping the source service**, verify on the target:
+> - Gateway starts and responds to health checks
+> - All agents load without errors
+> - Channel connections establish (check logs)
+> - Memory search returns expected results
+>
+> Consider keeping the source running for 24 hours after target verification.
 
 After verifying everything works:
 

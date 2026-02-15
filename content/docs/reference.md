@@ -145,7 +145,7 @@ Group messages are evaluated in three layers:
 
 Keys are group IDs (or `"*"` for all groups). Values configure per-group behavior. **Keys double as an allowlist** — a group ID present as a key is implicitly allowed.
 
-`requireMention` **must** be inside the `groups` object — placing it at channel root causes a Zod validation error.
+`requireMention` **must** be inside the `groups` object — see [gotcha #13](#channels) for details and per-channel notes.
 
 ```json5
 {
@@ -211,6 +211,8 @@ See [Session Management](sessions.md) for the full deep-dive on session keys, li
 | `off` | All tools run on host |
 | `non-main` | Only non-main sessions sandboxed |
 | `all` | Everything sandboxed |
+
+For detailed sandbox architecture, container lifecycle, and config options, see [Architecture — Docker Sandbox Architecture](architecture.md#docker-sandbox-architecture).
 
 ### Sandbox Scope & Access Guide
 
@@ -305,6 +307,8 @@ Directives change session behavior. **Standalone** = persists to session. **Inli
 These are owner-only even when enabled. Tool policy still applies — `/elevated` can't override tools in `tools.deny`.
 
 > **Full command reference:** [docs.openclaw.ai/tools/slash-commands](https://docs.openclaw.ai/tools/slash-commands)
+>
+> **Google Chat:** Slash commands work in Google Chat DMs and spaces. For Google Chat setup and known issues (e.g., DM routing), see [Google Chat Channel Setup](google-chat.md).
 
 ---
 
@@ -320,7 +324,7 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 
 4. **Global `deny` overrides agent-level `allow`** — a tool in `tools.deny` cannot be re-enabled at the agent level. For tools needed by some agents (e.g., `web_search`), deny per-agent instead of globally.
 
-5. **`exec` allowlists don't catch shell builtins** — allowlists match resolved binary paths only. Shell builtins (`cd`, `echo`, `export`, `source`) bypass the check entirely. If this matters, deny `exec` at the agent level.
+5. **`exec` allowlists don't catch shell builtins** — allowlists match resolved binary paths only. Shell builtins (`cd`, `export`, `source`) bypass the check entirely. `echo` is both a shell builtin and a standalone binary (`/bin/echo`) — behavior differs between them, and the builtin version varies by shell. If this matters, deny `exec` at the agent level.
 
 ### Agents & Sessions
 
@@ -390,11 +394,25 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 
 30. **Remote memory search providers need a separate API key** — the embedding key (e.g., `OPENAI_API_KEY` for OpenAI embeddings) is not the same as your AI provider key (`ANTHROPIC_API_KEY`). Both must be set.
 
-31. **Local memory search requires native build approval** — run `pnpm approve-builds` then `pnpm rebuild node-llama-cpp` (from the OpenClaw install directory). Without this, `memory_search` falls back to a remote provider (if configured) or returns no results.
+31. **Local memory search requires native build approval** — run `npx pnpm approve-builds` then `npx pnpm rebuild node-llama-cpp` (from the OpenClaw install directory). Without this, `memory_search` falls back to a remote provider (if configured) or returns no results.
 
 32. **Memory search auto-reindexes on provider/model change** — OpenClaw tracks the embedding provider, model, and chunking params in the index. Changing any of these triggers an automatic reindex. Run `openclaw memory index` to force an immediate rebuild.
 
 33. **Daily memory files are auto-loaded for today + yesterday only** — older files are only accessible via `memory_search`. If search isn't configured, the agent can't recall anything beyond yesterday.
+
+---
+
+## Version Compatibility
+
+Features below require the listed version or later. Check yours with `openclaw --version`.
+
+| Version | Feature | Details |
+|---------|---------|---------|
+| 2026.1.29 | Control UI token fix | Security vulnerability (CVSS 8.8) patched — update immediately. See [Phase 3](phases/phase-3-security.md) |
+| 2026.2.1 | `before_tool_call` hook | Required for [web-guard plugin](phases/phase-5-web-search.md#advanced-prompt-injection-guard) |
+| 2026.2.3-1 | Security audit baseline | Version used in the [worked audit example](examples/security-audit.md) |
+| 2026.2.9 | xAI (Grok) provider | New [search provider option](phases/phase-5-web-search.md#search-providers) |
+| 2026.2.12 | Channel bindings regression | [#15176](https://github.com/nicepkg/openclaw/pull/15176) — bindings to non-default agents broken. Route to main as workaround |
 
 ---
 
@@ -417,14 +435,15 @@ The `image-gen` plugin registers a `generate_image` tool that agents can call to
 
 Plugin directories must be named to match the **manifest ID** in `openclaw.plugin.json` (e.g., `web-guard/`, not `openclaw-web-guard/`). The `name` field in `package.json` should also match the manifest ID.
 
-<!-- TODO: remove "known issues" note after openclaw fixes plugin install CLI -->
-**Manual installation** (recommended — CLI install has known issues):
+**Manual installation** (recommended — `openclaw plugins install` may fail to resolve dependencies or link manifests correctly; see the [OpenClaw changelog](https://docs.openclaw.ai) for current plugin CLI status):
 ```bash
 cp -r extensions/web-guard ~/.openclaw/extensions/web-guard
 cp -r extensions/channel-guard ~/.openclaw/extensions/channel-guard
 ```
 
 The gateway discovers plugins from `~/.openclaw/extensions/` at startup. Each plugin directory must contain `openclaw.plugin.json`. **Plugin code is loaded once at startup** — changes to deployed plugins require a gateway restart (config hot-reload does NOT reload plugins).
+
+> **Discovery precedence:** Plugins are discovered in order: workspace-level (`.openclaw/extensions/` in workspace), user-level (`~/.openclaw/extensions/`), then bundled. First match wins.
 
 **CLI installation** (when available):
 ```bash

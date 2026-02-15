@@ -20,9 +20,10 @@ What can go wrong with an AI agent that has tools?
 | **Skill supply chain** | Malicious ClawHub skills steal credentials | API keys, tokens, browser sessions compromised |
 | **Unauthorized access** | Unknown senders message the agent | Strangers use your agent (and your API credits) |
 | **Session leakage** | Shared session scope | One sender sees another sender's context |
+| **Node-pairing / remote execution** | Paired nodes expose `system.run` for remote code execution on macOS | Attacker runs arbitrary commands on paired machines |
 | **Platform escape** | Compromised agent breaks out of sandbox/VM | Access to host filesystem, other users' data, lateral movement |
 
-The fix isn't one setting — it's layered defense. Each setting below blocks a specific attack path.
+The fix isn't one setting — it's layered defense. Each setting below blocks a specific attack path. Mitigations fire at different points in the pipeline: **channel-guard** scans on message ingestion, **web-guard** on `web_fetch` calls, **tool policy** (`deny`/`allow`) on every tool call, and **SOUL.md/AGENTS.md** instructions influence every model turn.
 
 > **Version note:** A token exfiltration vulnerability via Control UI (CVSS 8.8) was patched in 2026.1.29. Ensure you're on that version or later. See the [official security advisories](https://github.com/openclaw/openclaw/security/advisories) for the latest vulnerability information.
 
@@ -73,6 +74,10 @@ Add these settings to `~/.openclaw/openclaw.json`. Each one is explained below.
 }
 ```
 
+> **Note:** The `${...}` syntax references environment variables — OpenClaw substitutes them at startup. Set these before starting the gateway (e.g., `export OPENCLAW_GATEWAY_TOKEN=...`). Don't paste the literal string `${OPENCLAW_GATEWAY_TOKEN}` as the token value.
+
+> **Key rotation:** Rotate API keys periodically. If a key is compromised, revoke it immediately in your provider's dashboard and update the environment variable.
+
 ### What Each Setting Prevents
 
 | Setting | Prevents |
@@ -83,7 +88,7 @@ Add these settings to `~/.openclaw/openclaw.json`. Each one is explained below.
 | `restart: false` | Chat users restarting the gateway via `/restart` |
 | `elevated.enabled: false` | Agent escaping sandbox to run on host |
 | `skills.allowBundled` | Unauthorized skill installation (only listed skills available) |
-| `session.dmScope: "per-channel-peer"` | Cross-sender session leakage (isolates each DM conversation). See [Session Management](../sessions.md#direct-messages) for all scope options |
+| `session.dmScope: "per-channel-peer"` | Cross-sender session leakage — without this, Alice and Bob's DMs share a session (Alice could see Bob's messages). See [Session Management](../sessions.md#direct-messages) for all scope options |
 | `mdns.mode: "minimal"` | Broadcasting filesystem paths and SSH availability on LAN |
 | `logging.redactSensitive: "tools"` | Sensitive data appearing in log files |
 | `gateway.bind: "loopback"` | Network access to gateway from other machines |
@@ -95,6 +100,8 @@ openclaw doctor --generate-gateway-token
 ```
 
 For now, export it in your shell (`export OPENCLAW_GATEWAY_TOKEN=<token>`). For production, store it in the service plist or environment file — see [Phase 6](phase-6-deployment.md#secrets-management). Don't put it in `openclaw.json` directly.
+
+> **Access logging:** Enable gateway access logging (`gateway.logging.level: "info"`) and review logs regularly for unexpected activity. See [Phase 6 — Log Rotation](phase-6-deployment.md#log-rotation) for production log management.
 
 ---
 
@@ -138,7 +145,7 @@ Control who can message your agent:
 
 - `groupPolicy: "allowlist"` — agent only responds in explicitly listed groups (default)
 - `groups` object — keys are group IDs (or `"*"` for all groups); values configure per-group behavior
-- `requireMention` — must be set inside `groups`, **not** at the channel root (channel-root placement causes a Zod validation error)
+- `requireMention` — must be set inside `groups`, **not** at the channel root (channel-root placement causes a Zod validation error). If you see a Zod validation error for `requireMention`, the value type is likely wrong — it must be a boolean (`true`/`false`), not a string
 
 The `groups` keys double as a group allowlist: if a group JID appears as a key, it's allowed. Use `"*"` to allow all groups while still setting default mention behavior.
 
@@ -161,7 +168,7 @@ Even with a single agent, restrict the tools it doesn't need:
         "default": true,
         "workspace": "~/.openclaw/workspace",
         "tools": {
-          "deny": ["gateway", "exec", "process", "canvas"]
+          "deny": ["gateway", "exec", "process", "canvas", "nodes"]
         }
       }
     ]
@@ -174,7 +181,10 @@ The `deny` list is a hard restriction — these tools cannot be used regardless 
 - **`gateway`** — almost never needed. Denying prevents the agent from restarting or reconfiguring itself.
 - **`exec`** / **`process`** — shell execution. Only allow if the agent needs to run code.
 - **`canvas`** — interactive artifact rendering. Only relevant for web-based UIs.
+- **`nodes`** — remote execution via `system.run` on paired macOS nodes. Deny unless you explicitly use node pairing.
 - **`browser`** — browser automation. High risk (logged-in sessions). See below for options.
+
+> **Node pairing:** The security baseline sets `mdns.mode: "minimal"` which reduces LAN broadcasting. To fully disable node pairing and `system.run`, set `mdns.mode: "off"` instead and add `"nodes"` to the tool deny list (already included above).
 
 ### Browser Control
 
@@ -214,7 +224,7 @@ npx playwright install chromium
 
 **Security considerations for managed browser:**
 - The managed profile accumulates logged-in sessions — treat its data dir as sensitive
-- CDP listens on loopback only; access flows through gateway auth
+- CDP (Chrome DevTools Protocol) listens on loopback only; access flows through gateway auth
 - Set `browser.evaluateEnabled: false` to disable raw JavaScript evaluation if not needed
 - Disable browser sync and password managers in the managed profile
 - Only grant `browser` to agents that need it — keep it in the deny list for all others
@@ -271,6 +281,8 @@ These are soft guardrails — the model can technically ignore them, but they're
 
 **Rule of thumb:** `SOUL.md` = who the agent is (identity, values, boundaries). `AGENTS.md` = how it operates (workflows, safety rules, procedures).
 
+> **Note:** SOUL.md and AGENTS.md are _soft guardrails_ — the model follows them but they're not enforced by the runtime. Tool policy (`tools.allow` / `tools.deny`) provides hard enforcement. Use both layers together.
+
 ---
 
 ## File Permissions
@@ -287,6 +299,8 @@ chmod 600 ~/.openclaw/identity/*.json
 ```
 
 This ensures only your user (or the dedicated `openclaw` user — see [Phase 6](phase-6-deployment.md)) can read sensitive files.
+
+> **Note:** On multi-user systems, review group permissions carefully. The `600`/`700` permissions above assume a dedicated `openclaw` user with no shared group access.
 
 > **Dedicated user setup:** If files were created or copied as root (e.g., via `sudo cp`), set ownership **before** permissions — otherwise the service user gets `EACCES` at runtime:
 > ```bash
@@ -394,6 +408,11 @@ Host (macOS or Linux, untouched)
 See [Phase 6: VM Isolation — Linux VMs](phase-6-deployment.md#vm-isolation-linux-vms) for installation.
 
 ### Comparison
+
+> **Quick decision guide:**
+> - Need strongest isolation? → **VM: Linux VMs** (VM boundary + Docker inside)
+> - macOS-only host, no Docker? → **VM: macOS VMs**
+> - Simplest setup with good security? → **Docker isolation** (dedicated user + Docker sandboxing)
 
 |  | **Docker isolation** *(recommended)* | **VM: macOS VMs** | **VM: Linux VMs** |
 |--|---|---|---|

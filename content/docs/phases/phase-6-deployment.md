@@ -110,7 +110,7 @@ The OpenClaw installer (`curl ... | bash`) runs `npm install -g openclaw`, placi
 
 On Linux, global install places the binary at `/usr/local/bin/openclaw` — accessible to all users by default.
 
-> **macOS: Homebrew `staff` group write access.** The `staff` group has **write** access to `/opt/homebrew` by default. Any user in `staff` (including the `openclaw` user) can modify binaries there — a compromised `openclaw` user could trojan `/opt/homebrew/bin/node`, affecting all users who run it. Mitigations: (1) `sudo chown root:wheel /opt/homebrew/bin/node` to remove group write (re-apply after `brew upgrade`), or (2) install Node.js per-user via [nvm](https://github.com/nvm-sh/nvm) so each user runs their own copy. This is lower risk for single-user deployments where only the `openclaw` user runs Node.js.
+> **Warning:** On macOS, the `staff` group has **write** access to `/opt/homebrew` by default. Any user in `staff` (including the `openclaw` user) can modify binaries there — a compromised `openclaw` user could trojan `/opt/homebrew/bin/node`, affecting all users who run it. Mitigations: (1) `sudo chown root:wheel /opt/homebrew/bin/node` to remove group write (re-apply after `brew upgrade`), or (2) install Node.js per-user via [nvm](https://github.com/nvm-sh/nvm) so each user runs their own copy. This is lower risk for single-user deployments where only the `openclaw` user runs Node.js.
 
 ### Dedicated OS User
 
@@ -166,6 +166,8 @@ sudo -u openclaw openclaw --version
 sudo -u openclaw openclaw doctor
 ```
 
+> Download and review the script before running, or verify the source URL.
+
 Then either migrate from your personal user (below) or create a fresh config:
 
 ```bash
@@ -189,7 +191,7 @@ The gateway refuses to start unless `gateway.mode` is set in `openclaw.json`. Ad
 }
 ```
 
-Without this, the gateway exits immediately. Run `openclaw doctor` to diagnose startup failures.
+Without this, the gateway exits immediately. Run `openclaw doctor` to diagnose startup failures — it checks config validity, API key availability, Docker access, and file permissions. Fix any issues it reports before proceeding.
 
 #### Move OpenClaw data
 
@@ -219,7 +221,7 @@ After the first successful gateway start (which creates the directory tree), set
 sudo chown -R openclaw:staff /Users/openclaw/.openclaw
 
 # Then restrict permissions
-sudo chmod 700 /Users/openclaw              # Lock down home directory itself
+sudo chmod 700 /Users/openclaw              # Lock down home directory itself (on macOS, this may exclude it from Spotlight indexing and Time Machine backups — acceptable for a service account)
 sudo chmod 700 /Users/openclaw/.openclaw
 sudo chmod 600 /Users/openclaw/.openclaw/openclaw.json
 sudo chmod 600 /Users/openclaw/.openclaw/credentials/*.json
@@ -306,10 +308,15 @@ PLIST
 
 #### If using Docker (OrbStack)
 
-OrbStack runs as a user-session LaunchAgent. Bootstrap it into the `openclaw` user's GUI domain so the Docker socket is available to the gateway:
+Required if using Docker sandboxing with OrbStack (not needed for Docker Desktop or native Docker on Linux). OrbStack runs as a user-session LaunchAgent. Bootstrap it into the `openclaw` user's GUI domain so the Docker socket is available to the gateway:
 
 ```bash
 sudo launchctl bootstrap gui/$(id -u openclaw) /Library/LaunchAgents/com.orbstack.helper.plist
+```
+
+Verify Docker is accessible:
+```bash
+sudo -u openclaw docker run --rm hello-world
 ```
 
 #### Manage the daemon
@@ -335,7 +342,7 @@ sudo lsof -i :18789
 tail -f /Users/openclaw/.openclaw/logs/gateway.log
 ```
 
-> **Do not use `openclaw gateway restart`** — it targets user-level LaunchAgents (`gui/<uid>` domain), not system-level LaunchDaemons (`system` domain). Always restart via `launchctl bootout` + `bootstrap` as shown above. The `KeepAlive` setting also means that simply killing the process causes `launchd` to respawn it immediately, which can race with OpenClaw's own restart logic.
+> **Note:** Use `launchctl bootout` / `launchctl bootstrap` (or `systemctl restart` on Linux) instead of `openclaw gateway restart` — the latter targets user-level LaunchAgents (`gui/<uid>` domain), not system-level LaunchDaemons (`system` domain), and doesn't work for daemon-managed processes. The `KeepAlive` setting also means that simply killing the process causes `launchd` to respawn it immediately, which can race with OpenClaw's own restart logic.
 
 #### Config reload without restart
 
@@ -457,6 +464,8 @@ Docker provides an additional isolation layer for agents.
 - **macOS:** [OrbStack](https://orbstack.dev) is recommended over Docker Desktop — lighter, faster, and integrates well with macOS networking.
 - **Linux:** Docker Engine (via `apt`/`dnf`) is all you need — no Docker Desktop required. See [Docker Engine install docs](https://docs.docker.com/engine/install/).
 
+> **Warning (bare Linux hosts):** Adding a user to the `docker` group grants effective root access on the host. For bare-metal Linux deployments, consider rootless Docker or Podman as alternatives.
+
 ```json
 {
   "agents": {
@@ -553,9 +562,9 @@ Create one LaunchDaemon (macOS) or systemd unit (Linux) per user. Use the same t
 
 Each user gets their own `openclaw.json` with only the relevant channel, agents, and bindings. Start from [`examples/openclaw.json`](../examples/config.md) and remove everything that belongs to the other channel.
 
-> **Tool deny/allow split:** When a gateway has mixed tool needs (main agent denies web tools, search agent allows them), deny web tools at the **agent level** on the main agent — not globally. Global `tools.deny` overrides agent-level `tools.allow`, so a global deny on `web_search` breaks the search agent even if it has `web_search` in its `tools.allow`. See [Phase 5](phase-5-web-search.md) for the correct pattern.
+> **Tool deny/allow split:** When a gateway has mixed tool needs (main agent denies web tools, search agent allows them), deny web tools at the **agent level** on the main agent — not globally. Global `tools.deny` overrides agent-level `tools.allow`, so a global deny on `web_search` breaks the search agent even if it has `web_search` in its `tools.allow`. For details on how `allow` and `deny` lists interact, see [Phase 5 — Deny web tools per-agent](phase-5-web-search.md#1-deny-web-tools-per-agent).
 
-> **Simplified workspace sync:** Since each channel-connected agent is the main agent of its own gateway (with full exec access), it can run `git` commands directly. The [delegation-based workspace git sync](phase-4-multi-agent.md#workspace-git-sync) — needed when channel agents lack exec in a single-gateway setup — is unnecessary here. Each agent manages its own workspace repo without `sessions_send`.
+> **Simplified workspace sync:** Workspace git sync (configured in Phase 4) automatically commits agent workspace changes to git — useful for auditing and rollback. Since each channel-connected agent is the main agent of its own gateway (with full exec access), it can run `git` commands directly. The [delegation-based workspace git sync](phase-4-multi-agent.md#workspace-git-sync) — needed when channel agents lack exec in a single-gateway setup — is unnecessary here. Each agent manages its own workspace repo without `sessions_send`.
 
 > **Trade-off:** Multiple gateways, configs, service files, and secrets to manage — but user-level isolation between channels without VM overhead. A root exploit still compromises all users (shared kernel). Both users share the Docker daemon if using Docker sandboxing.
 
@@ -704,6 +713,8 @@ sudo -u openclaw bash -c 'curl -fsSL https://openclaw.ai/install.sh | bash'
 sudo -u openclaw openclaw --version
 sudo -u openclaw openclaw doctor
 ```
+
+> Download and review the script before running, or verify the source URL.
 
 Then either migrate from your personal user or create a fresh config:
 
@@ -854,6 +865,8 @@ tail -f /Users/openclaw/.openclaw/logs/gateway.log
 ##### Alternative: LaunchAgent
 
 If you prefer simpler management (run as the default admin user, no dedicated user), use a LaunchAgent instead.
+
+> **Warning:** Using a LaunchAgent instead of a LaunchDaemon weakens security — the agent runs as your admin user with writable persistence directories and no sudo restrictions. Use only if you accept reduced isolation compared to the dedicated-user LaunchDaemon setup.
 
 | | LaunchDaemon + dedicated user | LaunchAgent + default user |
 |--|------|------|
@@ -1033,6 +1046,8 @@ sudo -u openclaw openclaw doctor
 sudo -u openclaw openclaw setup
 ```
 
+> Download and review the script before running, or verify the source URL.
+
 #### Required config: `gateway.mode`
 
 Same as all other models — the gateway refuses to start without it:
@@ -1091,9 +1106,19 @@ Follow the same dedicated user + systemd + Docker setup inside each VM.
 
 ---
 
+## Service Management Comparison
+
+| | LaunchDaemon (macOS) | LaunchAgent (macOS) | systemd (Linux) |
+|--|---|---|---|
+| Runs as | Dedicated user | Admin user | Dedicated user |
+| Starts at | Boot | Login | Boot |
+| Security | Strongest (macOS) | Weakened (admin can sudo, writable persistence dirs) | Strongest (Linux) |
+
 ## Linux: systemd
 
 > **Applies to:** Docker isolation on Linux hosts **and** inside Linux VMs (same systemd unit, same user setup).
+
+> **Prerequisite:** Create the secrets file first — see [Secrets Management](#linux-environment-file) below — before enabling this unit.
 
 **Create the service file:**
 
@@ -1124,6 +1149,8 @@ StandardError=append:/home/openclaw/.openclaw/logs/gateway.err.log
 WantedBy=multi-user.target
 EOF
 ```
+
+> Verify your Node.js path: `which node && readlink -f $(which node)`. Update `ExecStart` if your path differs (e.g., nvm/asdf installs use `~/.nvm/` or `~/.asdf/` paths, not `/usr/bin/node`).
 
 **Manage the service:**
 
@@ -1400,11 +1427,13 @@ Alternative (per-launch): `open -a OpenClaw --args --attach-only`
 
 Signal requires `signal-cli` (Java-based) linked as a device.
 
+> **Prerequisite:** Signal requires Java 21+. Install via `brew install openjdk@21` (macOS) or your distro's package manager (Linux, e.g., `sudo apt install openjdk-21-jre`).
+
 ### Install
 
 **macOS:**
 ```bash
-brew install signal-cli   # requires Java
+brew install signal-cli   # requires Java 21
 ```
 
 **Linux (Debian/Ubuntu):**
@@ -1487,7 +1516,7 @@ sudo systemctl status openclaw-gateway                            # Linux
 # Gateway is listening
 sudo lsof -i :18789
 
-# Health check
+# Health check (replace <token> with your OPENCLAW_GATEWAY_TOKEN value)
 curl -s -H "Authorization: Bearer <token>" http://127.0.0.1:18789/health
 
 # Recent logs
@@ -1544,9 +1573,11 @@ Gateway logs grow indefinitely. Set up rotation:
 
 **macOS** — add to `/etc/newsyslog.d/openclaw.conf`:
 ```
-/Users/openclaw/.openclaw/logs/gateway.log     openclaw:staff  644  7  1024  *  J
-/Users/openclaw/.openclaw/logs/gateway.err.log openclaw:staff  644  7  1024  *  J
+/Users/openclaw/.openclaw/logs/gateway.log     openclaw:staff  640  7  1024  *  J
+/Users/openclaw/.openclaw/logs/gateway.err.log openclaw:staff  640  7  1024  *  J
 ```
+
+> `640` restricts log access to owner and group only. Gateway logs may contain sensitive data.
 
 **Linux** — add to `/etc/logrotate.d/openclaw`:
 ```
@@ -1563,7 +1594,12 @@ Gateway logs grow indefinitely. Set up rotation:
 
 Session files (`agents/<id>/sessions/*.jsonl`) contain full message history including tool output. Prune old sessions periodically:
 
+> **Test before deleting.** Run `openclaw sessions list` or the `find` command without `-delete` first to review what would be pruned before scheduling the cron job.
+
 ```bash
+# Preview what would be pruned
+sudo -u openclaw find /Users/openclaw/.openclaw/agents/*/sessions -name "*.jsonl" -mtime +30
+
 # Delete sessions older than 30 days
 sudo -u openclaw find /Users/openclaw/.openclaw/agents/*/sessions -name "*.jsonl" -mtime +30 -delete
 ```
@@ -1609,7 +1645,7 @@ Use the `bash -c` pattern for interactive setup, `openclaw doctor`, `openclaw se
 
 ### Docker/OrbStack
 
-- **OrbStack docker CLI not in PATH** — OrbStack installs at `/usr/local/bin/docker`, which may not be in PATH for service users or non-interactive shells. Use the full path or ensure the engine is running with `orbctl start`.
+- **OrbStack docker CLI not in PATH** — OrbStack installs at `/usr/local/bin/docker`, which may not be in PATH for service users or non-interactive shells. Use the full path, ensure the engine is running with `orbctl start`, or symlink: `sudo ln -sf /Applications/OrbStack.app/Contents/MacOS/orbctl /usr/local/bin/docker`
 
 ### Playwright
 

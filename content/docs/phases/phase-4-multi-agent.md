@@ -66,6 +66,30 @@ If you get a response, your channel is working. Check `openclaw logs` if not.
 
 Signal requires more setup (signal-cli, phone number registration). See [Phase 6: Signal Setup](phase-6-deployment.md#signal-setup) for the full walkthrough — it's covered there because Signal setup is typically done on the production deployment.
 
+### Multiple WhatsApp Numbers
+
+A single gateway can manage multiple WhatsApp phone numbers using the `channels.whatsapp.accounts` array. Each account links a separate phone number and can be bound to a different agent via `accountId`:
+
+```json5
+{
+  channels: {
+    whatsapp: {
+      accounts: [
+        { id: "personal", phoneNumber: "+1555AAAAAAA" },
+        { id: "work",     phoneNumber: "+1555BBBBBBB" }
+      ],
+      dmPolicy: "allowlist"  // Applies to all accounts unless overridden
+    }
+  },
+  bindings: [
+    { agentId: "personal-agent", match: { channel: "whatsapp", accountId: "personal" } },
+    { agentId: "work-agent",     match: { channel: "whatsapp", accountId: "work" } }
+  ]
+}
+```
+
+Each account requires its own `openclaw channels login --account <id>` to link. Per-account DM policies and allowlists can be configured at the account level. See the [official WhatsApp channel docs](https://docs.openclaw.ai/channels/whatsapp) for the full accounts config schema.
+
 ### Single Agent Is Enough?
 
 If you only need one channel and one agent, you're done — skip to [Phase 5](phase-5-web-search.md). The multi-agent setup below is for when you need separate agents per channel with different permissions.
@@ -141,13 +165,17 @@ Every gateway has three **core agents** (always present):
 
 | Approach | How it works | Trade-off |
 |----------|-------------|-----------|
-| **Dedicated channel agents** (defense-in-depth) | One agent per channel, no exec/process, sandboxed. Channels bound via `bindings` config. | Adds a secondary defense layer — if [channel-guard](phase-5-web-search.md#inbound-message-guard-channel-guard) misses a prompt injection, the agent can't execute commands directly. But `sessions_send` to main bypasses this restriction ([accepted risk](phase-3-security.md#accepted-risks)). More agents to configure and maintain. |
+| **Dedicated channel agents** (defense-in-depth) | One agent per channel, no exec/process, sandboxed. Channels bound via `bindings` config. | Adds a secondary defense layer — if [channel-guard](phase-5-web-search.md#inbound-message-guard-channel-guard) misses a prompt injection, the agent can't execute commands directly. More agents to configure and maintain. |
 | **Route to main** (simpler) | No channel agent definitions needed. Unbound channels automatically route to the default agent (main). | Fewer moving parts. Relies on channel-guard + Docker/VM sandboxing as primary defenses. Main agent has full tool access including exec. |
+
+> **Important:** `sessions_send` messages are intra-process and bypass per-agent tool restrictions. A compromised channel agent can delegate privileged operations to the main agent regardless of its own tool deny list. This is an [accepted risk](phase-3-security.md#accepted-risks) — the main agent's AGENTS.md instructions are the last line of defense. See [Privileged Operation Delegation](#privileged-operation-delegation) below.
 
 Both are valid — choose based on your threat model and operational preferences. The rest of this section shows dedicated channel agents; to use the simpler approach, skip the channel agent definitions and bindings.
 
 <!-- TODO: remove after openclaw#15176 merges -->
-> **OpenClaw 2026.2.12:** Channel bindings to non-default agents are broken (session path hardening regression, [fix PR #15176](https://github.com/nicepkg/openclaw/pull/15176)). Route channels to main as a workaround until the fix lands.
+> **OpenClaw 2026.2.12:** Channel bindings to non-default agents are broken (session path hardening regression, [fix PR #15176](https://github.com/nicepkg/openclaw/pull/15176)). Route channels to main as a workaround until the fix lands. Check `openclaw --version` — this workaround may no longer be needed if you're on a version after the fix for #15176.
+
+> **Tip:** You can also use `openclaw agents add` for interactive agent setup. The manual approach below gives more control over the configuration.
 
 ### 1. Create workspace and agent directories
 
@@ -179,7 +207,7 @@ Or use the setup command:
 openclaw setup --workspace ~/.openclaw/workspaces/whatsapp
 ```
 
-Edit `AGENTS.md` and `IDENTITY.md` to give each agent a different personality/role.
+Edit `AGENTS.md` and `IDENTITY.md` to give each agent a different personality/role. `IDENTITY.md` defines the agent's name and persona as shown to users in channel messages.
 
 ### 3. Copy auth profile
 
@@ -229,7 +257,10 @@ If this agent should use different API keys (e.g., separate billing), edit the c
 }
 ```
 
+> **Note:** `canvas` and `gateway` are denied per-agent here (not globally) because global deny overrides any agent-level allow. Per-agent deny is safer when different agents have different tool needs — it avoids accidentally blocking tools that another agent legitimately requires.
+
 Key design decisions:
+- **`maxConcurrent: 4`** limits parallel tool executions per agent — useful as both a performance and cost control. Lower values reduce token burn from runaway agents
 - **Main agent** has `sandbox.mode: "off"` — it's your direct operator interface, handles privileged operations (git sync, builds) on behalf of channel agents
 - **Channel agents** deny `exec` and `process` — the most dangerous tools for a channel-facing agent. They delegate privileged operations to main via `sessions_send` (see [Privileged Operation Delegation](#privileged-operation-delegation))
 - **`subagents.allowAgents`** includes `"main"` — allows channel agents to reach the main agent for delegation, plus `search`/`browser` for web access
@@ -522,7 +553,7 @@ This works because:
 
 ## Workspace Git Sync
 
-Track workspace changes in git for backup, audit trail, and multi-device sync. In a multi-agent setup, only the main agent has exec access — channel agents request sync via `sessions_send` delegation.
+Each agent workspace gets its own git repository. Changes to the workspace (agent-created files, config edits, memory updates) are committed automatically on a schedule. This provides backup, audit trail, and multi-device sync. In a multi-agent setup, only the main agent has exec access — channel agents request sync via `sessions_send` delegation.
 
 > **Single-agent setup?** See [Phase 2: Workspace Git Backup](phase-2-memory.md#workspace-git-backup) for the simpler single-workspace pattern with HEARTBEAT.md or cron.
 

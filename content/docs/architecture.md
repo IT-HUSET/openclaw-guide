@@ -113,7 +113,7 @@ graph LR
     end
 
     subgraph Agents["Agent Layer"]
-        RUNTIME["Agent Runtime<br/>(pi-mono derived)"]
+        RUNTIME["Agent Runtime"]
         BOOTSTRAP["Bootstrap Loader<br/>(AGENTS.md, SOUL.md,<br/>TOOLS.md, IDENTITY.md)"]
         CTX["Context Manager<br/>(pruning, compaction,<br/>memory flush)"]
     end
@@ -383,7 +383,7 @@ graph LR
     class SERVE,FUNNEL tailnet
 ```
 
-**Tailscale Serve** (recommended for remote access): gateway binds to loopback, Tailscale proxies HTTPS to your tailnet. Supports identity headers (`tailscale-user-login`) for passwordless auth.
+**Tailscale Serve** (recommended for remote access): gateway binds to loopback, Tailscale proxies HTTPS to your tailnet. Tailscale Serve automatically adds identity headers (`Tailscale-User-Login`, `Tailscale-User-Name`) to proxied requests when the connecting client is authenticated via Tailscale — no additional configuration required. OpenClaw uses these for passwordless auth.
 
 **Tailscale Funnel**: public HTTPS endpoint (ports 443, 8443, 10000). Requires `gateway.auth.mode: "password"`.
 
@@ -665,6 +665,8 @@ graph TB
     class CHROMIUM,CDP_C,VNC_C,NOVNC_C browser
 ```
 
+> **Browser egress risk:** The browser sandbox container requires full network access (`network: host`) for web browsing. A compromised browser agent could exfiltrate data to arbitrary hosts. Consider DNS filtering, proxy rules, or host firewall rules to limit this risk.
+
 ### Sandbox Modes
 
 | Mode | Behavior |
@@ -685,7 +687,7 @@ graph TB
 
 | Option | Values | Default |
 |--------|--------|---------|
-| `workspaceAccess` | `none`, `ro`, `rw` | `rw` |
+| `workspaceAccess` | `none`, `ro`, `rw` | `none` |
 | `docker.network` | `none`, `host`, custom | `none` |
 | `docker.readOnlyRoot` | `true`, `false` | `false` |
 | `docker.image` | image name | `openclaw-sandbox:bookworm-slim` |

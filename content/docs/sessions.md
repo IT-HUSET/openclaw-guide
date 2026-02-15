@@ -27,7 +27,7 @@ DM session keys are controlled by `session.dmScope`:
 
 > **Security:** The default `main` scope shares context across all senders. If Alice and Bob both message your agent, Bob can ask "What were we talking about?" and get Alice's context. Set `dmScope` to `per-channel-peer` for multi-user deployments. See [Phase 3: Security Baseline](phases/phase-3-security.md#security-baseline).
 
-The `main` in the default key format comes from `session.mainKey` — a **legacy field** that always resolves to `"main"` at runtime regardless of configuration. Don't change it.
+The `main` in the default key format is a fixed value. The config field `session.mainKey` exists for historical reasons but is ignored at runtime — it always resolves to `"main"`. Don't set it.
 
 ### Groups, Rooms, and Threads
 
@@ -66,6 +66,8 @@ When a user messages from multiple channels (e.g., WhatsApp + Telegram), they no
 ```
 
 With this config, Alice's WhatsApp and Telegram DMs share the same session. The canonical name (`"alice"`) replaces the peer ID in the session key: `agent:<agentId>:dm:alice`.
+
+> **Finding channel-specific identifiers:** WhatsApp JIDs, Signal UUIDs, and other peer IDs appear in gateway logs when a user first messages the agent. Use `openclaw logs --follow` and look for `identity` or `peer` fields.
 
 > **Note:** Identity links only affect DM session routing. Group sessions are always keyed by group ID, not sender.
 
@@ -183,6 +185,13 @@ Append-only JSON Lines file with tree structure (`id` + `parentId`). Stores the 
 
 The first line is a session header. Subsequent lines are entries that form a tree (branching happens on retries/edits). To rebuild the model's context, OpenClaw walks the tree from root to the most recent leaf.
 
+```
+main ─── turn1 ─── turn2 ─── turn3
+                       └──── turn2-retry ─── turn3b
+```
+
+Each entry has an `id` and `parentId`. When the user retries or edits a message, a new branch forks from the parent entry. The active branch is always the most recent leaf.
+
 > **Gateway is source of truth.** In remote mode, session files live on the remote host. UI clients query the gateway API, not local files.
 
 ---
@@ -238,7 +247,7 @@ Pruning is a separate mechanism from compaction. It trims **old tool results** f
 | | Compaction | Pruning |
 |--|-----------|---------|
 | **What it does** | Summarizes old messages | Trims oversized tool results |
-| **Persists?** | Yes — written to JSONL | No — transient per-request |
+| **Persists?** | Yes — written to JSONL | No — transient per API request (exists only for the duration of a single chat completion call) |
 | **Triggered by** | Context pressure | Cache TTL expiry |
 | **Affects** | Entire conversation history | Only tool result blocks |
 
@@ -265,7 +274,7 @@ Each agent has its own session store:
 └── search/sessions/         ← search agent's sessions
 ```
 
-Session keys include the agent ID, so there's no collision between agents. The [binding system](phases/phase-4-multi-agent.md#routing) routes incoming messages to the right agent — most-specific match wins (peer → guild → channel → default).
+Session keys include the agent ID, so there's no collision between agents. The [binding system](phases/phase-4-multi-agent.md#channel-routing-with-bindings) routes incoming messages to the right agent — most-specific match wins (peer → guild → channel → default).
 
 > **Never share `agentDir` between agents** — causes auth collisions and session corruption. To share credentials, manually copy `auth-profiles.json`.
 
@@ -307,8 +316,8 @@ Session transcripts (`.jsonl`) can be opened directly for debugging. Each line i
 # Find sessions with specific content
 grep -l 'some-keyword' ~/.openclaw/agents/*/sessions/*.jsonl
 
-# View recent entries in a session
-tail -5 ~/.openclaw/agents/main/sessions/<sessionId>.jsonl | jq .
+# View recent entries in a session (replace with actual ID from `openclaw sessions list`)
+tail -5 ~/.openclaw/agents/main/sessions/sess_abc123def456.jsonl | jq .
 ```
 
 > **Gotcha:** Broken tool results persist in session history. If a plugin returns malformed content blocks, the error replays on every subsequent message. Fix: delete the affected `.jsonl` file — the next message creates a fresh session.

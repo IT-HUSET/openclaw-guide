@@ -51,7 +51,7 @@ Key differences from WhatsApp/Signal:
 6. Store the downloaded file on your gateway host:
 
 ```bash
-# Docker isolation (production)
+# Docker isolation (production — macOS; on Linux, replace /Users/openclaw/ with /home/openclaw/)
 sudo -u openclaw mkdir -p /Users/openclaw/.openclaw/credentials/googlechat
 sudo mv ~/Downloads/openclaw-chat-*.json \
   /Users/openclaw/.openclaw/credentials/googlechat/service-account.json
@@ -75,7 +75,7 @@ chmod 600 ~/.openclaw/credentials/googlechat/service-account.json
 4. Under **Functionality**: check **Join spaces and group conversations**
 5. Under **Connection settings**: select **HTTP endpoint URL**
 6. Under **Triggers**: select **Use a common HTTP endpoint URL for all triggers** and set to your gateway's public webhook URL (e.g., `https://<node>.ts.net/googlechat`)
-7. Under **Visibility**: check **Make this Chat app available to specific people and groups in \<Your Domain\>** and add your email
+7. Under **Visibility**: check **Make this Chat app available to specific people and groups in \<Your Domain\>** and add your email (type it into the text field and press Enter)
 8. Click **Save**
 9. **Refresh the page**, find **App status**, set to **Live - available to users**, and **Save** again
 
@@ -275,7 +275,7 @@ For production, use `serviceAccountFile` or the env var — keeps secrets out of
 
 | Issue | Impact | Status |
 |-------|--------|--------|
-| **DM routing ignores bindings** ([#9198](https://github.com/nicepkg/openclaw/issues/9198)) | Google Chat DMs always route to the default agent, ignoring `bindings` config. Space (group) routing works correctly. | Open |
+| **DM routing ignores bindings** ([#9198](https://github.com/nicepkg/openclaw/issues/9198)) | Google Chat DMs always route to the default agent, ignoring `bindings` config. Space (group) routing works correctly. | Open — blocks multi-agent |
 | **OAuth limitations** ([#9764](https://github.com/nicepkg/openclaw/issues/9764)) | Service account auth can't do reactions, media uploads, or proactive DMs. These require user OAuth (not yet supported). | Open |
 | **Per-space rate limit** | 1 write/sec (60/min standard). The 600/min figure in some docs applies only to data import operations. | By design |
 
@@ -361,7 +361,7 @@ GOOGLE_CHAT_SERVICE_ACCOUNT_FILE=/Users/openclaw/.openclaw/credentials/googlecha
 
 ### Channel-guard compatibility
 
-The [channel-guard plugin](../../extensions/channel-guard/) scans inbound channel messages for prompt injection. Google Chat messages flow through the same `message_received` hook as WhatsApp/Signal — channel-guard works with Google Chat if the channel bridge is configured.
+The [channel-guard plugin](extensions/channel-guard.md) scans inbound channel messages for prompt injection. Google Chat messages flow through the same `message_received` hook as WhatsApp/Signal — channel-guard works with Google Chat if the channel bridge is configured.
 
 ---
 
@@ -394,7 +394,7 @@ Google Cloud Logs shows `status code: 405`:
 - Verify the Chat app's webhook URL matches your public URL exactly
 - Check `openclaw channels status --probe` for auth errors or missing audience
 - Confirm the Chat app status is **Live** (not Draft) in GCP Console
-- Run `openclaw logs --follow` while sending a test message
+- Run `openclaw logs --follow | grep -E '(googlechat|error|webhook)'` while sending a test message to filter for Google Chat activity
 
 ### Mention gating blocks replies in spaces
 

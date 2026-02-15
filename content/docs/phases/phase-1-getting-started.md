@@ -15,8 +15,27 @@ Get a working OpenClaw agent in minutes — no channels, no external exposure.
 - **Node.js 22+** and npm
 - **macOS** (primary) or Linux
 
-> **Linux:** Install Node.js via your package manager or [nvm](https://github.com/nvm-sh/nvm). All commands below work identically.
-> On Ubuntu/Debian: `curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt-get install -y nodejs`
+{{% details title="Linux Setup" %}}
+
+Install Node.js 22+ via [nvm](https://github.com/nvm-sh/nvm) (recommended) or [NodeSource](https://github.com/nodesource/distributions):
+
+```bash
+# Option A: nvm (recommended — no sudo needed)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+nvm install 22
+
+# Option B: NodeSource (Ubuntu/Debian)
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
+
+If deploying as a service, create a dedicated user now (see [Phase 6](phase-6-deployment.md)):
+```bash
+sudo useradd -m -s /bin/bash openclaw
+```
+
+Verify `node` and `npm` are on PATH: `node -v && npm -v`. All commands below work identically on Linux.
+{{% /details %}}
 
 ---
 
@@ -69,7 +88,7 @@ This creates `~/.openclaw/` with:
 Follow the interactive prompts to:
 1. Choose your AI provider (Anthropic recommended)
 2. Enter your API key
-3. Configure basic settings
+3. Configure basic settings (default model, workspace location, gateway port)
 
 ---
 
@@ -79,7 +98,9 @@ Follow the interactive prompts to:
 openclaw start
 ```
 
-The gateway starts on `http://127.0.0.1:18789` — loopback only, nothing exposed to the network.
+The gateway starts on `http://127.0.0.1:18789` — loopback (localhost — your machine only), nothing exposed to the network.
+
+> **Troubleshooting:** If `openclaw start` fails, check: `openclaw doctor` for config issues, port 18789 already in use (`lsof -i :18789`), or missing API key (`ANTHROPIC_API_KEY` not set).
 
 Open the Control UI in your browser:
 
@@ -187,6 +208,8 @@ Right now, the only connection leaving your machine is to the AI provider. No ch
 Your agent works, but it's running with default settings. Next:
 
 → **[Phase 2: Memory & Search](phase-2-memory.md)** — give your agent persistent memory and semantic search
+
+> **Is Phase 2 required?** Recommended for production deployments but can be skipped initially — your agent works without it. You can return to it later.
 
 Then lock it down:
 

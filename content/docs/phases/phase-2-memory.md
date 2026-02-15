@@ -75,7 +75,7 @@ When in doubt, ask before acting externally.
 - Emoji: 🐾
 ```
 
-**HEARTBEAT.md** — proactive task checklist. Read every ~30 minutes during heartbeat polls. The agent checks items, does useful background work (email, calendar, memory maintenance), and replies `HEARTBEAT_OK` if nothing needs attention. Keep it short to limit token burn.
+**HEARTBEAT.md** — proactive task checklist. Periodically updated by the agent to indicate it's still running — useful for monitoring agent liveness. Read every ~30 minutes during heartbeat polls. The agent checks items, does useful background work (email, calendar, memory maintenance), and replies `HEARTBEAT_OK` if nothing needs attention. Keep it short to limit token burn.
 
 ```markdown
 - Check email for anything urgent
@@ -166,14 +166,14 @@ Add to `openclaw.json`:
 }
 ```
 
-For local, OpenClaw downloads a GGUF embedding model (~500MB) on first use. Approve the native build and rebuild (run from OpenClaw's install directory — typically `~/.openclaw/`):
+For local, OpenClaw downloads a GGUF embedding model (~500MB) on first use. Approve the native build and rebuild (run from OpenClaw's install directory — typically `/opt/homebrew/lib/node_modules/openclaw` on macOS or `/usr/local/lib/node_modules/openclaw` on Linux):
 
 ```bash
-pnpm approve-builds          # Approve node-llama-cpp native build
-pnpm rebuild node-llama-cpp  # Build native bindings
+npx pnpm approve-builds          # Approve node-llama-cpp native build
+npx pnpm rebuild node-llama-cpp  # Build native bindings
 ```
 
-> **Note:** OpenClaw uses pnpm internally. These commands must be run in the OpenClaw installation directory, not your workspace.
+> **Note:** OpenClaw uses pnpm internally but does not install it globally. Use `npx pnpm` to run these commands. If you get "pnpm not found", ensure you're in the OpenClaw installation directory (not your workspace) and that `npx` is on your PATH.
 
 ### Hybrid Search
 
@@ -203,7 +203,7 @@ Hybrid search combines **vector similarity** (semantic meaning) with **BM25** (e
 }
 ```
 
-> **Tip:** The default 70/30 vector/keyword split works well for most use cases. Increase `textWeight` if your memory contains many specific names, codes, or identifiers that benefit from exact matching.
+> **Tip:** The default 70/30 vector/keyword split works well for most use cases. Increase `textWeight` if your memory contains many specific names, codes, or identifiers that benefit from exact matching. Test with `openclaw memory search "your query"` using queries with both semantic and keyword components to verify result quality — adjust weights and re-index if needed.
 
 ### Remote Provider Example
 
@@ -293,7 +293,7 @@ openclaw memory index
 
 ## Multi-Agent Memory
 
-> **Note:** This section applies after completing [Phase 4: Multi-Agent Setup](phase-4-multi-agent.md). Skip if running a single agent.
+> **Single agent?** If you're running a single agent, skip this section — memory isolation only matters with multiple agents. This applies after completing [Phase 4: Multi-Agent Setup](phase-4-multi-agent.md).
 
 Each agent has its own workspace, which means **separate memory stores**. The WhatsApp agent's memory is isolated from the Signal agent's memory.
 
@@ -377,6 +377,8 @@ If your memory files contain sensitive data, either exclude them from git or use
 ## Workspace Git Backup
 
 Your workspace — memory files, SOUL.md, AGENTS.md — is the agent's persistent identity. Back it up to a private git repo for recovery, audit trail, and multi-device sync.
+
+> **Following sequentially?** This section references multi-agent concepts from Phase 4. If you're running a single agent, the basic backup setup still applies — just skip the multi-workspace parts.
 
 > **Multi-agent?** This section covers single-agent git backup. For multi-agent setups where channel agents lack exec access and delegate to the main agent, see [Phase 4: Workspace Git Sync](phase-4-multi-agent.md#workspace-git-sync).
 
@@ -503,7 +505,7 @@ Make the token available to the gateway:
 export GITHUB_TOKEN=github_pat_...
 ```
 
-Both `gh` CLI and `git push` over HTTPS read from this env var. See [Phase 6: GitHub Token Setup](phase-6-deployment.md#github-token-setup) for production deployment details.
+Both `gh` CLI and `git push` over HTTPS read from this env var. For interactive use, a personal access token works. For the gateway service (Phase 6), use a machine user token or deploy key instead. See [Phase 6: GitHub Token Setup](phase-6-deployment.md#github-token-setup) for production deployment details.
 
 ### Verification
 
@@ -554,6 +556,8 @@ The `qmd` binary must be on the gateway's `PATH`. QMD runs fully locally via Bun
 - Want session transcript indexing (`memory.qmd.sessions.enabled`)
 - If QMD fails or the binary is missing, OpenClaw falls back to the built-in SQLite indexer
 
+> **Limitations:** QMD is experimental — may not survive OpenClaw updates, has no official documentation, and behavior may change without notice. Test thoroughly before relying on it in production.
+
 For most users, the default built-in backend is sufficient.
 
 ---
@@ -567,7 +571,7 @@ After configuring memory search, verify everything works:
 - [ ] `openclaw memory search "test"` returns results (if you have memory files)
 - [ ] Send a message via chat, check that `memory/YYYY-MM-DD.md` is created
 - [ ] Pre-compaction flush: in a long conversation, verify memory is written before compaction (check logs: `openclaw logs | grep "memory flush"`)
-- [ ] For local provider: `pnpm approve-builds` and `pnpm rebuild node-llama-cpp` completed successfully
+- [ ] For local provider: `npx pnpm approve-builds` and `npx pnpm rebuild node-llama-cpp` completed successfully
 
 ---
 

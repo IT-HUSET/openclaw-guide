@@ -65,7 +65,7 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
     // Only deny tools globally that NO agent should ever have.
     // web_search, web_fetch, browser are denied per-agent (not here) —
     // global deny overrides agent-level allow, which would break the search/browser agents.
-    "deny": ["canvas", "gateway"],
+    "deny": ["canvas", "gateway", "nodes"],
 
     // Disable elevated mode — prevents sandbox escape
     "elevated": { "enabled": false },

@@ -214,14 +214,14 @@ See [Phase 4: Workspace Git Sync](../../content/docs/phases/phase-4-multi-agent.
 Add to `/etc/newsyslog.d/openclaw.conf`:
 ```
 # Single instance
-/Users/openclaw/.openclaw/logs/gateway.log     openclaw:staff  644  7  1024  *  J
-/Users/openclaw/.openclaw/logs/gateway.err.log openclaw:staff  644  7  1024  *  J
+/Users/openclaw/.openclaw/logs/gateway.log     openclaw:staff  640  7  1024  *  J
+/Users/openclaw/.openclaw/logs/gateway.err.log openclaw:staff  640  7  1024  *  J
 
 # Multi-instance — add per user
-/Users/openclaw-wa/.openclaw/logs/gateway.log     openclaw-wa:staff  644  7  1024  *  J
-/Users/openclaw-wa/.openclaw/logs/gateway.err.log openclaw-wa:staff  644  7  1024  *  J
-/Users/openclaw-sig/.openclaw/logs/gateway.log     openclaw-sig:staff  644  7  1024  *  J
-/Users/openclaw-sig/.openclaw/logs/gateway.err.log openclaw-sig:staff  644  7  1024  *  J
+/Users/openclaw-wa/.openclaw/logs/gateway.log     openclaw-wa:staff  640  7  1024  *  J
+/Users/openclaw-wa/.openclaw/logs/gateway.err.log openclaw-wa:staff  640  7  1024  *  J
+/Users/openclaw-sig/.openclaw/logs/gateway.log     openclaw-sig:staff  640  7  1024  *  J
+/Users/openclaw-sig/.openclaw/logs/gateway.err.log openclaw-sig:staff  640  7  1024  *  J
 ```
 
 ## Troubleshooting
