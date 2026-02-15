@@ -28,6 +28,7 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 - `content/docs/phases/phase-7-migration.md` — Phase 7: Moving a deployment to a new machine — config, credentials, memory, channels, services, cron jobs
 - `content/docs/google-chat.md` — Google Chat: GCP setup, webhook exposure, multi-agent, multi-org, known issues
 - `content/docs/multi-gateway.md` — Multi-Gateway: profiles, multi-user, VM variants for running multiple gateway instances
+- `content/docs/hardened-multi-agent.md` — Hardened Multi-Agent: receptor/computer architecture with network egress allowlisting
 - `content/docs/reference.md` — Config cheat sheet, tool groups, plugins, gotchas, useful commands
 - `content/docs/architecture.md` — System internals: core components, module dependencies, networking, diagrams
 
@@ -37,6 +38,7 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 
 ### Scripts
 - `scripts/docker-isolation/` — Automated setup for Docker isolation deployment (3 bash scripts + README)
+- `scripts/network-egress/` — Automated setup for network egress allowlisting (4 bash scripts, allowlist template, README)
 
 ### Test Environment
 - `.openclaw-test/` — Local OpenClaw gateway config + integration tests. Requires `openclaw` installed globally (`npm i -g openclaw`) and `.env` with `ANTHROPIC_API_KEY` + `OPENCLAW_GATEWAY_TOKEN`

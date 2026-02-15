@@ -622,6 +622,8 @@ graph TB
 - Sandbox configuration
 - Memory store
 
+> **Hardened variant:** For deployments where the work agent needs network access (package installs, git) but exfiltration must be blocked, a receptor/computer architecture with network egress allowlisting provides a stronger posture. See [Hardened Multi-Agent](hardened-multi-agent.md).
+
 ---
 
 ## Sandbox Execution
@@ -691,6 +693,8 @@ graph TB
 | `docker.network` | `none`, `host`, custom | `none` |
 | `docker.readOnlyRoot` | `true`, `false` | `false` |
 | `docker.image` | image name | `openclaw-sandbox:bookworm-slim` |
+
+> **Custom networks with egress allowlisting:** Set `docker.network` to a custom Docker network name (e.g., `"openclaw-egress"`) combined with host-level firewall rules (pf on macOS, nftables on Linux) to restrict outbound traffic to an allowlist. This gives the computer agent network access for package installs and git while blocking exfiltration to arbitrary hosts. See [Hardened Multi-Agent](hardened-multi-agent.md) for the full architecture.
 
 ---
 

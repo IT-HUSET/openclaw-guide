@@ -635,4 +635,5 @@ openclaw plugins install -l ./extensions/channel-guard
 → **[Phase 6: Deployment](phase-6-deployment.md)** — run as a system service with full network isolation
 
 Or:
+- [Hardened Multi-Agent](../hardened-multi-agent.md) — egress-allowlisted network for the computer agent when `network: none` is too restrictive
 - [Reference](../reference.md) — full tool list, config keys, gotchas

@@ -715,5 +715,6 @@ Three approaches: **profiles** (simplest — `--profile` flag, same user), **mul
 → **[Phase 5: Web Search Isolation](phase-5-web-search.md)** — the key differentiator: safe internet access via a dedicated search agent
 
 Or:
+- [Hardened Multi-Agent](../hardened-multi-agent.md) — receptor/computer architecture with network egress allowlisting for high-security deployments
 - [Phase 6: Deployment](phase-6-deployment.md) — VM isolation (macOS VMs, Linux VMs), LaunchDaemon/LaunchAgent/systemd, firewall, Tailscale
 - [Reference](../reference.md) — full tool list, config keys, gotchas

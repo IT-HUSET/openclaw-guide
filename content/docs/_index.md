@@ -18,6 +18,7 @@ Start with [Phase 1]({{< relref "phases/phase-1-getting-started" >}}) and work t
   {{< card link="architecture" title="Architecture" subtitle="System internals, module dependencies, networking diagrams" icon="chip" >}}
   {{< card link="google-chat" title="Google Chat" subtitle="GCP setup, webhook exposure, multi-agent, multi-org" icon="chat-alt-2" >}}
   {{< card link="multi-gateway" title="Multi-Gateway" subtitle="Profiles, multi-user, VM variants for channel separation" icon="server" >}}
+  {{< card link="hardened-multi-agent" title="Hardened Multi-Agent" subtitle="Receptor/computer with network egress allowlisting" icon="shield-check" >}}
   {{< card link="examples" title="Examples" subtitle="Annotated config and security audit walkthrough" icon="code" >}}
   {{< card link="extensions" title="Extensions" subtitle="web-guard, channel-guard, agent-guard, image-gen plugins" icon="puzzle" >}}
 {{< /cards >}}

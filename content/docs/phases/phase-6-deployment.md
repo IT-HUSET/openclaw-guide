@@ -1615,4 +1615,5 @@ Your OpenClaw deployment is production-ready.
 → **[Reference](../reference.md)** — config cheat sheet, tool list, gotchas, emergency procedures
 
 Or review:
+- [Hardened Multi-Agent](../hardened-multi-agent.md) — receptor/computer architecture with network egress allowlisting and dedicated firewall rules
 - [Examples](../examples/) — complete config and security audit

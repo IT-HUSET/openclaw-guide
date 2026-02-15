@@ -212,7 +212,7 @@ See [Session Management](sessions.md) for the full deep-dive on session keys, li
 | `non-main` | Only non-main sessions sandboxed |
 | `all` | Everything sandboxed |
 
-For detailed sandbox architecture, container lifecycle, and config options, see [Architecture — Docker Sandbox Architecture](architecture.md#docker-sandbox-architecture).
+For detailed sandbox architecture, container lifecycle, and config options, see [Architecture — Docker Sandbox Architecture](architecture.md#docker-sandbox-architecture). For egress-allowlisted custom Docker networks, see [Hardened Multi-Agent](hardened-multi-agent.md).
 
 ### Sandbox Scope & Access Guide
 
@@ -225,6 +225,8 @@ Different agents need different sandbox configurations. Here's when to use each 
 | Browser agent | `agent` | `none` | `all` | No filesystem needed; needs network for browsing |
 | Main agent | — | — | `off` | Operator interface; needs full host access for exec delegation |
 | Ephemeral tasks | `session` | `none` | `all` | Container destroyed when session ends; no persistent state |
+| Receptor ([hardened](hardened-multi-agent.md)) | `agent` | `rw` | `all` | No exec, `network: none`; receives channel input, delegates to computer |
+| Computer ([hardened](hardened-multi-agent.md)) | `agent` | `rw` | `all` | Full exec, `network: "openclaw-egress"`; egress-allowlisted |
 
 ### Config Includes (`$include`)
 

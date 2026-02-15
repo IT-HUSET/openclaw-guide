@@ -340,6 +340,8 @@ Full dedicated user setup is covered in [Phase 6: Deployment](phase-6-deployment
 
 Three deployment postures for isolating OpenClaw from your personal data, trading off between host isolation, internal sandboxing, and operational complexity. All three use the same multi-agent architecture (core agents: main + search + browser, plus channel agents as configured, `sessions_send` delegation). They differ in the outer isolation boundary and internal sandboxing.
 
+> **Need network access with exfiltration blocking?** If the computer agent needs outbound network (npm install, git push, API calls) but you want to restrict which hosts it can reach, see [Hardened Multi-Agent](../hardened-multi-agent.md) — a receptor/computer architecture with egress allowlisting on a custom Docker network.
+
 ### Docker Isolation *(recommended)*
 
 Run a **single multi-agent OpenClaw gateway** as a non-admin `openclaw` user with Docker sandboxing for all agents and `sessions_send` delegation for search/browser isolation.
