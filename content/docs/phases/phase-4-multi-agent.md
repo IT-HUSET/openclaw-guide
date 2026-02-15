@@ -157,7 +157,7 @@ Agent = Workspace + agentDir + Session Store + Tools
 
 Every gateway has three **core agents** (always present):
 
-- **Main agent** — direct access via Control UI / CLI, no sandbox, full tools; handles privileged operations on behalf of channel agents
+- **Main agent** — direct access via Control UI / CLI, full tools; handles privileged operations on behalf of channel agents. [Phase 6](phase-6-deployment.md#sandbox-the-main-agent) recommends sandboxing main with Docker
 - **Search agent** — added in [Phase 5](phase-5-web-search.md)
 - **Browser agent** — added in [Phase 5](phase-5-web-search.md)
 
@@ -240,7 +240,7 @@ If this agent should use different API keys (e.g., separate billing), edit the c
         "id": "main",
         "default": true,
         "workspace": "~/.openclaw/workspaces/main",
-        "sandbox": { "mode": "off" }
+        "sandbox": { "mode": "off" }  // Phase 6 recommends "all" — see Sandbox the Main Agent
       },
       {
         "id": "whatsapp",
@@ -261,7 +261,7 @@ If this agent should use different API keys (e.g., separate billing), edit the c
 
 Key design decisions:
 - **`maxConcurrent: 4`** limits parallel tool executions per agent — useful as both a performance and cost control. Lower values reduce token burn from runaway agents
-- **Main agent** has `sandbox.mode: "off"` — it's your direct operator interface, handles privileged operations (git sync, builds) on behalf of channel agents
+- **Main agent** starts with `sandbox.mode: "off"` for initial setup — [Phase 6](phase-6-deployment.md#sandbox-the-main-agent) recommends hardening to `mode: "all"` for production, which roots main inside Docker while preserving workspace access
 - **Channel agents** deny `exec` and `process` — the most dangerous tools for a channel-facing agent. They delegate privileged operations to main via `sessions_send` (see [Privileged Operation Delegation](#privileged-operation-delegation))
 - **`subagents.allowAgents`** includes `"main"` — allows channel agents to reach the main agent for delegation, plus `search`/`browser` for web access
 - **Channel agents** inherit the default sandbox (`non-main`) — Docker runs with no network, preventing exfiltration via any remaining tools
@@ -411,7 +411,7 @@ All agents need valid model credentials to function — including the search age
 
 ```
 ~/.openclaw/agents/
-├── main/agent/auth-profiles.json       # Main agent (unsandboxed — can read this)
+├── main/agent/auth-profiles.json       # Main agent (sandboxed in production — can't read this)
 ├── whatsapp/agent/auth-profiles.json   # Same credentials (sandboxed — can't read)
 ├── signal/agent/auth-profiles.json     # Same credentials (sandboxed — can't read)
 ├── search/agent/auth-profiles.json     # Same credentials (sandboxed — can't read)
@@ -514,7 +514,7 @@ This is why [web search isolation](phase-5-web-search.md) uses per-agent deny: w
 
 Using the agent config from [Creating Channel Agents](#optional-channel-agents) above:
 
-- **Main agent** (operator) — full access via Control UI / CLI, no sandbox, no channel binding; handles privileged operations (git sync, builds) on behalf of channel agents
+- **Main agent** (operator) — full access via Control UI / CLI, no channel binding; handles privileged operations (git sync, builds) on behalf of channel agents. [Phase 6](phase-6-deployment.md#sandbox-the-main-agent) recommends sandboxing with `mode: "all"`
 - **WhatsApp agent** — daily work, research, planning; no exec/process; sandboxed with Docker (no network); delegates web search to search agent, privileged operations to main
 - **Signal agent** — same capabilities as WhatsApp; separate workspace and credentials
 - `gateway` and `canvas` denied globally; web tools (`web_search`, `web_fetch`, `browser`) denied per-agent; channel agents also deny `exec`, `process`, `elevated`
@@ -534,7 +534,7 @@ Instead, channel agents delegate privileged operations to the main agent via `se
 Channel Agent (no exec) → sessions_send("main", "Run the test suite in ~/project")
                                │
                                ▼
-                         Main Agent (unsandboxed) → exec("npm test ...")
+                         Main Agent (sandboxed) → exec("npm test ...")
                                │
                                ▼
                          Results announced back to channel agent
@@ -543,11 +543,11 @@ Channel Agent (no exec) → sessions_send("main", "Run the test suite in ~/proje
 This works because:
 - `sessions_send` is available to channel agents (not in their deny list)
 - `"main"` is in their `subagents.allowAgents`
-- The main agent has full exec access and no sandbox
+- The main agent has full exec access (runs inside Docker with workspace access in production — see [Phase 6](phase-6-deployment.md#sandbox-the-main-agent))
 
 **Important:** Delegation is prompt-based, not ACL-enforced. The main agent decides whether to execute based on its AGENTS.md instructions. See [Workspace Git Sync](#workspace-git-sync) for a worked example.
 
-> **Security: `sessions_send` is the dominant residual risk.** A prompt-injected channel agent can send arbitrary requests to the main agent (unsandboxed, full exec) via `sessions_send`. No deployment boundary addresses this — it's intra-process communication. The main agent's AGENTS.md is the last line of defense. Write restrictive instructions: explicitly list what the main agent should and should not do on behalf of other agents. See [Security: Accepted Risks](phase-3-security.md#accepted-risks) for the full analysis.
+> **Security: `sessions_send` is the dominant residual risk.** A prompt-injected channel agent can send arbitrary requests to the main agent via `sessions_send`. With [sandbox hardening](phase-6-deployment.md#sandbox-the-main-agent), the main agent executes inside Docker with workspace-only access — reducing blast radius from full host access to container-scoped execution. No deployment boundary prevents the delegation itself — it's intra-process communication. The main agent's AGENTS.md is the last line of defense. Write restrictive instructions: explicitly list what the main agent should and should not do on behalf of other agents. See [Security: Accepted Risks](phase-3-security.md#accepted-risks) for the full analysis.
 
 ---
 
@@ -697,28 +697,16 @@ After completing multi-agent setup, verify:
 
 ## Multi-Gateway Deployments
 
-A single gateway handles multiple channels and agents. But you can also run **multiple gateway instances** on the same host — each with its own config, workspaces, secrets, and channels.
-
-**When to use multiple gateways:**
+A single gateway handles multiple channels and agents. But you can also run **multiple gateway instances** — each with its own config, workspaces, secrets, and channels.
 
 | Use case | Example |
 |----------|---------|
 | Separate personal vs work channels | WhatsApp on one gateway, Signal on another |
 | Different personality/SOUL.md per channel | Different agents with different identities |
-| Channel-level process isolation | Separate OS users, separate crash domains |
+| Channel-level process isolation | Separate crash domains |
 | Different API keys per channel | Billing separation |
 
-**Pattern:** Each instance gets its own OS user, port, and service definition:
-
-| Property | Convention |
-|----------|-----------|
-| OS user | `openclaw-<instance>` (e.g., `openclaw-bob`, `openclaw-tibra`) |
-| Port | `18789`, `18790`, `18791`, ... |
-| Plist/service label | `ai.openclaw.gateway.<instance>` |
-| Config | `/Users/openclaw-<instance>/.openclaw/openclaw.json` |
-| Workspaces | `/Users/openclaw-<instance>/.openclaw/workspaces/` |
-
-Each gateway is fully independent — its own core agents (main + search + browser), its own channel config, its own memory and sessions. See [Phase 6: Deployment](phase-6-deployment.md) for service setup.
+Three approaches: **profiles** (simplest — `--profile` flag, same user), **multi-user** (separate OS users), and **VM variants** (one VM per channel). See [Multi-Gateway Deployments](../multi-gateway.md) for setup, security comparison, and deployment checklists.
 
 ---
 

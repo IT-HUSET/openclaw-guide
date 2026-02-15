@@ -37,3 +37,4 @@ scripts/docker-isolation/.instances
 public/
 resources/
 .hugo_build.lock
+docs/specs/

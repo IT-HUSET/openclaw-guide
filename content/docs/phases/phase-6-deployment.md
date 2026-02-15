@@ -494,94 +494,35 @@ Agents on the internal network can communicate with the gateway but have no rout
 
 See [OpenClaw sandboxing docs](https://docs.openclaw.ai/gateway/sandboxing) for full Docker configuration.
 
-### Option: Multi-user channel separation
+#### Sandbox the Main Agent
 
-For stricter channel isolation without VMs, run one gateway per channel under separate OS users:
+The default sandbox config (`mode: "non-main"`) leaves the main agent unsandboxed. This is the simplest setup but leaves the `read→exfiltrate` chain open for the main agent — a prompt-injected channel agent can delegate to main via `sessions_send`, and main has full host filesystem access.
 
-```
-Host (macOS or Linux)
-  ├── openclaw-wa user (non-admin)
-  │    └── Gateway (port 18789): main+whatsapp + search [+ browser]
-  └── openclaw-sig user (non-admin)
-       └── Gateway (port 18790): main+signal + search [+ browser]
-```
+To close this gap, sandbox main explicitly:
 
-Each gateway is a small 2–3 agent instance (channel-connected main agent + search + optionally browser). Different UIDs mean a compromised channel can't read the other's config, credentials, or sessions (`chmod 700` home directories).
-
-> **Naming convention:** The names `openclaw-wa`/`openclaw-sig` are channel-based examples. You may prefer identity-based names (e.g., the user's name or the agent's purpose) since channels might change but agent identity persists.
-
-#### Create users
-
-**macOS:**
-```bash
-sudo sysadminctl -addUser openclaw-wa -fullName "OpenClaw WhatsApp" -password "<temp>" \
-  -home /Users/openclaw-wa -shell /bin/zsh
-sudo sysadminctl -addUser openclaw-sig -fullName "OpenClaw Signal" -password "<temp>" \
-  -home /Users/openclaw-sig -shell /bin/zsh
-sudo passwd openclaw-wa && sudo passwd openclaw-sig
-
-sudo mkdir -p /Users/openclaw-wa /Users/openclaw-sig
-sudo chown -R openclaw-wa:staff /Users/openclaw-wa
-sudo chown -R openclaw-sig:staff /Users/openclaw-sig
+```json5
+{
+  "agents": {
+    "list": [{
+      "id": "main",
+      // ... other config ...
+      "sandbox": {
+        "mode": "all",
+        "scope": "agent",
+        "workspaceAccess": "rw"
+      }
+    }]
+  }
+}
 ```
 
-**Linux:**
-```bash
-sudo useradd -m -s /bin/bash openclaw-wa
-sudo useradd -m -s /bin/bash openclaw-sig
-sudo passwd openclaw-wa && sudo passwd openclaw-sig
+This roots the main agent's filesystem inside Docker — it can no longer read `openclaw.json` or `auth-profiles.json`. Workspace data (SOUL.md, memory, workspace files) remains accessible via the mount.
 
-# Docker sandboxing
-sudo usermod -aG docker openclaw-wa
-sudo usermod -aG docker openclaw-sig
-```
+**Trade-off:** Host-native tools (Xcode, Homebrew binaries) are unavailable inside the container. If you need unsandboxed host access, add a separate `dev` agent with `sandbox.mode: "off"` and no channel binding — accessible only via Control UI. See the [example config](../examples/config.md) for the full definition.
 
-Follow the standard [Install OpenClaw](#install-openclaw), [gateway.mode](#required-config-gatewaymode), [log directory](#log-directory), and [file permissions](#file-permissions) steps for each user — substituting `openclaw-wa`/`openclaw-sig` for `openclaw` and using the appropriate home directory.
+### Multi-Gateway Options
 
-> **Homebrew shared binaries:** In a multi-user setup, all users share `/opt/homebrew`. See the [Homebrew warning](#installation-scope) above for mitigation.
-
-#### Port assignment
-
-Each gateway needs a unique port:
-
-| User | Port | Label (macOS) | Service (Linux) |
-|------|------|---------------|-----------------|
-| `openclaw-wa` | 18789 | `ai.openclaw.gateway.wa` | `openclaw-gateway-wa` |
-| `openclaw-sig` | 18790 | `ai.openclaw.gateway.sig` | `openclaw-gateway-sig` |
-
-#### Service files
-
-Create one LaunchDaemon (macOS) or systemd unit (Linux) per user. Use the same templates from the [LaunchDaemon](#macos-launchdaemon) / [systemd](#linux-systemd) sections, changing per instance:
-
-- `UserName` / `User` → channel-specific user (`openclaw-wa` or `openclaw-sig`)
-- `--port` and `OPENCLAW_GATEWAY_PORT` → assigned port
-- `Label` / service name → channel-specific (see table above)
-- `HOME`, `OPENCLAW_HOME`, log paths → user's home directory
-
-#### Config per user
-
-Each user gets their own `openclaw.json` with only the relevant channel, agents, and bindings. Start from [`examples/openclaw.json`](../examples/config.md) and remove everything that belongs to the other channel.
-
-> **Tool deny/allow split:** When a gateway has mixed tool needs (main agent denies web tools, search agent allows them), deny web tools at the **agent level** on the main agent — not globally. Global `tools.deny` overrides agent-level `tools.allow`, so a global deny on `web_search` breaks the search agent even if it has `web_search` in its `tools.allow`. For details on how `allow` and `deny` lists interact, see [Phase 5 — Deny web tools per-agent](phase-5-web-search.md#1-deny-web-tools-per-agent).
-
-> **Simplified workspace sync:** Workspace git sync (configured in Phase 4) automatically commits agent workspace changes to git — useful for auditing and rollback. Since each channel-connected agent is the main agent of its own gateway (with full exec access), it can run `git` commands directly. The [delegation-based workspace git sync](phase-4-multi-agent.md#workspace-git-sync) — needed when channel agents lack exec in a single-gateway setup — is unnecessary here. Each agent manages its own workspace repo without `sessions_send`.
-
-> **Trade-off:** Multiple gateways, configs, service files, and secrets to manage — but user-level isolation between channels without VM overhead. A root exploit still compromises all users (shared kernel). Both users share the Docker daemon if using Docker sandboxing.
-
----
-
-## Multi-Gateway Deployments
-
-Running multiple gateway instances on the same host gives process-level isolation between channels or identities. Each instance gets its own OS user, port, config, workspaces, and secrets.
-
-See [Phase 4: Multi-Gateway Deployments](phase-4-multi-agent.md#multi-gateway-deployments) for architecture, use cases, and naming conventions. The [Multi-user channel separation](#option-multi-user-channel-separation) section above shows the Docker isolation deployment pattern. The same approach works with VM isolation — run one VM per gateway instance.
-
-**Deployment checklist per instance:**
-- Separate OS user (or separate VM)
-- Separate LaunchDaemon/systemd unit with unique label/name and port
-- Separate `openclaw.json` with only the relevant channels and agents
-- Separate secrets (plist env vars or environment file)
-- `chmod 700` on each user's home directory
+For running multiple gateway instances — profiles, multi-user separation, or VM variants — see [Multi-Gateway Deployments](../multi-gateway.md).
 
 ---
 
@@ -909,37 +850,7 @@ OpenClaw watches `openclaw.json` for changes automatically — same behavior as 
 - **No GUI session** — the `openclaw` user never logs in. LaunchAgent persistence, login items, and shell RC file persistence are all neutralized.
 - **VM is the outer boundary** — your host macOS is untouched. A full compromise of the VM doesn't affect the host.
 
-#### Option: Two VMs for channel separation
-
-For stricter isolation between channels, run one VM per channel (uses both macOS VM slots):
-
-```
-macOS Host (personal use, untouched)
-  ├── VM 1 — "openclaw-wa" (4 agents: main + whatsapp + search + browser)
-  └── VM 2 — "openclaw-sig" (4 agents: main + signal + search + browser)
-```
-
-Create both VMs:
-
-**Lume:**
-```bash
-lume create openclaw-wa --os macos --ipsw latest \
-  --cpu 4 --memory 8192 --disk-size 80 --unattended
-lume create openclaw-sig --os macos --ipsw latest \
-  --cpu 4 --memory 8192 --disk-size 80 --unattended
-```
-
-**Parallels:**
-```bash
-prlctl create openclaw-wa --ostype macos
-prlctl set openclaw-wa --cpus 4 --memsize 8192
-prlctl create openclaw-sig --ostype macos
-prlctl set openclaw-sig --cpus 4 --memsize 8192
-```
-
-Follow the same dedicated user + LaunchDaemon setup inside each VM. Use [`examples/openclaw.json`](../examples/config.md) as a starting point — remove the signal agent/channel/binding from the WhatsApp VM and vice versa.
-
-> **Trade-off:** Two separate gateways, two configs, double the resource usage, uses both VM slots. Main benefit: a compromise of one VM doesn't affect the other channel.
+For channel separation with two macOS VMs, see [Multi-Gateway: VM Variants](../multi-gateway.md#vm-variants).
 
 ### VM Isolation: Linux VMs
 
@@ -1091,18 +1002,9 @@ Use the [Linux: systemd](#linux-systemd) section below — it applies identicall
 
 #### Firewall and Tailscale
 
-Same configuration as Docker isolation — see [Firewall](#firewall) and [Tailscale: Private Networking](#tailscale-private-networking). Apply inside the Linux VM (UFW/iptables) and optionally install Tailscale inside the VM for remote access.
+Same configuration as Docker isolation — see [macOS Firewall](#macos-firewall) and [Tailscale ACLs](#tailscale-acls). Apply inside the Linux VM (UFW/iptables) and optionally install Tailscale inside the VM for remote access.
 
-#### Option: multiple VMs
-
-Unlike macOS VMs (limited to 2 per host), Linux VMs have no artificial limit. Run one VM per channel for maximum isolation:
-
-```bash
-multipass launch --name openclaw-wa --cpus 2 --memory 2G --disk 20G
-multipass launch --name openclaw-sig --cpus 2 --memory 2G --disk 20G
-```
-
-Follow the same dedicated user + systemd + Docker setup inside each VM.
+For multiple Linux VMs, see [Multi-Gateway: VM Variants](../multi-gateway.md#vm-variants).
 
 ---
 
@@ -1267,35 +1169,7 @@ lume ssh openclaw-vm -- sudo launchctl bootstrap system "$PLIST"
 lume ssh openclaw-vm -- sudo chmod 600 "$PLIST"
 ```
 
-**Two VMs** — automate with a deploy script:
-```bash
-#!/bin/bash
-# ~/openclaw-deploy-secrets.sh — chmod 700
-
-SECRETS=(
-  "ANTHROPIC_API_KEY=sk-ant-..."
-  "BRAVE_API_KEY=BSA..."
-  "OPENCLAW_GATEWAY_TOKEN=your-gateway-token"
-  "GITHUB_TOKEN=github_pat_..."
-)
-
-SSH_CMD="lume ssh"   # Or: prlctl exec
-PLIST=/Library/LaunchDaemons/ai.openclaw.gateway.plist
-
-for VM in openclaw-wa openclaw-sig; do
-  for SECRET in "${SECRETS[@]}"; do
-    KEY="${SECRET%%=*}"
-    VALUE="${SECRET#*=}"
-    $SSH_CMD "$VM" -- sudo /usr/libexec/PlistBuddy \
-      -c "Set :EnvironmentVariables:$KEY $VALUE" "$PLIST"
-  done
-  $SSH_CMD "$VM" -- sudo launchctl bootout system/ai.openclaw.gateway 2>/dev/null
-  $SSH_CMD "$VM" -- sudo launchctl bootstrap system "$PLIST"
-  $SSH_CMD "$VM" -- sudo chmod 600 "$PLIST"
-done
-```
-
-> **No shared directory needed** — secrets are pushed via SSH, so the VM isolation boundary stays intact.
+For multi-VM secrets automation, see [Multi-Gateway: VM Variants](../multi-gateway.md#vm-variants).
 
 ### Docker isolation: Single plist
 

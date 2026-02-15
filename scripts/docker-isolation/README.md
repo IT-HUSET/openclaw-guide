@@ -2,6 +2,8 @@
 
 Automates the [recommended Docker isolation deployment](../../content/docs/phases/phase-6-deployment.md#docker-isolation) for a dedicated macOS machine. Supports single-gateway (one user, all channels) and multi-gateway (separate user per channel for stronger isolation).
 
+For a comparison of all architecture options (profiles vs multi-user vs VMs), see [Multi-Gateway Deployments](../../content/docs/multi-gateway.md).
+
 ## Architecture
 
 ### Single gateway (default)

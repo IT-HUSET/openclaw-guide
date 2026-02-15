@@ -320,7 +320,7 @@ For each organization:
 OpenClaw's `channels.googlechat` config supports a **single service account**. For multi-org with different service accounts:
 
 - **Single org active at a time:** Switch `serviceAccountFile` between orgs (not practical for simultaneous use)
-- **Separate gateway instances:** Run one gateway per org, each with its own service account and port. Use the [multi-user channel separation](phases/phase-6-deployment.md#option-multi-user-channel-separation) pattern from Phase 6.
+- **Separate gateway instances:** Run one gateway per org, each with its own service account and port. See [Multi-Gateway Deployments](multi-gateway.md) for setup options.
 - **Shared service account:** If both orgs trust the same GCP project, a single service account works — but this requires cross-org GCP access.
 
 Monitor OpenClaw docs for native multi-tenant Google Chat support.

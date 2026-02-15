@@ -21,7 +21,7 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
   // - Core agents: main, search, browser (Phases 4-5)
   // - Optional dedicated channel agents: whatsapp, signal, googlechat (defense-in-depth)
   //   Channels can also route directly to main for a simpler setup — see Phase 4.
-  // - Docker sandboxing for channel agents (Phase 6, Docker isolation)
+  // - Docker sandboxing for all agents including main (Phase 6, Docker isolation)
   // - Production deployment settings (Phase 6)
   //
   // DEPLOYMENT OPTIONS:
@@ -161,13 +161,30 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
     "list": [
       {
         // MAIN AGENT — operator access via Control UI / CLI
-        // Full tool access, no channel binding, not sandboxed.
+        // Full tool access, no channel binding, sandboxed (Docker).
         // This is your direct interface. Web tools denied at agent level;
         // web access delegated to search/browser agents via sessions_send.
         // Handles privileged operations (git sync, builds) on behalf of channel agents.
         "id": "main",
         "default": true,
         "workspace": "/Users/openclaw/.openclaw/workspaces/main",
+        "tools": {
+          "deny": ["web_search", "web_fetch", "browser"]
+        },
+        "sandbox": {
+          "mode": "all",
+          "scope": "agent",
+          "workspaceAccess": "rw"
+        },
+        "subagents": { "allowAgents": ["search", "browser"] }
+      },
+      {
+        // DEV AGENT (optional — unsandboxed escape hatch)
+        // Only add if you need host-native tools (Xcode, Homebrew binaries).
+        // No channel binding → unreachable from WhatsApp/Signal/Google Chat.
+        // Accessible only via Control UI or CLI.
+        "id": "dev",
+        "workspace": "/Users/openclaw/.openclaw/workspaces/dev",
         "tools": {
           "deny": ["web_search", "web_fetch", "browser"]
         },
@@ -378,6 +395,17 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
           "sensitivity": 0.5,
           "warnThreshold": 0.4,
           "blockThreshold": 0.8
+        }
+      },
+      "agent-guard": {
+        "enabled": true,
+        "config": {
+          "failOpen": false,
+          "sensitivity": 0.5,
+          "warnThreshold": 0.4,
+          "blockThreshold": 0.8,
+          "guardAgents": [],
+          "skipTargetAgents": []
         }
       },
       "googlechat": { "enabled": true },

@@ -1,0 +1,111 @@
+# Scheduled review: checks the OpenClaw changelog for entries that may
+# require guide updates, and opens an issue with Claude Code's analysis.
+#
+# Setup:
+#   1. Install the Claude GitHub App: https://github.com/apps/claude
+#   2. Run `claude setup-token` locally, copy the token
+#   3. Add it as CLAUDE_CODE_OAUTH_TOKEN in repo Settings → Secrets → Actions
+
+name: Changelog Review
+
+on:
+  schedule:
+    - cron: '0 9 * * 1,4' # Every Monday and Thursday 9:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check for new changelog entries
+        id: check
+        run: |
+          LAST=$(tr -d '[:space:]' < .guide-version)
+          echo "last=$LAST" >> "$GITHUB_OUTPUT"
+
+          curl -sfL https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md \
+            -o /tmp/changelog.md
+
+          # Extract entries newer than last reviewed version.
+          # awk prints from start until it hits the "## <version>" line.
+          awk -v ver="## $LAST" '$0 == ver { exit } { print }' /tmp/changelog.md \
+            > .changelog-diff.md
+
+          if grep -q "^## " .changelog-diff.md; then
+            LATEST=$(grep -m1 "^## " .changelog-diff.md | sed 's/^## //')
+            echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+            echo "has_updates=true" >> "$GITHUB_OUTPUT"
+            echo "New entries found: $LAST → $LATEST"
+          else
+            echo "has_updates=false" >> "$GITHUB_OUTPUT"
+            echo "No new changelog entries since $LAST"
+          fi
+
+      - name: Load analysis prompt
+        if: steps.check.outputs.has_updates == 'true'
+        id: prompt
+        run: |
+          {
+            echo 'REVIEW_PROMPT<<ENDOFPROMPT'
+            cat .github/prompts/changelog-review.md
+            echo 'ENDOFPROMPT'
+          } >> "$GITHUB_ENV"
+
+      - name: Analyze with Claude Code
+        if: steps.check.outputs.has_updates == 'true'
+        id: analyze
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: ${{ env.REVIEW_PROMPT }}
+          claude_args: |
+            --model sonnet
+            --max-turns 6
+            --allowedTools "Read,Glob,Grep"
+            --json-schema '{"type":"object","properties":{"needs_update":{"type":"boolean"},"report":{"type":"string"}},"required":["needs_update","report"]}'
+
+      - name: Create issue
+        if: steps.check.outputs.has_updates == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ANALYSIS: ${{ steps.analyze.outputs.structured_output }}
+        run: |
+          # Check if Claude found updates needed
+          NEEDS_UPDATE=$(echo "$ANALYSIS" | jq -r '.needs_update')
+          if [ "$NEEDS_UPDATE" != "true" ]; then
+            echo "No guide updates needed."
+            exit 0
+          fi
+
+          # Skip if there's already an open changelog-review issue
+          if [ "$(gh issue list -l changelog-review -s open --json number -q length)" -gt 0 ]; then
+            echo "Open changelog-review issue already exists."
+            exit 0
+          fi
+
+          gh label create changelog-review --color "1d76db" --force 2>/dev/null || true
+
+          LAST="${{ steps.check.outputs.last }}"
+          LATEST="${{ steps.check.outputs.latest }}"
+
+          {
+            echo "New OpenClaw changelog entries since **${LAST}**. Latest: **${LATEST}**"
+            echo ""
+            echo "$ANALYSIS" | jq -r '.report'
+            echo ""
+            echo "---"
+            echo "_After updating, bump \`.guide-version\` to the reviewed version._"
+          } > /tmp/issue-body.md
+
+          gh issue create \
+            --title "Guide review: OpenClaw ${LAST} → ${LATEST}" \
+            --label "changelog-review" \
+            --body-file /tmp/issue-body.md

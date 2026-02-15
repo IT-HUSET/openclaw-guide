@@ -425,9 +425,10 @@ Features below require the listed version or later. Check yours with `openclaw -
 | `googlechat` | Google Chat channel (bundled) | `GOOGLE_CHAT_SERVICE_ACCOUNT_FILE` |
 | `web-guard` | Pre-fetch prompt injection scanning for `web_fetch` | — (local ONNX model) |
 | `channel-guard` | Inbound message injection scanning for WhatsApp/Signal/Google Chat | — (local ONNX model) |
+| `agent-guard` | Inter-agent `sessions_send` injection scanning | — (local ONNX model) |
 | `image-gen` | Generate images from text prompts via OpenRouter | `OPENROUTER_API_KEY` |
 
-The `web-guard` plugin intercepts `web_fetch` calls, pre-fetches the URL, and scans content for prompt injection before the agent sees it. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing. Both use the same local DeBERTa ONNX model, are fail-closed by default (`failOpen: false`), and share the model cache. See [web-search-isolation.md](phases/phase-5-web-search.md#advanced-prompt-injection-guard) for full setup and limitations.
+The `web-guard` plugin intercepts `web_fetch` calls, pre-fetches the URL, and scans content for prompt injection before the agent sees it. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing. The `agent-guard` plugin scans inter-agent `sessions_send` messages for injection. All three use the same local DeBERTa ONNX model, are fail-closed by default (`failOpen: false`), and share the model cache. See [web-search-isolation.md](phases/phase-5-web-search.md#advanced-prompt-injection-guard) for full setup and limitations.
 
 The `image-gen` plugin registers a `generate_image` tool that agents can call to create images from text prompts. Uses OpenRouter's unified API — supports FLUX, Gemini, GPT, and Sourceful models. See [extensions/image-gen/](extensions/image-gen.md) for source.
 
@@ -439,6 +440,7 @@ Plugin directories must be named to match the **manifest ID** in `openclaw.plugi
 ```bash
 cp -r extensions/web-guard ~/.openclaw/extensions/web-guard
 cp -r extensions/channel-guard ~/.openclaw/extensions/channel-guard
+cp -r extensions/agent-guard ~/.openclaw/extensions/agent-guard
 ```
 
 The gateway discovers plugins from `~/.openclaw/extensions/` at startup. Each plugin directory must contain `openclaw.plugin.json`. **Plugin code is loaded once at startup** — changes to deployed plugins require a gateway restart (config hot-reload does NOT reload plugins).

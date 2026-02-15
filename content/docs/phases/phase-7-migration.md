@@ -597,7 +597,7 @@ sudo systemctl disable --now openclaw-gateway       # Linux
 
 ## Multi-Instance Migration
 
-For [multi-gateway deployments](phase-6-deployment.md#multi-gateway-deployments), repeat the process per instance. Each instance has:
+For [multi-gateway deployments](../multi-gateway.md), repeat the process per instance. This applies to all approaches — profiles, multi-user, and VM variants. Each instance has:
 
 - Its own OS user (e.g., `openclaw-bob`, `openclaw-tibra`)
 - Its own `.openclaw/` directory, config, and secrets
