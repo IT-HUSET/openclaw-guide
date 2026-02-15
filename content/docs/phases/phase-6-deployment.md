@@ -541,7 +541,7 @@ To close this gap, sandbox main explicitly:
 
 This roots the main agent's filesystem inside Docker — it can no longer read `openclaw.json` or `auth-profiles.json`. Workspace data (SOUL.md, memory, workspace files) remains accessible via the mount.
 
-**Trade-off:** Host-native tools (Xcode, Homebrew binaries) are unavailable inside the container. Most workflows are handled by the computer agent on the egress-allowlisted network. If you need unsandboxed host access, you can add a `dev` agent with `sandbox.mode: "off"` and no channel binding. See the [recommended config](../examples/config.md).
+**Trade-off:** Host-native tools (Xcode, Homebrew binaries) are unavailable inside the container. Most workflows are handled by the computer agent (Docker `network: none` by default; optionally [egress-allowlisted](../hardened-multi-agent.md) for runtime network access). If you need unsandboxed host access, you can add a `dev` agent with `sandbox.mode: "off"` and no channel binding. See the [recommended config](../examples/config.md).
 
 ### Multi-Gateway Options
 
@@ -1691,5 +1691,5 @@ Your OpenClaw deployment is production-ready.
 → **[Reference](../reference.md)** — config cheat sheet, tool list, gotchas, emergency procedures
 
 Or review:
-- [Hardened Multi-Agent](../hardened-multi-agent.md) — main/computer architecture with network egress allowlisting and dedicated firewall rules
+- [Egress Allowlisting](../hardened-multi-agent.md) — optional: give the computer agent runtime network access to pre-approved hosts
 - [Examples](../examples/) — complete config and security audit

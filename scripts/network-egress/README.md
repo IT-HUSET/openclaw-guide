@@ -12,7 +12,7 @@ Restricts outbound traffic from the hardened computer agent to an allowlist of a
 
 ## Prerequisites
 
-- Docker or OrbStack running
+- Docker running
 - `dig` for DNS resolution (`brew install bind` on macOS, `apt install dnsutils` on Linux)
 - Root/sudo access (firewall rules need privileges)
 - `nft` on Linux (`apt install nftables`)

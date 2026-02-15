@@ -225,7 +225,7 @@ Different agents need different sandbox configurations. Here's when to use each 
 | Browser agent (Phase 5 pattern) | `agent` | `none` | `all` | No filesystem needed; needs network for browsing. Recommended: consolidate into computer agent |
 | Main agent (standard) | — | — | `off` | Operator interface; needs full host access for exec delegation |
 | Main agent ([hardened](hardened-multi-agent.md)) | `agent` | `rw` | `all` | No exec/web/browser, `network: none`; receives channel input, delegates to computer |
-| Computer ([hardened](hardened-multi-agent.md)) | `agent` | `rw` | `all` | Full exec + browser, `network: "openclaw-egress"`; egress-allowlisted |
+| Computer ([recommended](examples/config.md)) | `agent` | `rw` | `all` | Full exec + browser, `network: "none"` (default); optionally `"openclaw-egress"` with [egress allowlisting](hardened-multi-agent.md) |
 | Ephemeral tasks | `session` | `none` | `all` | Container destroyed when session ends; no persistent state |
 
 ### Config Includes (`$include`)

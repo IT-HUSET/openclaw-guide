@@ -28,12 +28,12 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 - `content/docs/phases/phase-7-migration.md` — Phase 7: Moving a deployment to a new machine — config, credentials, memory, channels, services, cron jobs
 - `content/docs/google-chat.md` — Google Chat: GCP setup, webhook exposure, multi-agent, multi-org, known issues
 - `content/docs/multi-gateway.md` — Multi-Gateway: profiles, multi-user, VM variants for running multiple gateway instances
-- `content/docs/hardened-multi-agent.md` — Hardened Multi-Agent: main/computer architecture with network egress allowlisting
+- `content/docs/hardened-multi-agent.md` — Egress Allowlisting: optional network access for the computer agent to pre-approved hosts
 - `content/docs/reference.md` — Config cheat sheet, tool groups, plugins, gotchas, useful commands
 - `content/docs/architecture.md` — System internals: core components, module dependencies, networking, diagrams
 
 ### Examples
-- `examples/openclaw.json` — Recommended config (main/computer/search, egress allowlisting, all hardening)
+- `examples/openclaw.json` — Recommended config (main/computer/search, all agents network:none, all hardening)
 - `examples/openclaw-basic.json` — Minimal config (main + search, single channel)
 - `content/docs/examples/security-audit.md` — Worked example of `openclaw security audit` output
 
@@ -53,7 +53,7 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 ## Key Context
 
 - Target deployment: macOS (Apple Silicon) or Linux
-- Three deployment postures: **Docker isolation** (recommended — dedicated OS user + Docker/OrbStack), **VM: macOS VMs** (Lume / Parallels, stronger host isolation, no Docker inside), **VM: Linux VMs** (Multipass / KVM, strongest combined — VM boundary + Docker inside)
+- Three deployment postures: **Docker isolation** (recommended — dedicated OS user + Docker), **VM: macOS VMs** (Lume / Parallels, stronger host isolation, no Docker inside), **VM: Linux VMs** (Multipass / KVM, strongest combined — VM boundary + Docker inside)
 - **Docker isolation:** single gateway on host, core agents (main + search + browser) plus optional channel agents, Docker sandboxing
 - **VM: macOS VMs:** single macOS VM, dedicated standard user, multi-agent gateway, no Docker. macOS hosts only. Optional: 2 VMs for channel separation
 - **VM: Linux VMs:** single Linux VM with Docker inside, dedicated user (docker group, no sudo), multi-agent gateway. macOS or Linux hosts. No VM count limit

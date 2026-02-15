@@ -275,7 +275,7 @@ graph LR
     end
 
     subgraph "Optional Infrastructure"
-        DOCKER["Docker / OrbStack<br/>(sandboxing)"]
+        DOCKER["Docker<br/>(sandboxing)"]
         TS_CLI["Tailscale<br/>(remote access)"]
         BRAVE["Brave Search API<br/>(web_search tool)"]
         FIRE["Firecrawl<br/>(anti-bot fallback)"]
@@ -622,7 +622,7 @@ graph TB
 - Sandbox configuration
 - Memory store
 
-> **Hardened variant:** For deployments where the work agent needs network access (package installs, git) but exfiltration must be blocked, a main/computer architecture with network egress allowlisting provides a stronger posture. See [Hardened Multi-Agent](hardened-multi-agent.md).
+> **Optional egress allowlisting:** The recommended config uses `network: none` for all agents. If the computer agent needs runtime network (package installs, git), egress allowlisting restricts outbound traffic to pre-approved hosts. See [Hardened Multi-Agent](hardened-multi-agent.md).
 
 ---
 
@@ -635,7 +635,7 @@ graph TB
 graph TB
     subgraph HOST["Host OS"]
         GW_H["Gateway Process"]
-        DOCKER["Docker / OrbStack"]
+        DOCKER["Docker"]
     end
 
     subgraph CONTAINER["Docker Container"]

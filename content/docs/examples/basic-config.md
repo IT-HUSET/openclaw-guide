@@ -31,7 +31,7 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
   // - Image generation plugin
   //
   // DEPLOYMENT OPTIONS:
-  //   Docker isolation — Dedicated OS user + Docker/OrbStack (this config): stronger
+  //   Docker isolation — Dedicated OS user + Docker (this config): stronger
   //                      internal agent isolation via Docker sandboxing.
   //   VM: macOS VMs — Lume / Parallels: stronger host isolation, no Docker inside VM.
   //                   Remove all "sandbox" blocks; tool policy provides internal isolation.

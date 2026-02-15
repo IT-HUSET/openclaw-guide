@@ -193,7 +193,7 @@ sudo launchctl print system/ai.openclaw.gateway.sig 2>&1 | head -10
 |----------|--------|-------------|
 | Node.js / OpenClaw binary | Shared | — |
 | OS user | Shared (same UID) | — |
-| Docker daemon / OrbStack | Shared | — |
+| Docker daemon | Shared | — |
 | `openclaw.json` | — | Per-profile (`~/.openclaw-<name>/`) |
 | Workspaces | — | Per-profile |
 | Sessions | — | Per-profile |

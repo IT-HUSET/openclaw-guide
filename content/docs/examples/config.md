@@ -1,14 +1,14 @@
 ---
 title: "Recommended Configuration"
-description: "Complete annotated OpenClaw config with main/computer/search architecture, egress allowlisting, Docker sandboxing, and all security hardening applied."
+description: "Complete annotated OpenClaw config with main/computer/search architecture, Docker sandboxing, and all security hardening applied."
 weight: 121
 ---
 
-Complete annotated `openclaw.json` implementing the recommended three-agent architecture: main (sandboxed, channel-facing, no exec/web/browser), computer (full exec + browser on egress-allowlisted Docker network), and search (web only, no filesystem). All three guard plugins enabled with agent-guard focused on the main-to-computer boundary. Uses JSON5 comments for inline documentation — OpenClaw supports JSON5 natively.
+Complete annotated `openclaw.json` implementing the recommended three-agent architecture: main (sandboxed, channel-facing, no exec/web/browser), computer (full exec + browser, Docker `network: none`), and search (web only, no filesystem). All three guard plugins enabled with agent-guard focused on the main-to-computer boundary. Uses JSON5 comments for inline documentation — OpenClaw supports JSON5 natively.
 
-Egress allowlisting is recommended for deployments where the computer agent needs network access (npm, git, browsing) but exfiltration must be blocked. For simpler setups, change the computer's network to `"none"` and skip the egress setup. For a minimal starting point (single channel, two agents), see [Basic Configuration](basic-config.md). For the detailed egress allowlisting walkthrough, see [Hardened Multi-Agent](../hardened-multi-agent.md).
+All agents default to `network: none` — zero outbound. If the computer agent needs runtime network access (npm install, git push, browsing), enable [egress allowlisting](../hardened-multi-agent.md) to restrict outbound traffic to pre-approved hosts only. For a minimal starting point (single channel, two agents), see [Basic Configuration](basic-config.md).
 
-Three deployment postures are covered: Docker isolation (this config), macOS VM isolation (remove sandbox blocks, no egress allowlisting), and Linux VM isolation (keep sandbox blocks). See [Phase 3 — Security](../phases/phase-3-security.md#deployment-isolation-options) for the full trade-off analysis.
+Three deployment postures are covered: Docker isolation (this config), macOS VM isolation (remove sandbox blocks), and Linux VM isolation (keep sandbox blocks). See [Phase 3 — Security](../phases/phase-3-security.md#deployment-isolation-options) for the full trade-off analysis.
 
 ```json5
 {
@@ -21,31 +21,25 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
   // Three-agent architecture:
   //   Main agent     — channel-facing, sandboxed (Docker network:none),
   //                    no exec/web/browser. Delegates all work via sessions_send.
-  //   Computer agent — full exec + browser, sandboxed on egress-allowlisted
-  //                    Docker network. Only pre-approved hosts reachable.
+  //   Computer agent — full exec + browser, sandboxed (Docker network:none).
+  //                    Optional: egress-allowlisted network for npm/git/browse.
   //   Search agent   — web_search/web_fetch only, no filesystem, no exec.
   //
   // Optional: Dedicated channel agents (defense-in-depth) — commented out below.
   //   Uncomment to route channels to restricted agents instead of main.
   //
   // Prerequisites:
-  //   1. Docker network "openclaw-egress" created (scripts/network-egress/setup-network.sh)
-  //   2. Firewall rules applied (scripts/network-egress/apply-rules.sh)
-  //   3. Egress allowlist configured (scripts/network-egress/allowlist.conf)
-  //   4. Guard plugins installed (channel-guard, web-guard, agent-guard)
-  //   5. Docker or OrbStack running
-  //   Simpler alternative: Set computer's network to "none" — skip egress setup,
-  //   but computer can't npm install, git push, or browse. See comment in agent config.
+  //   1. Guard plugins installed (channel-guard, web-guard, agent-guard)
+  //   2. Docker running
   //
-  // See content/docs/hardened-multi-agent.md for the full egress allowlisting walkthrough.
+  // Optional: Egress allowlisting (computer agent needs npm/git/browse at runtime)
+  //   See content/docs/hardened-multi-agent.md for the full walkthrough.
   //
   // DEPLOYMENT OPTIONS:
-  //   Docker isolation — Dedicated OS user + Docker/OrbStack (this config): stronger
+  //   Docker isolation — Dedicated OS user + Docker (this config): stronger
   //                      internal agent isolation via Docker sandboxing.
-  //                      Egress allowlisting requires Docker bridge + host firewall.
   //   VM: macOS VMs — Lume / Parallels: stronger host isolation, no Docker inside VM.
   //                   Remove all "sandbox" blocks; tool policy provides internal isolation.
-  //                   Egress allowlisting not available (no Docker bridge).
   //   VM: Linux VMs — Multipass / KVM: strongest combined posture (VM boundary + Docker).
   //                   Keep "sandbox" blocks — Docker works inside Linux VMs.
   //   See Phase 3 — Security for the full trade-off analysis.
@@ -196,11 +190,11 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
         }
       },
       {
-        // COMPUTER AGENT — full exec + browser, egress-allowlisted network
+        // COMPUTER AGENT — full exec + browser, no network by default
         // Does the actual work: coding, file ops, git, builds, browser automation.
-        // Browser consolidated here (not a separate agent) — more secure than Phase 5
-        // pattern because browsing happens on egress-allowlisted network instead of
-        // network:host. Computer already has exec, could install Playwright anyway.
+        // Browser consolidated here (not a separate agent) — computer already has
+        // exec, could install Playwright anyway. Keeping browser here is honest
+        // about the threat model.
         // Denies web_search (delegates to search agent) and message (can't send to channels).
         "id": "computer",
         "workspace": "/Users/openclaw/.openclaw/workspaces/computer",
@@ -215,13 +209,11 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
           "mode": "all",
           "scope": "agent",
           "workspaceAccess": "rw",
-          // Custom Docker network with host-level firewall rules restricting
-          // outbound traffic to allowlisted hosts only (npm, git, Playwright CDN, etc.)
-          // See hardened-multi-agent.md for egress setup walkthrough.
-          "docker": { "network": "openclaw-egress" }
-          // Simpler alternative (no egress setup needed):
-          // "docker": { "network": "none" }
-          // Trade-off: computer can't npm install, git push, or browse.
+          "docker": { "network": "none" }
+          // Optional: egress-allowlisted network for npm/git/browse at runtime.
+          // Requires custom Docker network + host firewall rules.
+          // See hardened-multi-agent.md for setup walkthrough.
+          // "docker": { "network": "openclaw-egress" }
         }
       },
       {
@@ -408,7 +400,7 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
         // guardAgents: only scan outbound from main (high-risk boundary).
         // skipTargetAgents: skip low-privilege search agent (no exec, no fs).
         // This focuses scanning on the main→computer boundary where prompt
-        // injection could lead to code execution on the egress-allowlisted network.
+        // injection could lead to code execution.
         "enabled": true,
         "config": {
           "failOpen": false,

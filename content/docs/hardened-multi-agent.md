@@ -1,10 +1,10 @@
 ---
 title: "Hardened Multi-Agent"
-description: "Main/computer architecture with network egress allowlisting — for deployments where the work agent needs network but exfiltration must be blocked."
+description: "Optional egress allowlisting for the computer agent — when network:none is too restrictive but you still want to block exfiltration."
 weight: 87
 ---
 
-A hardened variant of the standard [Phase 4](phases/phase-4-multi-agent.md) multi-agent architecture. The computer agent gets full `exec`, `browser`, and network access for package installs, git operations, web browsing, and API calls — but outbound traffic is restricted to an allowlist of pre-approved hosts.
+The [recommended config](examples/config.md) runs the computer agent with `network: none` — zero outbound, strongest guarantee. This page covers **optional egress allowlisting** for deployments where the computer agent needs runtime network access (package installs, git operations, web browsing, API calls) while still blocking exfiltration to arbitrary hosts.
 
 > **Terminology note:** In this architecture, "main" refers to the channel-facing agent (sandboxed, no exec/web/browser, delegates via `sessions_send`). This differs from the standard Phase 4 "main agent" which typically has full host access for operator tasks.
 
@@ -13,7 +13,7 @@ A hardened variant of the standard [Phase 4](phases/phase-4-multi-agent.md) mult
 - [Phase 4 (Channels & Multi-Agent)](phases/phase-4-multi-agent.md) understood
 - [Phase 5 (Web Search Isolation)](phases/phase-5-web-search.md) search agent configured
 - [agent-guard plugin](extensions/agent-guard.md) installed
-- Docker or OrbStack running
+- Docker running
 - OpenClaw 2026.2.14+ recommended (guide baseline version)
 
 **Version compatibility notes:**
@@ -22,21 +22,26 @@ A hardened variant of the standard [Phase 4](phases/phase-4-multi-agent.md) mult
 - If using an older OpenClaw version, test the config snippets in a non-production environment first
 - Check [reference.md](reference.md#version-notes) for version-specific feature availability
 
----
-
-## The Problem
-
-The standard multi-agent architecture (Phase 4/5) isolates agents with Docker `network: none` sandboxing. This blocks exfiltration effectively — but it also blocks **all** outbound traffic. A computer agent that needs to run `npm install`, `git push`, or call external APIs can't work with `network: none`.
-
-Switching to `network: "host"` reopens the exfiltration path — a compromised agent can `curl` data to any server.
-
-**The gap:** there's no middle ground between "no network" and "full network" in the standard architecture.
+**Deployment compatibility:**
+- **Docker isolation** (macOS/Linux host + Docker): Fully supported — egress allowlisting via custom Docker network
+- **VM: Linux VMs** (host → Linux VM + Docker inside): Fully supported — run setup scripts inside the VM
+- **VM: macOS VMs** (macOS host → macOS VM, no Docker inside): Egress allowlisting **not supported** (requires Docker bridge interface). Alternative: run computer agent unsandboxed (`sandbox.mode: "off"`) — see [Host-Native Tools](#host-native-tools-xcode-homebrew-etc) below
 
 ---
 
-## Solution: Egress Allowlisting
+## When You Need This
 
-Create a custom Docker network with host-level firewall rules that restrict outbound traffic to a pre-defined list of hosts:
+The recommended config uses `network: none` for all agents — zero outbound, zero exfiltration. This is the strongest default and works for most workflows where dependencies are pre-installed and git operations happen outside the agent.
+
+But some workflows need runtime network: `npm install`, `git push`, `pip install`, calling external APIs, or browser automation that fetches remote content. Switching to `network: "host"` reopens the exfiltration path — a compromised agent can `curl` data to any server.
+
+**Egress allowlisting fills this gap** — a middle ground between "no network" and "full network".
+
+---
+
+## How It Works
+
+Create a custom Docker network with host-level firewall rules that restrict outbound traffic to a pre-defined list of hosts. The computer agent moves from `network: none` to this egress-allowlisted network:
 
 ```
 Channel (WhatsApp / Signal / Google Chat)
@@ -75,8 +80,8 @@ The **computer agent** does the actual work — full runtime access + browser au
 | agent-guard | Injected payloads crossing agent boundary | Plugin hook (`before_tool_call` on `sessions_send`) |
 | Tool policy (main) | Direct exec/web/browser from main | `tools.deny` — hard enforcement |
 | Tool policy (computer) | Web search on computer agent | `tools.deny` — hard enforcement |
-| Docker `network:none` (main) | All outbound from main | Docker runtime |
-| **Network egress allowlist (computer)** | **Exfiltration to arbitrary hosts** | **nftables/pf + Docker custom network** |
+| Docker `network:none` (main + computer default) | All outbound from main and computer | Docker runtime |
+| **Network egress allowlist (computer, optional)** | **Exfiltration to arbitrary hosts when computer needs network** | **nftables/pf + Docker custom network** |
 | Workspace isolation | Cross-agent file access | Separate workspace paths |
 
 > **Dominant residual risk:** `sessions_send` remains the primary attack vector. A compromised main agent can send arbitrary payloads to the computer agent. The agent-guard plugin is the mitigation. Network egress allowlisting ensures that even if the computer agent is fully compromised, it can only reach pre-approved hosts.
@@ -226,11 +231,12 @@ If all checks pass, the firewall rules are correctly filtering traffic on the Do
           "mode": "all",
           "scope": "agent",
           "workspaceAccess": "rw",
+          // Default is "none" — change to egress-allowlisted network:
           "docker": { "network": "openclaw-egress" }
         }
       },
       {
-        // SEARCH — existing Phase 5 pattern, unchanged
+        // SEARCH — unchanged from recommended config
         "id": "search",
         "workspace": "~/.openclaw/workspaces/search",
         "agentDir": "~/.openclaw/agents/search/agent",
@@ -262,8 +268,8 @@ If all checks pass, the firewall rules are correctly filtering traffic on the Do
 | Computer allows `browser` + `web_fetch` | Handles browser automation on egress-allowlisted network (more secure than Phase 5 `network: host`) |
 | Computer denies `web_search` | Delegates web search to search agent (search doesn't need browser DOM, computer doesn't need search APIs) |
 | Computer denies `message` | Can't send to channels directly — results flow back through `sessions_send` |
-| Computer on `openclaw-egress` | Outbound for npm/git/browser/etc., but only to allowlisted hosts |
-| Main on `network: none` | Zero outbound — even if fully compromised, no exfiltration path |
+| Computer on `openclaw-egress` (upgraded from default `none`) | Outbound for npm/git/browser/etc., but only to allowlisted hosts |
+| Main on `network: none` (unchanged) | Zero outbound — even if fully compromised, no exfiltration path |
 | All agents `sandbox.mode: "all"` | Every session sandboxed, not just non-main |
 
 > **Why separate browser from computer?** We don't. The computer agent has the `browser` tool directly. Since computer already has `exec` + network, it could install Playwright and run browser automation anyway — giving it the tool explicitly is honest about the threat model and avoids the security hole of running a separate browser agent on `network: host`. See [Browser Separation](#browser-separation-when-it-makes-sense-and-when-it-doesnt) for the full rationale.
@@ -437,16 +443,97 @@ from the main agent and execute them using your full set of development tools.
 |--------|---------------------|------------------|
 | Channel-facing agent | Main agent or dedicated channel agents | Main agent (sandboxed, no exec/web/browser) |
 | Work agent | Main agent (may be unsandboxed) | Computer agent (sandboxed, egress-allowlisted) |
-| Work agent network | `network: none` or `host` | Egress-allowlisted custom network |
+| Work agent network | `network: none` (default) | Egress-allowlisted custom network |
 | Browser agent | Separate agent on `network: host` | Consolidated into computer (egress-allowlisted) |
-| Exfiltration if work agent compromised | Open (host network) or blocked (no network) | **Only allowlisted hosts reachable** |
+| Exfiltration if work agent compromised | Blocked (`network: none`) | **Only allowlisted hosts reachable** (weaker than none, stronger than host) |
 | `sessions_send` scanning | None | agent-guard plugin |
 | Exec access from channel | Direct (if main unsandboxed) or via `sessions_send` | Indirect via `sessions_send` to sandboxed, egress-limited computer |
 | Core agents | 3 (main, search, browser) + optional channel agents | 3 (main [sandboxed], computer, search) |
 | Operator access | Main agent via Control UI | Main agent (sandboxed) via Control UI |
 | Complexity | Medium | High — custom Docker network, firewall rules |
 
-> **Host-native tools:** If you need unsandboxed access for tasks like Xcode builds or Homebrew operations, you can add a `dev` agent with `sandbox.mode: "off"` and no channel binding. In practice, most workflows are handled by the computer agent on the egress-allowlisted network.
+---
+
+## Host-Native Tools (Xcode, Homebrew, etc.)
+
+If you need access to host-level tools that don't work in Docker (Xcode, Homebrew binaries, host Python/Node environments), you have two options:
+
+### Option A: Separate Dev Agent (Recommended)
+
+Add a fourth agent for unsandboxed operator tasks:
+
+```json5
+{
+  "id": "dev",
+  "workspace": "~/.openclaw/workspaces/dev",
+  "agentDir": "~/.openclaw/agents/dev/agent",
+  "tools": {
+    "deny": ["web_search", "web_fetch", "browser", "message"]
+  },
+  "sandbox": { "mode": "off" },
+  "subagents": { "allowAgents": ["search"] }
+}
+```
+
+**Architecture:**
+```
+main (sandboxed, channels) → computer (sandboxed, egress-allowlisted)
+                           → search (sandboxed, no network)
+
+dev (unsandboxed, no channels) — operator access via Control UI
+```
+
+**Advantages:**
+- Computer agent stays on egress-allowlisted network (network isolation preserved)
+- Clear separation: channels → sandboxed agents, operator → unsandboxed agent
+- Most workflows handled by computer (in Docker), host-native tasks delegated to dev
+
+**Disadvantages:**
+- Four agents instead of three (more complexity)
+- Need to remember which agent to use for which tasks
+
+### Option B: Computer Agent Unsandboxed (Simpler)
+
+Run the computer agent with `sandbox.mode: "off"`:
+
+```json5
+{
+  "id": "computer",
+  "workspace": "~/.openclaw/workspaces/computer",
+  "agentDir": "~/.openclaw/agents/computer/agent",
+  "tools": {
+    "allow": ["group:runtime", "group:fs", "group:memory", "group:sessions", "browser", "web_fetch"],
+    "deny": ["web_search", "message"]
+  },
+  "sandbox": { "mode": "off" },  // No Docker, runs on host
+  "subagents": { "allowAgents": ["search"] }
+}
+```
+
+**Architecture:**
+```
+main (sandboxed, network:none, channels) → computer (unsandboxed, host network)
+                                         → search (sandboxed, no network)
+```
+
+**What you lose:**
+- ❌ Network egress allowlisting (computer has full host network access)
+- ❌ Docker filesystem isolation
+- ❌ Simpler cleanup (no containers to manage, but also no automatic cleanup)
+
+**What you gain:**
+- ✅ Access to Xcode, Homebrew, host Python/Node, mounted drives
+- ✅ Simpler architecture (three agents instead of four)
+- ✅ **Works in macOS VMs** (no Docker required)
+- ✅ Still have main → computer delegation barrier with agent-guard scanning
+
+**When to use:**
+- macOS VM deployments (where Docker isn't available)
+- Workflows that frequently need host-native tools
+- Simplicity matters more than network isolation
+- You trust the agent-guard plugin as the primary defense (network is secondary)
+
+**Trade-off:** You're relying on the main agent (sandboxed, no exec/network) + agent-guard scanning to prevent prompt injection from reaching the computer agent. If both fail, a compromised computer agent has full host access + unrestricted network. The egress allowlist provided defense-in-depth; without it, the agent-guard boundary becomes more critical.
 
 ---
 
@@ -473,15 +560,14 @@ The original Phase 5 browser agent runs on `network: host` (unrestricted outboun
 
 ## When to Use This Architecture
 
-**Yes:**
-- Agent needs `exec` + network (npm install, git push, API calls) **and** you can enumerate the allowed hosts
-- High-value target — protecting sensitive code, credentials, or data
-- You accept the operational cost of maintaining an egress allowlist
+**Enable egress allowlisting when:**
+- Computer agent needs runtime network (npm install, git push, API calls) **and** you can enumerate the allowed hosts
+- You accept the operational cost of maintaining an allowlist and firewall rules
 
-**No:**
-- Agent doesn't need network during exec — use standard `network: none` sandbox
+**Stay with `network: none` (the default) when:**
+- Agent doesn't need network during exec — pre-install dependencies, clone repos ahead of time
 - You can't enumerate allowed hosts (too many, too dynamic)
-- Operational simplicity is more important than this level of hardening
+- Operational simplicity is more important than runtime network access
 
 ---
 
