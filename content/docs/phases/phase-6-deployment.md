@@ -149,6 +149,29 @@ sudo passwd openclaw
 >
 > These are standard multi-user OS risks, not OpenClaw-specific. On a **dedicated machine** with no personal data, these are non-issues — see the [dedicated machine note](phase-3-security.md#comparison).
 
+#### Docker Group Membership
+
+The `openclaw` user needs access to the Docker socket for agent sandboxing:
+
+**macOS:**
+```bash
+sudo dseditgroup -o edit -a openclaw -t user docker
+```
+
+**Linux:**
+```bash
+sudo usermod -aG docker openclaw
+```
+
+> **Security note:** On **Linux**, the `docker` group grants effective root access on the host via the Docker socket. For bare Linux deployments, this is an accepted risk — see the warning at [Linux VM isolation](#vm-isolation-linux-vms). The dedicated machine posture or VM boundary contains this risk. On **macOS**, Docker Desktop manages access through its own application model — the `docker` group controls CLI access but doesn't grant the same host-level root equivalent.
+
+**Verify access:**
+```bash
+sudo -u openclaw docker ps
+```
+
+This should list running containers (or show an empty list if none running) without errors. If you see "permission denied", the group membership hasn't taken effect — log out and back in, or restart the daemon.
+
 #### Install OpenClaw
 
 If OpenClaw is already installed globally (e.g., via Homebrew or by the admin user), skip the install and verify the `openclaw` user can access it:
@@ -518,7 +541,7 @@ To close this gap, sandbox main explicitly:
 
 This roots the main agent's filesystem inside Docker — it can no longer read `openclaw.json` or `auth-profiles.json`. Workspace data (SOUL.md, memory, workspace files) remains accessible via the mount.
 
-**Trade-off:** Host-native tools (Xcode, Homebrew binaries) are unavailable inside the container. If you need unsandboxed host access, add a separate `dev` agent with `sandbox.mode: "off"` and no channel binding — accessible only via Control UI. See the [example config](../examples/config.md) for the full definition.
+**Trade-off:** Host-native tools (Xcode, Homebrew binaries) are unavailable inside the container. Most workflows are handled by the computer agent on the egress-allowlisted network. If you need unsandboxed host access, you can add a `dev` agent with `sandbox.mode: "off"` and no channel binding. See the [recommended config](../examples/config.md).
 
 ### Multi-Gateway Options
 
@@ -1468,15 +1491,68 @@ Gateway logs grow indefinitely. Set up rotation:
 
 Session files (`agents/<id>/sessions/*.jsonl`) contain full message history including tool output. Prune old sessions periodically:
 
-> **Test before deleting.** Run `openclaw sessions list` or the `find` command without `-delete` first to review what would be pruned before scheduling the cron job.
+> **Test before scheduling.** Run the `find` command without `-delete` first to verify what would be pruned:
+> ```bash
+> sudo -u openclaw find /Users/openclaw/.openclaw/agents/*/sessions -name "*.jsonl" -mtime +30
+> ```
 
+Delete sessions older than 30 days:
 ```bash
-# Preview what would be pruned
-sudo -u openclaw find /Users/openclaw/.openclaw/agents/*/sessions -name "*.jsonl" -mtime +30
-
-# Delete sessions older than 30 days
-sudo -u openclaw find /Users/openclaw/.openclaw/agents/*/sessions -name "*.jsonl" -mtime +30 -delete
+sudo -u openclaw find /Users/openclaw/.openclaw/agents/*/sessions -name "*.jsonl" -type f -mtime +30 -delete
 ```
+
+**Schedule with cron (simplest):**
+
+*macOS:*
+```bash
+# Add to openclaw user's crontab
+sudo -u openclaw crontab -e
+# Add line (weekly, Sunday at 3am):
+0 3 * * 0 find /Users/openclaw/.openclaw/agents/*/sessions -name "*.jsonl" -type f -mtime +30 -delete
+```
+
+*Linux:*
+```bash
+# Add to openclaw user's crontab
+sudo crontab -u openclaw -e
+# Add line (weekly, Sunday at 3am):
+0 3 * * 0 find /home/openclaw/.openclaw/agents/*/sessions -name "*.jsonl" -type f -mtime +30 -delete
+```
+
+**macOS LaunchDaemon alternative** (more Mac-native):
+```xml
+<!-- /Library/LaunchDaemons/com.openclaw.session-pruning.plist -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.openclaw.session-pruning</string>
+    <key>UserName</key>
+    <string>openclaw</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>-c</string>
+        <string>find /Users/openclaw/.openclaw/agents/*/sessions -name "*.jsonl" -type f -mtime +30 -delete</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>0</integer>
+        <key>Hour</key>
+        <integer>3</integer>
+    </dict>
+</dict>
+</plist>
+```
+
+Load the LaunchDaemon:
+```bash
+sudo launchctl bootstrap system /Library/LaunchDaemons/com.openclaw.session-pruning.plist
+```
+
+> **Retention policy:** 30 days balances audit trail (ability to review recent sessions) with storage (transcript files can be large). Adjust `mtime` value based on your needs.
 
 ---
 
@@ -1615,5 +1691,5 @@ Your OpenClaw deployment is production-ready.
 → **[Reference](../reference.md)** — config cheat sheet, tool list, gotchas, emergency procedures
 
 Or review:
-- [Hardened Multi-Agent](../hardened-multi-agent.md) — receptor/computer architecture with network egress allowlisting and dedicated firewall rules
+- [Hardened Multi-Agent](../hardened-multi-agent.md) — main/computer architecture with network egress allowlisting and dedicated firewall rules
 - [Examples](../examples/) — complete config and security audit

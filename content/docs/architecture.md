@@ -622,7 +622,7 @@ graph TB
 - Sandbox configuration
 - Memory store
 
-> **Hardened variant:** For deployments where the work agent needs network access (package installs, git) but exfiltration must be blocked, a receptor/computer architecture with network egress allowlisting provides a stronger posture. See [Hardened Multi-Agent](hardened-multi-agent.md).
+> **Hardened variant:** For deployments where the work agent needs network access (package installs, git) but exfiltration must be blocked, a main/computer architecture with network egress allowlisting provides a stronger posture. See [Hardened Multi-Agent](hardened-multi-agent.md).
 
 ---
 

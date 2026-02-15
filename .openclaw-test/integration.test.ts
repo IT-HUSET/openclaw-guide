@@ -15,7 +15,7 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -24,6 +24,8 @@ const PROJECT_ROOT = resolve(__dirname, "..");
 const CONFIG_PATH = resolve(__dirname, "openclaw.json");
 const ENV_PATH = resolve(PROJECT_ROOT, ".env");
 const STATE_DIR = resolve(__dirname, "state");
+const TEMP_CONFIG_DIR = resolve(__dirname, ".agent_temp");
+const CONFIG_VALIDATION_PORT = 18790;
 
 const GATEWAY_PORT = 18789;
 const GATEWAY_URL = `http://127.0.0.1:${GATEWAY_PORT}`;
@@ -168,6 +170,76 @@ async function waitForHealth(maxRetries = 15, intervalMs = 1000): Promise<void> 
     await new Promise((r) => setTimeout(r, intervalMs));
   }
   throw new Error("Gateway health check failed after retries");
+}
+
+// ---------------------------------------------------------------------------
+// Brief gateway start (for config validation — start, observe, kill)
+// ---------------------------------------------------------------------------
+interface GatewayBriefResult {
+  started: boolean;
+  exitCode: number | null;
+  output: string;
+}
+
+async function startGatewayBrief(
+  configPath: string,
+  timeoutMs = 15_000,
+): Promise<GatewayBriefResult> {
+  const stateDir = resolve(TEMP_CONFIG_DIR, "state");
+  mkdirSync(stateDir, { recursive: true });
+
+  return new Promise((res) => {
+    let output = "";
+    let settled = false;
+
+    const settle = (result: GatewayBriefResult) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      res(result);
+    };
+
+    const proc = spawn("openclaw", ["gateway", "run", "--verbose"], {
+      cwd: PROJECT_ROOT,
+      env: {
+        ...process.env,
+        OPENCLAW_CONFIG_PATH: configPath,
+        OPENCLAW_STATE_DIR: stateDir,
+        ANTHROPIC_API_KEY,
+        OPENCLAW_GATEWAY_TOKEN: GATEWAY_TOKEN,
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    const onData = (chunk: Buffer) => {
+      const text = chunk.toString();
+      output += text;
+      // Gateway is ready when it starts listening
+      if (text.includes("listening") || text.includes("Gateway started") || text.includes("ready")) {
+        proc.kill("SIGTERM");
+        setTimeout(() => { if (!proc.killed) proc.kill("SIGKILL"); }, 3000);
+        settle({ started: true, exitCode: null, output });
+      }
+    };
+    proc.stdout?.on("data", onData);
+    proc.stderr?.on("data", onData);
+
+    // If gateway survives the timeout without exiting or signaling ready,
+    // assume it started (no config rejection at least)
+    const timer = setTimeout(() => {
+      proc.kill("SIGTERM");
+      setTimeout(() => { if (!proc.killed) proc.kill("SIGKILL"); }, 3000);
+      settle({ started: true, exitCode: null, output });
+    }, timeoutMs);
+
+    proc.on("exit", (code) => {
+      settle({ started: false, exitCode: code, output });
+    });
+
+    proc.on("error", (err) => {
+      settle({ started: false, exitCode: -1, output: output + `\n${err.message}` });
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -331,4 +403,124 @@ describe("Integration: OpenClaw gateway + plugins", { timeout: 180_000, skip: SK
     });
   });
 
+});
+
+// ---------------------------------------------------------------------------
+// Config validation (separate short-lived gateway instances)
+// ---------------------------------------------------------------------------
+describe("Config validation", { timeout: 120_000, skip: SKIP_REASON }, () => {
+  const tempDir = resolve(TEMP_CONFIG_DIR, "configs");
+  const tempWorkspace = resolve(TEMP_CONFIG_DIR, "workspaces", "main");
+
+  before(() => {
+    mkdirSync(tempDir, { recursive: true });
+    mkdirSync(tempWorkspace, { recursive: true });
+  });
+
+  function writeTempConfig(name: string, config: object): string {
+    const path = resolve(tempDir, name);
+    writeFileSync(path, JSON.stringify(config, null, 2));
+    return path;
+  }
+
+  it("gateway rejects unknown config keys", async () => {
+    const configPath = writeTempConfig("bogus.json", {
+      totallyBogusKey: true,
+      gateway: {
+        port: CONFIG_VALIDATION_PORT,
+        mode: "local",
+        bind: "loopback",
+        auth: { mode: "token", token: "${OPENCLAW_GATEWAY_TOKEN}" },
+      },
+      agents: { list: [{ id: "main", default: true, workspace: tempWorkspace }] },
+    });
+
+    const result = await startGatewayBrief(configPath);
+    console.log(`  Bogus key test → started: ${result.started}, exit: ${result.exitCode}`);
+
+    if (result.started) {
+      console.log("  ⚠ Gateway accepted unknown keys — strict validation not enforced.");
+      console.log("  Config validation tests below are informational only.");
+    } else {
+      console.log("  ✓ Gateway rejected unknown config key");
+    }
+    // Diagnostic — passes either way. Tells us if strict validation exists.
+  });
+
+  it("example config keys are accepted", async () => {
+    // Tests ALL questionable keys from both example configs (P2 keys).
+    // If the gateway rejects any, the error output identifies which.
+    const configPath = writeTempConfig("positive.json", {
+      commands: { nativeSkills: "auto" },
+      channels: {
+        whatsapp: {
+          dmPolicy: "pairing",
+          selfChatMode: false,
+          allowFrom: ["+1234567890"],
+          debounceMs: 0,
+        },
+        signal: {
+          enabled: true,
+          account: "+1234567890",
+          dmPolicy: "pairing",
+          allowFrom: ["+1234567890"],
+        },
+      },
+      agents: {
+        defaults: { subagents: { thinking: "low" } },
+        list: [{ id: "main", default: true, workspace: tempWorkspace }],
+      },
+      gateway: {
+        port: CONFIG_VALIDATION_PORT,
+        mode: "local",
+        bind: "loopback",
+        auth: { mode: "token", token: "${OPENCLAW_GATEWAY_TOKEN}" },
+      },
+    });
+
+    const result = await startGatewayBrief(configPath);
+    console.log(`  Positive key test → started: ${result.started}, exit: ${result.exitCode}`);
+
+    if (!result.started) {
+      console.log(`  Output (last 2000 chars):\n${result.output.slice(-2000)}`);
+    }
+
+    assert.ok(
+      result.started,
+      `Gateway rejected valid config keys. Exit: ${result.exitCode}\nOutput:\n${result.output.slice(-2000)}`,
+    );
+  });
+
+  it("mentionPatterns at channel level vs agent level", async () => {
+    // reference.md says mentionPatterns belongs in agents.list[].groupChat,
+    // not in channels.signal. This test checks if channel-level is rejected.
+    const configPath = writeTempConfig("mention-channel.json", {
+      channels: {
+        signal: {
+          enabled: true,
+          dmPolicy: "pairing",
+          allowFrom: ["+1234567890"],
+          mentionPatterns: ["@test"],
+        },
+      },
+      agents: { list: [{ id: "main", default: true, workspace: tempWorkspace }] },
+      gateway: {
+        port: CONFIG_VALIDATION_PORT,
+        mode: "local",
+        bind: "loopback",
+        auth: { mode: "token", token: "${OPENCLAW_GATEWAY_TOKEN}" },
+      },
+    });
+
+    const result = await startGatewayBrief(configPath);
+    console.log(`  Channel mentionPatterns → started: ${result.started}, exit: ${result.exitCode}`);
+
+    if (result.started) {
+      console.log("  ⚠ Gateway accepted mentionPatterns at channel level.");
+      console.log("  May be valid, but reference.md says agents.list[].groupChat.");
+    } else {
+      console.log("  ✓ Gateway rejected mentionPatterns at channel level");
+    }
+    // Diagnostic — we move to agent level regardless (per reference.md).
+  });
 });

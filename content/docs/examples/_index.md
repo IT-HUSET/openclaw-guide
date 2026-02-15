@@ -1,5 +1,5 @@
 ---
 title: "Examples"
-description: "Annotated config and security audit worked example."
+description: "Annotated configs (basic, recommended) and security audit worked example."
 weight: 120
 ---

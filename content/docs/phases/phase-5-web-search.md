@@ -367,6 +367,49 @@ The browser agent requires the managed browser to be enabled. If browser automat
 
 Like the search agent, the browser agent has no channel binding — only reachable via `sessions_send`.
 
+### Agent configuration
+
+Add the browser agent to `openclaw.json` (in the `agents.list` array, alongside your existing agents):
+
+```json5
+{
+  "agents": {
+    "list": [
+      {
+        "id": "browser",
+        "workspace": "~/.openclaw/workspaces/browser",
+        "agentDir": "~/.openclaw/agents/browser/agent",
+        "tools": {
+          "allow": ["browser", "web_fetch", "sessions_send", "session_status"],
+          "deny": [
+            "exec",              // No shell execution
+            "process",           // No process control
+            "elevated",          // No host escape
+            "sessions_spawn",    // Single-task agent
+            "group:fs",          // No filesystem access
+            "group:memory"       // No memory operations
+          ]
+        },
+        "subagents": { "allowAgents": [] },
+        "sandbox": {
+          "mode": "all",
+          "scope": "agent",
+          "workspaceAccess": "none"
+        }
+      }
+    ]
+  }
+}
+```
+
+Key points:
+- `allow` list restricts to browser tools plus delegation (`sessions_send`, `session_status`)
+- `deny` list provides defense-in-depth — blocks filesystem, exec, and memory tools even if `allow` is misconfigured
+- `sandbox.workspaceAccess: "none"` — no filesystem access even within sandbox
+- `sandbox.mode: "all"` — always sandboxed. The browser agent needs network for browsing, so Docker provides filesystem isolation rather than network blocking (unlike the search agent, which has `network: none`)
+
+> **No Docker?** If Docker sandboxing is unavailable, omit the `sandbox` block. The tool deny/allow lists provide the primary isolation.
+
 ---
 
 ## How Delegation Works

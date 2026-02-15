@@ -275,8 +275,8 @@ For production, use `serviceAccountFile` or the env var — keeps secrets out of
 
 | Issue | Impact | Status |
 |-------|--------|--------|
-| **DM routing ignores bindings** ([#9198](https://github.com/nicepkg/openclaw/issues/9198)) | Google Chat DMs always route to the default agent, ignoring `bindings` config. Space (group) routing works correctly. | Open — blocks multi-agent |
-| **OAuth limitations** ([#9764](https://github.com/nicepkg/openclaw/issues/9764)) | Service account auth can't do reactions, media uploads, or proactive DMs. These require user OAuth (not yet supported). | Open |
+| **DM routing ignores bindings** ([#9198](https://github.com/openclaw/openclaw/issues/9198)) | Google Chat DMs always route to the default agent, ignoring `bindings` config. Space (group) routing works correctly. | Open — blocks multi-agent |
+| **OAuth limitations** ([#9764](https://github.com/openclaw/openclaw/issues/9764)) | Service account auth can't do reactions, media uploads, or proactive DMs. These require user OAuth (not yet supported). | Open |
 | **Per-space rate limit** | 1 write/sec (60/min standard). The 600/min figure in some docs applies only to data import operations. | By design |
 
 > **DM routing bug is critical for multi-agent setups.** If you run multiple channel agents (whatsapp + signal + googlechat), Google Chat DMs route to whichever agent has `default: true` — not to the `googlechat` agent specified in bindings. Space messages route correctly. Monitor #9198 for a fix.

@@ -15,6 +15,8 @@
 .agent_temp/
 docs/temp/
 docs/research
+docs/specs/
+docs/plans/
 
 # Cowork docs
 cowork/
@@ -37,4 +39,3 @@ scripts/docker-isolation/.instances
 public/
 resources/
 .hugo_build.lock
-docs/specs/

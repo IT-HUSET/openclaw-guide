@@ -15,6 +15,22 @@ Get a working OpenClaw agent in minutes — no channels, no external exposure.
 - **Node.js 22+** and npm
 - **macOS** (primary) or Linux
 
+{{% details title="macOS Setup" %}}
+
+Install Node.js 22+ via [Homebrew](https://brew.sh) (recommended) or [nvm](https://github.com/nvm-sh/nvm):
+
+```bash
+# Option A: Homebrew (recommended)
+brew install node@22
+
+# Option B: nvm (no Homebrew needed)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+nvm install 22
+```
+
+Verify: `node -v && npm -v`
+{{% /details %}}
+
 {{% details title="Linux Setup" %}}
 
 Install Node.js 22+ via [nvm](https://github.com/nvm-sh/nvm) (recommended) or [NodeSource](https://github.com/nodesource/distributions):

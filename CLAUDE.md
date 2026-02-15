@@ -28,12 +28,13 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 - `content/docs/phases/phase-7-migration.md` — Phase 7: Moving a deployment to a new machine — config, credentials, memory, channels, services, cron jobs
 - `content/docs/google-chat.md` — Google Chat: GCP setup, webhook exposure, multi-agent, multi-org, known issues
 - `content/docs/multi-gateway.md` — Multi-Gateway: profiles, multi-user, VM variants for running multiple gateway instances
-- `content/docs/hardened-multi-agent.md` — Hardened Multi-Agent: receptor/computer architecture with network egress allowlisting
+- `content/docs/hardened-multi-agent.md` — Hardened Multi-Agent: main/computer architecture with network egress allowlisting
 - `content/docs/reference.md` — Config cheat sheet, tool groups, plugins, gotchas, useful commands
 - `content/docs/architecture.md` — System internals: core components, module dependencies, networking, diagrams
 
 ### Examples
-- `examples/openclaw.json` — Complete annotated config (Docker isolation, all hardening applied)
+- `examples/openclaw.json` — Recommended config (main/computer/search, egress allowlisting, all hardening)
+- `examples/openclaw-basic.json` — Minimal config (main + search, single channel)
 - `content/docs/examples/security-audit.md` — Worked example of `openclaw security audit` output
 
 ### Scripts
@@ -58,7 +59,7 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 - **VM: Linux VMs:** single Linux VM with Docker inside, dedicated user (docker group, no sudo), multi-agent gateway. macOS or Linux hosts. No VM count limit
 - **Multi-gateway options:** profiles (`--profile` flag, simplest), multi-user (separate OS users), VM variants (one VM per channel)
 - Official docs: https://docs.openclaw.ai
-- **Guide baseline version:** stored in `.guide-version` (currently 2.1.42). The changelog review workflow (`.github/workflows/changelog-review.yml`) runs weekly to detect drift
+- **Guide baseline version:** stored in `.guide-version` (currently 2026.2.14). The changelog review workflow (`.github/workflows/changelog-review.yml`) runs weekly to detect drift
 
 ## Testing
 
@@ -151,7 +152,7 @@ The guide tracks the OpenClaw version it was last reviewed against in `.guide-ve
 
 ### Automated changelog review
 `.github/workflows/changelog-review.yml` runs twice weekly (Monday + Thursday 9:00 UTC) and on manual dispatch:
-1. Fetches the upstream changelog from `anthropics/claude-code`
+1. Fetches the upstream changelog from `openclaw/openclaw`
 2. Extracts entries newer than `.guide-version`
 3. Runs Claude Code (Sonnet) to analyze whether any entries affect the guide
 4. Opens a GitHub issue labeled `changelog-review` if updates are needed

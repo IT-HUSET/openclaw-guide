@@ -30,7 +30,7 @@ jobs:
           LAST=$(tr -d '[:space:]' < .guide-version)
           echo "last=$LAST" >> "$GITHUB_OUTPUT"
 
-          curl -sfL https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md \
+          curl -sfL https://raw.githubusercontent.com/openclaw/openclaw/main/CHANGELOG.md \
             -o /tmp/changelog.md
 
           # Extract entries newer than last reviewed version.

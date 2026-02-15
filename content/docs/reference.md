@@ -222,11 +222,11 @@ Different agents need different sandbox configurations. Here's when to use each 
 |----------|---------|-------------------|--------|-----------|
 | Channel agents (whatsapp, signal) | `agent` | `rw` | `non-main` | Need workspace for memory writes; sandbox provides network isolation |
 | Search agent | `agent` | `none` | `all` | No filesystem needed; always sandboxed for maximum isolation |
-| Browser agent | `agent` | `none` | `all` | No filesystem needed; needs network for browsing |
-| Main agent | — | — | `off` | Operator interface; needs full host access for exec delegation |
+| Browser agent (Phase 5 pattern) | `agent` | `none` | `all` | No filesystem needed; needs network for browsing. Recommended: consolidate into computer agent |
+| Main agent (standard) | — | — | `off` | Operator interface; needs full host access for exec delegation |
+| Main agent ([hardened](hardened-multi-agent.md)) | `agent` | `rw` | `all` | No exec/web/browser, `network: none`; receives channel input, delegates to computer |
+| Computer ([hardened](hardened-multi-agent.md)) | `agent` | `rw` | `all` | Full exec + browser, `network: "openclaw-egress"`; egress-allowlisted |
 | Ephemeral tasks | `session` | `none` | `all` | Container destroyed when session ends; no persistent state |
-| Receptor ([hardened](hardened-multi-agent.md)) | `agent` | `rw` | `all` | No exec, `network: none`; receives channel input, delegates to computer |
-| Computer ([hardened](hardened-multi-agent.md)) | `agent` | `rw` | `all` | Full exec, `network: "openclaw-egress"`; egress-allowlisted |
 
 ### Config Includes (`$include`)
 
@@ -348,7 +348,7 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 
 13. **`requireMention` must be inside the `groups` object, not at channel root** — placing it at `channels.whatsapp.requireMention` causes a Zod validation error. Correct: `channels.whatsapp.groups: { "*": { requireMention: true } }`. On Signal, also configure `mentionPatterns` in `agents.list[].groupChat.mentionPatterns` (no native @mention support). On Google Chat, set `botUser` in the channel config for reliable mention detection in spaces.
 
-14. **Google Chat DMs ignore agent bindings** ([#9198](https://github.com/nicepkg/openclaw/issues/9198)) — DMs always route to the default agent regardless of `bindings` config. Space (group) routing works correctly. Critical for multi-agent setups.
+14. **Google Chat DMs ignore agent bindings** ([#9198](https://github.com/openclaw/openclaw/issues/9198)) — DMs always route to the default agent regardless of `bindings` config. Space (group) routing works correctly. Critical for multi-agent setups.
 
 15. **Google Chat requires both channel config and plugin** — missing either `channels.googlechat` or `plugins.entries.googlechat.enabled: true` causes a 405 error on the webhook endpoint.
 
@@ -414,7 +414,7 @@ Features below require the listed version or later. Check yours with `openclaw -
 | 2026.2.1 | `before_tool_call` hook | Required for [web-guard plugin](phases/phase-5-web-search.md#advanced-prompt-injection-guard) |
 | 2026.2.3-1 | Security audit baseline | Version used in the [worked audit example](examples/security-audit.md) |
 | 2026.2.9 | xAI (Grok) provider | New [search provider option](phases/phase-5-web-search.md#search-providers) |
-| 2026.2.12 | Channel bindings regression | [#15176](https://github.com/nicepkg/openclaw/pull/15176) — bindings to non-default agents broken. Route to main as workaround |
+| 2026.2.12 | Channel bindings regression | [#15176](https://github.com/openclaw/openclaw/pull/15176) — bindings to non-default agents broken. Route to main as workaround |
 
 ---
 

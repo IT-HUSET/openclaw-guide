@@ -3,7 +3,7 @@ title: "Multi-Gateway Deployments"
 weight: 85
 ---
 
-Running multiple gateway instances gives process-level isolation between channels or identities. Each instance gets its own config, workspaces, secrets, and channels — fully independent core agents (main + search + browser) per gateway.
+Running multiple gateway instances gives process-level isolation between channels or identities. Each instance gets its own config, workspaces, secrets, and channels — fully independent core agents (main + computer + search) per gateway.
 
 ---
 
