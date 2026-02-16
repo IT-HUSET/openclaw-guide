@@ -589,29 +589,18 @@ graph TB
         TOOLS2["Tools: web_search,<br/>web_fetch only"]
     end
 
-    subgraph A3["Agent: browser"]
-        WSP3["Workspace:<br/>~/.openclaw/workspaces/browser"]
-        SESS3["Sessions:<br/>agents/browser/sessions/"]
-        AUTH3["Auth Profiles:<br/>agents/browser/agent/auth-profiles.json"]
-        TOOLS3["Tools: browser only"]
-        SBX3["Sandbox: Docker<br/>(network: host)"]
-    end
-
     ROUTER --> A1
     ROUTER --> A2
-    ROUTER --> A3
 
     classDef router fill:#1F4E79,stroke:#93C5FD,color:#F8FAFC,stroke-width:1.5px
     classDef workspace fill:#1F6A5A,stroke:#86EFAC,color:#F8FAFC,stroke-width:1.5px
     classDef state fill:#334155,stroke:#94A3B8,color:#F8FAFC,stroke-width:1.5px
     classDef policy fill:#5B3E8C,stroke:#C4B5FD,color:#F8FAFC,stroke-width:1.5px
-    classDef sandbox fill:#1E637D,stroke:#7DD3FC,color:#F8FAFC,stroke-width:1.5px
 
     class ROUTER router
-    class WSP1,WSP2,WSP3 workspace
-    class SESS1,SESS2,SESS3,AUTH1,AUTH2,AUTH3 state
-    class TOOLS1,TOOLS2,TOOLS3 policy
-    class SBX3 sandbox
+    class WSP1,WSP2 workspace
+    class SESS1,SESS2,AUTH1,AUTH2 state
+    class TOOLS1,TOOLS2 policy
 ```
 
 **What's isolated per agent:**
@@ -622,7 +611,7 @@ graph TB
 - Sandbox configuration
 - Memory store
 
-> **Optional egress allowlisting:** The recommended config uses `network: none` for all agents. If the computer agent needs runtime network (package installs, git), egress allowlisting restricts outbound traffic to pre-approved hosts. See [Hardened Multi-Agent](hardened-multi-agent.md).
+> **Egress allowlisting:** The recommended 2-agent config runs the main agent on an egress-allowlisted Docker network, restricting outbound traffic to pre-approved hosts. See [egress setup](hardened-multi-agent.md#step-1-verify-docker-network) for the walkthrough.
 
 ---
 
@@ -667,7 +656,7 @@ graph TB
     class CHROMIUM,CDP_C,VNC_C,NOVNC_C browser
 ```
 
-> **Browser egress risk:** The browser sandbox container requires full network access (`network: host`) for web browsing. A compromised browser agent could exfiltrate data to arbitrary hosts. Consider DNS filtering, proxy rules, or host firewall rules to limit this risk.
+> **Browser egress risk:** In the recommended 2-agent config, the main agent has browser access and runs on an egress-allowlisted Docker network — outbound traffic is restricted to pre-approved hosts. See [egress setup](hardened-multi-agent.md#step-1-verify-docker-network) for the firewall walkthrough.
 
 ### Sandbox Modes
 
@@ -697,7 +686,7 @@ graph TB
 
 > **Custom images:** The default image includes bash, curl, git, jq, python3, and ripgrep. For agents that need additional tools (Node.js, build toolchains, etc.), build a [custom sandbox image](custom-sandbox-images.md) rather than using `setupCommand` — this preserves `network: "none"` and `readOnlyRoot: true`.
 
-> **Custom networks with egress allowlisting:** Set `docker.network` to a custom Docker network name (e.g., `"openclaw-egress"`) combined with host-level firewall rules (pf on macOS, nftables on Linux) to restrict outbound traffic to an allowlist. This gives the computer agent network access for package installs and git while blocking exfiltration to arbitrary hosts. See [Hardened Multi-Agent](hardened-multi-agent.md) for the full architecture.
+> **Custom networks with egress allowlisting:** Set `docker.network` to a custom Docker network name (e.g., `"openclaw-egress"`) combined with host-level firewall rules (pf on macOS, nftables on Linux) to restrict outbound traffic to an allowlist. This gives the main agent network access for browsing, package installs, and git while blocking exfiltration to arbitrary hosts. See [Hardened Multi-Agent](hardened-multi-agent.md) for the full architecture.
 
 ---
 
@@ -943,8 +932,7 @@ graph LR
 │   ├── main/                  # Main agent workspace (same structure as above)
 │   ├── whatsapp/              # Channel agent workspace
 │   ├── signal/                # Channel agent workspace
-│   ├── search/                # Search agent workspace (minimal)
-│   └── browser/               # Browser agent workspace (minimal)
+│   └── search/                # Search agent workspace (minimal)
 ├── agents/
 │   └── <agentId>/
 │       ├── sessions/

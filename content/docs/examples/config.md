@@ -1,12 +1,12 @@
 ---
 title: "Recommended Configuration"
-description: "Complete annotated OpenClaw config with main/computer/search architecture, Docker sandboxing, and all security hardening applied."
+description: "Complete annotated OpenClaw config with main/search architecture, Docker sandboxing, egress allowlisting, and all security hardening applied."
 weight: 121
 ---
 
-Complete annotated `openclaw.json` implementing the recommended three-agent architecture: main (sandboxed, channel-facing, no exec/web/browser), computer (full exec + browser, Docker `network: none`), and search (web only, no filesystem). All three guard plugins enabled with agent-guard focused on the main-to-computer boundary. Uses JSON5 comments for inline documentation — OpenClaw supports JSON5 natively.
+Complete annotated `openclaw.json` implementing the recommended two-agent architecture: main (sandboxed, channel-facing, full exec + browser on egress-allowlisted network) and search (web only, no filesystem). Both guard plugins enabled (channel-guard + web-guard). Uses JSON5 comments for inline documentation — OpenClaw supports JSON5 natively.
 
-All agents default to `network: none` — zero outbound. If the computer agent needs runtime network access (npm install, git push, browsing), enable [egress allowlisting](../hardened-multi-agent.md) to restrict outbound traffic to pre-approved hosts only. For a minimal starting point (single channel, two agents), see [Basic Configuration](basic-config.md).
+Main runs on `openclaw-egress` — a custom Docker network with host-level firewall rules restricting outbound to pre-approved hosts (npm, git, Playwright CDN, etc.). See [`scripts/network-egress/`](https://github.com/IT-HUSET/openclaw-guide/tree/main/scripts/network-egress/) for setup. For exec-separated architecture with a dedicated computer agent, see [Hardened Multi-Agent](../hardened-multi-agent.md). For a minimal starting point (single channel, two agents, no egress), see [Basic Configuration](basic-config.md).
 
 Three deployment postures are covered: Docker isolation (this config), macOS VM isolation (remove sandbox blocks), and Linux VM isolation (keep sandbox blocks). See [Phase 3 — Security](../phases/phase-3-security.md#deployment-isolation-options) for the full trade-off analysis.
 
@@ -18,22 +18,21 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
   // NOTE: This file uses JSON5 comments (//) for documentation.
   // OpenClaw supports JSON5 natively — no need to strip comments.
   //
-  // Three-agent architecture:
-  //   Main agent     — channel-facing, sandboxed (Docker network:none),
-  //                    no exec/web/browser. Delegates all work via sessions_send.
-  //   Computer agent — full exec + browser, sandboxed (Docker network:none).
-  //                    Optional: egress-allowlisted network for npm/git/browse.
-  //   Search agent   — web_search/web_fetch only, no filesystem, no exec.
+  // Two-agent architecture:
+  //   Main agent   — channel-facing, sandboxed (Docker, egress-allowlisted network),
+  //                  full exec + browser. Delegates web search to search agent.
+  //   Search agent — web_search/web_fetch only, no filesystem, no exec.
+  //
+  // For exec-separated architecture with a dedicated computer agent,
+  // see hardened-multi-agent.md.
   //
   // Optional: Dedicated channel agents (defense-in-depth) — commented out below.
   //   Uncomment to route channels to restricted agents instead of main.
   //
   // Prerequisites:
-  //   1. Guard plugins installed (channel-guard, web-guard, agent-guard)
+  //   1. Guard plugins installed (channel-guard, web-guard)
   //   2. Docker running
-  //
-  // Optional: Egress allowlisting (computer agent needs npm/git/browse at runtime)
-  //   See content/docs/hardened-multi-agent.md for the full walkthrough.
+  //   3. Egress-allowlisted network created (see scripts/network-egress/)
   //
   // DEPLOYMENT OPTIONS:
   //   Docker isolation — Dedicated OS user + Docker (this config): stronger
@@ -158,27 +157,28 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
         "thinking": "low"
       }
       // NOTE: No default sandbox block — each agent defines its own sandbox explicitly.
-      // All three core agents use mode:"all" with different network settings,
+      // Both core agents use mode:"all" with different network settings,
       // so a shared default would be misleading.
     },
     "list": [
       {
-        // MAIN AGENT — receives all channel input, delegates everything
-        // Sandboxed with network:none — even if fully compromised, zero exfiltration path.
-        // Uses tools.allow (exclusive list) for strictest enforcement.
-        // Delegates coding/exec to computer, web search to search via sessions_send.
+        // MAIN AGENT — channel-facing, full exec + browser on egress-allowlisted network
+        // Sandboxed with Docker on openclaw-egress — outbound restricted to pre-approved hosts.
+        // Has exec, browser, and filesystem tools. Denies web_search (delegated to search).
+        // IMPORTANT: Create network FIRST: docker network create openclaw-egress
+        // Gateway startup will fail if network doesn't exist.
+        // See scripts/network-egress/ for egress allowlisting setup.
         "id": "main",
         "default": true,
         "workspace": "/Users/openclaw/.openclaw/workspaces/main",
         "agentDir": "/Users/openclaw/.openclaw/agents/main/agent",
         "tools": {
-          "allow": ["group:fs", "group:sessions", "group:memory", "message"],
-          "deny": ["group:runtime", "group:web", "browser", "group:ui", "group:automation"],
+          "allow": ["group:runtime", "group:fs", "group:sessions", "group:memory", "message", "browser", "web_fetch"],
+          "deny": ["web_search", "group:ui", "group:automation"],
           "elevated": { "enabled": false }
         },
-        "subagents": { "allowAgents": ["computer", "search"] },
+        "subagents": { "allowAgents": ["search"] },
         // Signal has no native @mention — regex patterns for group mention gating.
-        // Placed on main because all channels (including Signal) route here via bindings.
         "groupChat": {
           "mentionPatterns": ["@openclaw", "hey openclaw"]
         },
@@ -186,40 +186,12 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
           "mode": "all",
           "scope": "agent",
           "workspaceAccess": "rw",
-          "docker": { "network": "none" }
-        }
-      },
-      {
-        // COMPUTER AGENT — full exec + browser, no network by default
-        // Does the actual work: coding, file ops, git, builds, browser automation.
-        // Browser consolidated here (not a separate agent) — computer already has
-        // exec, could install Playwright anyway. Keeping browser here is honest
-        // about the threat model.
-        // Denies web_search (delegates to search agent) and message (can't send to channels).
-        "id": "computer",
-        "workspace": "/Users/openclaw/.openclaw/workspaces/computer",
-        "agentDir": "/Users/openclaw/.openclaw/agents/computer/agent",
-        "tools": {
-          "allow": ["group:runtime", "group:fs", "group:memory", "group:sessions", "browser", "web_fetch"],
-          "deny": ["web_search", "group:ui", "message"],
-          "elevated": { "enabled": false }
-        },
-        "subagents": { "allowAgents": ["search"] },
-        "sandbox": {
-          "mode": "all",
-          "scope": "agent",
-          "workspaceAccess": "rw",
-          "docker": { "network": "none" }
-          // Optional: egress-allowlisted network for npm/git/browse at runtime.
-          // IMPORTANT: Create network FIRST: docker network create openclaw-egress
-          // Gateway startup will fail if network doesn't exist.
-          // See hardened-multi-agent.md for setup walkthrough.
-          // "docker": { "network": "openclaw-egress" }
+          "docker": { "network": "openclaw-egress" }
         }
       },
       {
         // SEARCH AGENT — isolated web search + content processing
-        // Only reachable via sessions_send from main or computer.
+        // Only reachable via sessions_send from main.
         // No channel binding = can't be messaged directly.
         // No filesystem tools — nothing to read or exfiltrate.
         // Cheaper model — search queries don't need Opus.
@@ -259,10 +231,9 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
 
       // --- OPTIONAL: Dedicated channel agents (defense-in-depth) ---
       // Uncomment to route channels to restricted agents instead of main.
-      // Each channel agent has no exec/process — delegates to main/computer/search.
+      // Each channel agent has no exec/process — delegates to main/search.
       // Also uncomment the corresponding bindings in the bindings section below.
-      // TODO: remove after openclaw#15176 merges
-      // NOTE: Requires OpenClaw > 2026.2.12 — channel bindings to non-default
+      // NOTE: Requires fix for openclaw#15176 — channel bindings to non-default
       // agents are broken in 2026.2.12 (session path regression).
       //
       // ,{
@@ -273,7 +244,7 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
       //     "deny": ["web_search", "web_fetch", "browser", "exec", "process"],
       //     "elevated": { "enabled": false }
       //   },
-      //   "subagents": { "allowAgents": ["main", "computer", "search"] }
+      //   "subagents": { "allowAgents": ["main", "search"] }
       // },
       // {
       //   "id": "signal",
@@ -283,7 +254,7 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
       //     "deny": ["web_search", "web_fetch", "browser", "exec", "process"],
       //     "elevated": { "enabled": false }
       //   },
-      //   "subagents": { "allowAgents": ["main", "computer", "search"] }
+      //   "subagents": { "allowAgents": ["main", "search"] }
       // },
       // {
       //   "id": "googlechat",
@@ -293,29 +264,23 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
       //     "deny": ["web_search", "web_fetch", "browser", "exec", "process"],
       //     "elevated": { "enabled": false }
       //   },
-      //   "subagents": { "allowAgents": ["main", "computer", "search"] }
+      //   "subagents": { "allowAgents": ["main", "search"] }
       // }
     ]
   },
 
   // --- Channel Routing ---
-  // All channels route to main. Computer and search have no binding —
+  // All channels route to main (the default agent). Search has no binding —
   // unreachable from channels, only via sessions_send.
-  // channel-guard scans inbound, agent-guard scans the main→computer boundary.
+  // channel-guard scans inbound messages.
   //
   // OPTIONAL: Dedicated channel agents (defense-in-depth)
-  // If you uncommented the channel agents above, replace these bindings with:
+  // If you uncommented the channel agents above, add bindings:
   //   { "agentId": "whatsapp", "match": { "channel": "whatsapp" } },
   //   { "agentId": "signal", "match": { "channel": "signal" } },
   //   { "agentId": "googlechat", "match": { "channel": "googlechat" } }
-  // TODO: remove after openclaw#15176 merges
-  // NOTE: Channel bindings to non-default agents broken in 2026.2.12
-  // (session path regression). Keep main-routes-all until the fix lands.
-  "bindings": [
-    { "agentId": "main", "match": { "channel": "whatsapp" } },
-    { "agentId": "main", "match": { "channel": "signal" } },
-    { "agentId": "main", "match": { "channel": "googlechat" } }
-  ],
+  // NOTE: Requires fix for openclaw#15176 — channel bindings to non-default
+  // agents are broken in 2026.2.12 (session path regression).
 
   // --- Channel Configuration ---
   "channels": {
@@ -352,7 +317,7 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
   },
 
   // --- Browser ---
-  // Required for the computer agent's browser tool. Uses a managed profile —
+  // Required for the main agent's browser tool. Uses a managed profile —
   // never your personal Chrome. evaluateEnabled:false blocks raw JS evaluation.
   "browser": {
     "enabled": true,
@@ -405,7 +370,7 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
       },
       "web-guard": {
         // Scans web_fetch responses for prompt injection before content reaches agent.
-        // Protects computer and search agents from poisoned web content.
+        // Protects main and search agents from poisoned web content.
         "enabled": true,
         "config": {
           "failOpen": false,
@@ -414,22 +379,9 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
           "maxContentLength": 50000
         }
       },
-      "agent-guard": {
-        // Scans sessions_send payloads crossing agent boundaries.
-        // guardAgents: only scan outbound from main (high-risk boundary).
-        // skipTargetAgents: skip low-privilege search agent (no exec, no fs).
-        // This focuses scanning on the main→computer boundary where prompt
-        // injection could lead to code execution.
-        "enabled": true,
-        "config": {
-          "failOpen": false,
-          "sensitivity": 0.5,
-          "warnThreshold": 0.4,
-          "blockThreshold": 0.8,
-          "guardAgents": ["main"],
-          "skipTargetAgents": ["search"]
-        }
-      },
+      // agent-guard: Not needed for 2-agent config (no inter-agent exec boundary).
+      // Add it when using the hardened variant with a computer agent —
+      // see hardened-multi-agent.md for config.
       "image-gen": {
         "enabled": true,
         "config": {

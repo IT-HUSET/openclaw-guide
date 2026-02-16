@@ -3,7 +3,7 @@ title: "Multi-Gateway Deployments"
 weight: 85
 ---
 
-Running multiple gateway instances gives process-level isolation between channels or identities. Each instance gets its own config, workspaces, secrets, and channels — fully independent core agents (main + computer + search) per gateway.
+Running multiple gateway instances gives process-level isolation between channels or identities. Each instance gets its own config, workspaces, secrets, and channels — fully independent core agents (main + search) per gateway.
 
 ---
 
@@ -54,9 +54,9 @@ openclaw --profile wa channels login
 Host (macOS or Linux)
   └── openclaw user (non-admin)
        ├── ~/.openclaw-wa/     ← Profile "wa" (port 18789)
-       │    └── Gateway: main + whatsapp + search [+ browser]
+       │    └── Gateway: main + whatsapp + search
        └── ~/.openclaw-sig/    ← Profile "sig" (port 18810)
-            └── Gateway: main + signal + search [+ browser]
+            └── Gateway: main + signal + search
 ```
 
 Both gateways run as the same OS user but are fully independent processes with separate configs, workspaces, sessions, and credentials.
@@ -79,7 +79,7 @@ Each profile has its own `openclaw.json`. Start from [`examples/openclaw.json`](
 
 **3. Port spacing:**
 
-Each gateway needs a unique port. Leave a gap of >= 20 between ports to accommodate CDP port ranges (browser agent uses `cdpPort` near the gateway port):
+Each gateway needs a unique port. Leave a gap of >= 20 between ports to accommodate CDP port ranges (the browser tool uses `cdpPort` near the gateway port):
 
 | Profile | Gateway port | CDP port |
 |---------|-------------|----------|
@@ -222,12 +222,12 @@ For stricter channel isolation without VMs, run one gateway per channel under se
 ```
 Host (macOS or Linux)
   ├── openclaw-wa user (non-admin)
-  │    └── Gateway (port 18789): main+whatsapp + search [+ browser]
+  │    └── Gateway (port 18789): main + whatsapp + search
   └── openclaw-sig user (non-admin)
-       └── Gateway (port 18790): main+signal + search [+ browser]
+       └── Gateway (port 18790): main + signal + search
 ```
 
-Each gateway is a small 2–3 agent instance (channel-connected main agent + search + optionally browser).
+Each gateway is a small 2–3 agent instance (channel-connected main agent + search, plus optional channel agents).
 
 > **Naming convention:** The names `openclaw-wa`/`openclaw-sig` are channel-based examples. You may prefer identity-based names (e.g., the user's name or the agent's purpose) since channels might change but agent identity persists.
 
@@ -303,8 +303,8 @@ Uses both macOS VM slots (Apple limits macOS VMs to 2 per host):
 
 ```
 macOS Host (personal use, untouched)
-  ├── VM 1 — "openclaw-wa" (4 agents: main + whatsapp + search + browser)
-  └── VM 2 — "openclaw-sig" (4 agents: main + signal + search + browser)
+  ├── VM 1 — "openclaw-wa" (3 agents: main + whatsapp + search)
+  └── VM 2 — "openclaw-sig" (3 agents: main + signal + search)
 ```
 
 Create both VMs:

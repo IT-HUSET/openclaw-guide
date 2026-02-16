@@ -25,7 +25,6 @@ Run OpenClaw as a system service that starts at boot, survives reboots, and is l
 | **Docker Isolation** *(recommended)* | OS user boundary | Docker (per-agent sandboxing) | Dedicated hardware, full control |
 | **VM: macOS VMs** | Kernel-level VM | Tool policy only (no Docker) | macOS hosts, strongest host isolation |
 | **VM: Linux VMs** | Kernel-level VM | Docker inside VM | Any host, strongest combined |
-| **Computer Use (Experimental)** | Lume VM + host gateway | Docker (host) + VM boundary | macOS GUI/Xcode ([Phase 8](phase-8-computer-use.md)) |
 
 ### Hosting Options
 
@@ -450,13 +449,13 @@ Use a full `launchctl` restart only for binary updates or when auto-reload doesn
 
 #### Alternative: LaunchAgent
 
-If your setup uses the browser agent with Playwright and you encounter headless rendering issues in a LaunchDaemon context, a LaunchAgent in the `openclaw` user's GUI domain provides GUI framework access that Playwright may need. Headless Playwright generally works fine under a LaunchDaemon, but Apple occasionally changes framework availability in non-GUI contexts across macOS updates.
+If your setup uses the browser tool with Playwright and you encounter headless rendering issues in a LaunchDaemon context, a LaunchAgent in the `openclaw` user's GUI domain provides GUI framework access that Playwright may need. Headless Playwright generally works fine under a LaunchDaemon, but Apple occasionally changes framework availability in non-GUI contexts across macOS updates.
 
 | Dependency | LaunchDaemon | LaunchAgent |
 |------------|--------------|-------------|
 | Node.js gateway | Works | Works |
 | OrbStack Docker socket | Requires bootstrapping OrbStack's helper (see above) | OrbStack runs in same user domain — socket always available |
-| Playwright (browser agent) | Works headless; can break across macOS updates | Reliable — has GUI framework access |
+| Playwright (browser tool) | Works headless; can break across macOS updates | Reliable — has GUI framework access |
 
 ##### Create LaunchAgents directory
 
@@ -588,9 +587,7 @@ See [OpenClaw sandboxing docs](https://docs.openclaw.ai/gateway/sandboxing) for 
 
 #### Sandbox the Main Agent
 
-The default sandbox config (`mode: "non-main"`) leaves the main agent unsandboxed. This is the simplest setup but leaves the `read→exfiltrate` chain open for the main agent — a prompt-injected channel agent can delegate to main via `sessions_send`, and main has full host filesystem access.
-
-To close this gap, sandbox main explicitly:
+The [recommended configuration](../examples/config.md) sandboxes the main agent with Docker on an egress-allowlisted network. This roots main's filesystem inside Docker while preserving workspace access, and restricts outbound traffic to pre-approved hosts.
 
 ```json5
 {
@@ -601,27 +598,32 @@ To close this gap, sandbox main explicitly:
       "sandbox": {
         "mode": "all",
         "scope": "agent",
-        "workspaceAccess": "rw"
+        "workspaceAccess": "rw",
+        "docker": { "network": "openclaw-egress" }
       }
     }]
   }
 }
 ```
 
-This roots the main agent's filesystem inside Docker — it can no longer read `openclaw.json` or `auth-profiles.json`. Workspace data (SOUL.md, memory, workspace files) remains accessible via the mount.
+This roots the main agent's filesystem inside Docker — it can no longer read `openclaw.json` or `auth-profiles.json`. Workspace data (SOUL.md, memory, workspace files) remains accessible via the mount. Outbound network is restricted to pre-approved hosts via the `openclaw-egress` Docker network and host-level firewall rules.
 
-**Trade-off:** Host-native tools (Xcode, Homebrew binaries) are unavailable inside the container. Most workflows are handled by the computer agent (Docker `network: none` by default; optionally [egress-allowlisted](../hardened-multi-agent.md) for runtime network access). If you need unsandboxed host access, you can add a `dev` agent with no `sandbox` block and no channel binding. For host-level automation (cron jobs, service management), see [Local Admin Agent](#optional-local-admin-agent) below.
+**Prerequisites:**
+1. Docker network created: `docker network create openclaw-egress`
+2. Egress allowlist configured — see [`scripts/network-egress/`](https://github.com/IT-HUSET/openclaw-guide/tree/main/scripts/network-egress/) for setup
+
+**Trade-off:** Host-native tools (Xcode, Homebrew binaries) are unavailable inside the container. For host-level automation (cron jobs, service management), see [Local Admin Agent](#optional-local-admin-agent) below. For an even more isolated architecture with a dedicated computer agent, see [Hardened Multi-Agent](../hardened-multi-agent.md).
 
 ### Optional: Local Admin Agent
 
 Sandboxed agents can't manage host-level tasks — `cron`, `gateway`, and other `group:automation` tools are denied inside Docker. A local admin agent fills this gap: an unsandboxed agent with `group:automation` access, completely isolated from channels and other agents, reachable only via the Control UI.
 
 ```
-Channels → main ←→ computer ←→ search
-                      (sandboxed, no cron)
+Channels → main ←→ search
+                (sandboxed, egress-allowlisted, no cron)
 
 Control UI → local-admin (unsandboxed, group:automation)
-                      (no channel binding, no sessions_send)
+                (no channel binding, no sessions_send)
 ```
 
 Agent definition (also in the [recommended config](../examples/config.md), commented out):
@@ -683,10 +685,10 @@ Run OpenClaw inside a macOS VM. Your host macOS is untouched.
 macOS Host (personal use, untouched)
   └── VM — "openclaw-vm"
        └── openclaw user (standard, non-admin)
-            └── Gateway (port 18789): main + whatsapp + signal + googlechat + search + browser
+            └── Gateway (port 18789): main + search (+ optional channel agents)
 ```
 
-Same multi-agent architecture as Docker isolation (main + search + browser core, plus channel agents as configured, `sessions_send` delegation), but with a VM boundary instead of an OS user boundary. No Docker inside the VM (macOS doesn't support nested virtualization). For computer-use agents that need macOS GUI interaction inside VMs, see [Phase 8: Computer Use](phase-8-computer-use.md).
+Same multi-agent architecture as Docker isolation (main + search, plus optional channel agents, `sessions_send` delegation), but with a VM boundary instead of an OS user boundary. No Docker inside the VM (macOS doesn't support nested virtualization). For computer-use agents that need macOS GUI interaction inside VMs, see [Phase 8: Computer Use](phase-8-computer-use.md).
 
 Two hypervisor options:
 
@@ -1005,12 +1007,9 @@ Run OpenClaw inside a Linux VM with Docker. This gives the strongest combined is
 Host (macOS or Linux, untouched)
   └── Linux VM — "openclaw-vm"
        └── openclaw user (no sudo, docker group)
-            └── Gateway (port 18789): main + whatsapp + signal + googlechat + search + browser
-                 ├── whatsapp (Docker sandbox, no network)
-                 ├── signal (Docker sandbox, no network)
-                 ├── googlechat (Docker sandbox, no network)
-                 ├── search (Docker sandbox, no filesystem)
-                 └── browser (Docker sandbox, no filesystem)
+            └── Gateway (port 18789): main + search (+ optional channel agents)
+                 ├── main (Docker sandbox, egress-allowlisted network)
+                 └── search (Docker sandbox, no filesystem)
 ```
 
 Same multi-agent architecture as Docker isolation, but running inside a VM. Docker closes the `read→exfiltrate` chain; the VM boundary protects the host. No macOS 2-VM limit — run as many Linux VMs as resources allow.
@@ -1758,5 +1757,5 @@ Your OpenClaw deployment is production-ready.
 → **[Reference](../reference.md)** — config cheat sheet, tool list, gotchas, emergency procedures
 
 Or review:
-- [Egress Allowlisting](../hardened-multi-agent.md) — optional: give the computer agent runtime network access to pre-approved hosts
+- [Hardened Multi-Agent](../hardened-multi-agent.md) — optional: add a dedicated computer agent for exec isolation
 - [Examples](../examples/) — complete config and security audit

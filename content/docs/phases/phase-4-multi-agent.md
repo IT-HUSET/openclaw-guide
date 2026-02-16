@@ -127,7 +127,7 @@ Then update `openclaw.json` to point the main agent at the new path:
 - Channel agents should not have `exec` — they're the most exposed to prompt injection. Delegate privileged operations to the main agent via `sessions_send`
 - Different security postures per context (strict for groups, relaxed for trusted DMs)
 - Credential isolation (different API keys per agent)
-- Web search/browser isolation via delegation (see [Phase 5](phase-5-web-search.md))
+- Web search isolation via delegation (see [Phase 5](phase-5-web-search.md))
 
 **No:**
 - You just want different behavior per group — use AGENTS.md instructions instead
@@ -155,11 +155,18 @@ Agent = Workspace + agentDir + Session Store + Tools
 
 ## Optional: Channel Agents
 
-Every gateway has three **core agents** (always present):
+The guide covers three architecture tiers:
 
-- **Main agent** — direct access via Control UI / CLI, full tools; handles privileged operations on behalf of channel agents. [Phase 6](phase-6-deployment.md#sandbox-the-main-agent) recommends sandboxing main with Docker
-- **Search agent** — added in [Phase 5](phase-5-web-search.md)
-- **Browser agent** — added in [Phase 5](phase-5-web-search.md)
+| Tier | Agents | Main agent config | When to use |
+|------|--------|-------------------|-------------|
+| **Basic** | main + search | Unsandboxed, full tools | Dev / getting started ([basic config](../examples/basic-config.md)) |
+| **Recommended** | main + search | Sandboxed, exec + browser, egress-allowlisted network | Production ([recommended config](../examples/config.md)) |
+| **Hardened** | main + computer + search | No exec/browser, `network: none`; computer has exec + browser on egress | High-security ([hardened multi-agent](../hardened-multi-agent.md)) |
+
+Every gateway has two **core agents** (always present in recommended and basic tiers):
+
+- **Main agent** — channel-facing, sandboxed with Docker on egress-allowlisted network; has exec, browser, and filesystem tools. Delegates web search to the search agent. See [Recommended Configuration](../examples/config.md)
+- **Search agent** — added in [Phase 5](phase-5-web-search.md); web search and content retrieval only, no filesystem or exec
 
 **Channel agents are optional.** You have two approaches for channel routing:
 
@@ -174,8 +181,7 @@ Every gateway has three **core agents** (always present):
 
 Both are valid — choose based on your threat model and operational preferences. The rest of this section shows dedicated channel agents; to use the simpler approach, skip the channel agent definitions and bindings.
 
-<!-- TODO: remove after openclaw#15176 merges -->
-> **OpenClaw 2026.2.12:** Channel bindings to non-default agents are broken (session path hardening regression, [fix PR #15176](https://github.com/openclaw/openclaw/pull/15176)). Route channels to main as a workaround until the fix lands. Check `openclaw --version` — this workaround may no longer be needed if you're on a version after the fix for #15176.
+> **Note:** Channel bindings to non-default agents require the fix for [openclaw#15176](https://github.com/openclaw/openclaw/pull/15176) (broken in 2026.2.12). If routing channels to main (the simpler approach), this doesn't apply.
 
 > **Tip:** You can also use `openclaw agents add` for interactive agent setup. The manual approach below gives more control over the configuration.
 
@@ -252,7 +258,7 @@ If this agent should use different API keys (e.g., separate billing), edit the c
           "deny": ["exec", "process", "browser", "canvas", "gateway"],
           "elevated": { "enabled": false }
         },
-        "subagents": { "allowAgents": ["main", "search", "browser"] }
+        "subagents": { "allowAgents": ["main", "search"] }
       }
     ]
   }
@@ -269,7 +275,7 @@ Key design decisions:
 - **`maxConcurrent: 4`** limits parallel tool executions per agent — useful as both a performance and cost control. Lower values reduce token burn from runaway agents
 - **Main agent** starts with `sandbox.mode: "off"` for initial setup — [Phase 6](phase-6-deployment.md#sandbox-the-main-agent) recommends hardening to `mode: "all"` for production, which roots main inside Docker while preserving workspace access
 - **Channel agents** deny `exec` and `process` — the most dangerous tools for a channel-facing agent. They delegate privileged operations to main via `sessions_send` (see [Privileged Operation Delegation](#privileged-operation-delegation))
-- **`subagents.allowAgents`** includes `"main"` — allows channel agents to reach the main agent for delegation, plus `search`/`browser` for web access
+- **`subagents.allowAgents`** includes `"main"` — allows channel agents to reach the main agent for delegation, plus `search` for web search
 - **Channel agents** inherit the default sandbox (`non-main`) — Docker runs with no network, preventing exfiltration via any remaining tools
 - **`elevated.enabled: false`** on channel agents prevents authorized senders from escaping the sandbox via `/elevated`
 - The first agent with `"default": true` handles any messages that don't match a binding
@@ -366,7 +372,7 @@ Each agent should only have the tools it needs:
           "deny": ["exec", "process", "browser", "canvas", "gateway"],
           "elevated": { "enabled": false }
         },
-        "subagents": { "allowAgents": ["main", "search", "browser"] }
+        "subagents": { "allowAgents": ["main", "search"] }
       }
     ]
   }
@@ -420,11 +426,10 @@ All agents need valid model credentials to function — including the search age
 ├── main/agent/auth-profiles.json       # Main agent (sandboxed in production — can't read this)
 ├── whatsapp/agent/auth-profiles.json   # Same credentials (sandboxed — can't read)
 ├── signal/agent/auth-profiles.json     # Same credentials (sandboxed — can't read)
-├── search/agent/auth-profiles.json     # Same credentials (sandboxed — can't read)
-└── browser/agent/auth-profiles.json    # Same credentials (sandboxed — can't read)
+└── search/agent/auth-profiles.json     # Same credentials (sandboxed — can't read)
 ```
 
-Channel, search, and browser agents can share the same credential content — copy from main:
+Channel and search agents can share the same credential content — copy from main:
 
 ```bash
 cp ~/.openclaw/agents/main/agent/auth-profiles.json \
@@ -453,18 +458,14 @@ Control which agents can spawn which other agents as subagents:
     "list": [
       {
         "id": "main",
-        "subagents": { "allowAgents": ["search", "browser"] }
+        "subagents": { "allowAgents": ["search"] }
       },
       {
         "id": "whatsapp",
-        "subagents": { "allowAgents": ["main", "search", "browser"] }
+        "subagents": { "allowAgents": ["main", "search"] }
       },
       {
         "id": "search",
-        "subagents": { "allowAgents": [] }
-      },
-      {
-        "id": "browser",
         "subagents": { "allowAgents": [] }
       }
     ]
@@ -483,7 +484,7 @@ For direct agent-to-agent messaging (beyond `sessions_send`), there's a global o
   "tools": {
     "agentToAgent": {
       "enabled": true,
-      "allow": ["main", "whatsapp", "signal", "googlechat", "search", "browser"],
+      "allow": ["main", "whatsapp", "signal", "googlechat", "search"],
       "maxPingPongTurns": 2
     }
   }
@@ -504,7 +505,7 @@ OpenClaw evaluates tool access in two steps:
 
 **Step 2: What does this agent get?** Each agent's `tools.allow` and `tools.deny` are evaluated independently. However, global `deny` overrides agent-level `allow` — a tool denied globally cannot be re-enabled at the agent level.
 
-This is why [web search isolation](phase-5-web-search.md) uses per-agent deny: web tools (`web_search`, `web_fetch`, `browser`) are denied on each agent that shouldn't have them, rather than globally. This lets the search agent's `allow` list work.
+This is why [web search isolation](phase-5-web-search.md) uses per-agent deny: web tools (`web_search`, `web_fetch`) are denied on each agent that shouldn't have them, rather than globally. This lets the search agent's `allow` list work.
 
 **Key rules:**
 - `deny` always wins over `allow` at the same level
@@ -520,21 +521,19 @@ This is why [web search isolation](phase-5-web-search.md) uses per-agent deny: w
 
 Using the agent config from [Creating Channel Agents](#optional-channel-agents) above:
 
-- **Main agent** (operator) — full access via Control UI / CLI, no channel binding; handles privileged operations (git sync, builds) on behalf of channel agents. [Phase 6](phase-6-deployment.md#sandbox-the-main-agent) recommends sandboxing with `mode: "all"`
-- **WhatsApp agent** — daily work, research, planning; no exec/process; sandboxed with Docker (no network); delegates web search to search agent, privileged operations to main
-- **Signal agent** — same capabilities as WhatsApp; separate workspace and credentials
-- `gateway` and `canvas` denied globally; web tools (`web_search`, `web_fetch`, `browser`) denied per-agent; channel agents also deny `exec`, `process`, `elevated`
-- Each channel is explicitly bound to its agent; main catches any unbound messages
+- **Main agent** (operator) — channel-facing, sandboxed with Docker on egress-allowlisted network; has exec, browser, web_fetch, and filesystem tools. Delegates web search to the search agent. Accessible via Control UI / CLI and all channels (as default agent)
+- **WhatsApp agent** *(optional)* — daily work, research, planning; no exec/process; sandboxed with Docker (no network); delegates web search to search agent, privileged operations to main
+- **Signal agent** *(optional)* — same capabilities as WhatsApp; separate workspace and credentials
+- `gateway` and `canvas` denied globally; web tools (`web_search`, `web_fetch`) denied per-agent on channel agents; channel agents also deny `exec`, `process`, `elevated`
+- If using channel agents, each channel is bound to its agent; otherwise all channels route to main (default agent)
 
-For the complete annotated config (core + channel agents, web search and browser automation), see [`examples/openclaw.json`](../examples/config.md).
+For the complete annotated config (core + channel agents, web search isolation), see [`examples/openclaw.json`](../examples/config.md).
 
 ---
 
 ## Privileged Operation Delegation
 
-Channel agents have `exec` and `process` denied — they can't run shell commands. This is deliberate: channel-facing agents are the most exposed to prompt injection, and `exec` is the highest-risk tool for exfiltration.
-
-Instead, channel agents delegate privileged operations to the main agent via `sessions_send`:
+**This section applies when using [dedicated channel agents](#optional-channel-agents).** Channel agents have `exec` and `process` denied — they can't run shell commands. Instead, they delegate to the main agent via `sessions_send`:
 
 ```
 Channel Agent (no exec) → sessions_send("main", "Run the test suite in ~/project")
@@ -549,7 +548,7 @@ Channel Agent (no exec) → sessions_send("main", "Run the test suite in ~/proje
 This works because:
 - `sessions_send` is available to channel agents (not in their deny list)
 - `"main"` is in their `subagents.allowAgents`
-- The main agent has full exec access (runs inside Docker with workspace access in production — see [Phase 6](phase-6-deployment.md#sandbox-the-main-agent))
+- The main agent has full exec access (runs sandboxed with Docker on egress-allowlisted network — see [Phase 6](phase-6-deployment.md#sandbox-the-main-agent))
 
 **Important:** Delegation is prompt-based, not ACL-enforced. The main agent decides whether to execute based on its AGENTS.md instructions. See [Workspace Git Sync](#workspace-git-sync) for a worked example.
 
@@ -565,51 +564,14 @@ Each agent needs role-specific instructions in its AGENTS.md. Without these, age
 
 ### Main agent — AGENTS.md
 
-The main agent handles conversation, memory, and filesystem tasks. It delegates exec/browser work to the computer agent and web search to the search agent.
+The main agent has exec, browser, and filesystem tools directly. It only delegates web search to the search agent.
 
 ```markdown
 ## Agent Delegation
 
-You have access to two specialized agents via `sessions_send` and `sessions_spawn`:
+You have access to one specialized agent via `sessions_send` and `sessions_spawn`:
 
-- **computer** — exec, browser, coding, builds, file operations. Handles all tasks that require shell commands or browser automation.
 - **search** — web search and web content retrieval. No filesystem access.
-
-### What you cannot do directly
-
-You have no `exec`, `process`, `browser`, or `web_search` tools. Do not attempt these — delegate instead.
-
-### When to delegate
-
-- **Coding tasks** (write code, run tests, git operations) → computer
-- **Web search** (look something up, find information) → search
-- **Browser automation** (navigate sites, take screenshots) → computer
-- **Build/install** (npm install, compile, deploy) → computer
-
-### How to delegate
-
-**`sessions_send`** — when you need the result before continuing:
-
-    sessions_send({ agentId: "computer", message: "Run npm test in ~/project and report results" })
-
-**`sessions_spawn`** — for background tasks (non-blocking, result announced back automatically):
-
-    sessions_spawn({ agentId: "computer", task: "Install dependencies in ~/project" })
-
-### Reply protocol
-
-- After a `sessions_send`, you may get follow-up replies (up to 5 turns). Reply `REPLY_SKIP` to end the exchange early.
-- After the exchange ends, an announce step runs. Reply `ANNOUNCE_SKIP` for instrumental tasks that don't need a user-facing message.
-```
-
-### Computer agent — AGENTS.md
-
-The computer agent does the actual work. It has exec, browser, and filesystem access but cannot send messages to channels.
-
-```markdown
-## Role
-
-You are the computer agent. You handle coding, shell commands, builds, browser automation, and file operations delegated from the main agent.
 
 ### Your tools
 
@@ -619,23 +581,28 @@ You are the computer agent. You handle coding, shell commands, builds, browser a
 - `web_fetch` — fetch web content (pages, APIs)
 - `memory_search`, `memory_get` — workspace memory
 
-### What you cannot do
+### What you cannot do directly
 
-- **No `web_search`** — delegate to the search agent via `sessions_send`
-- **No `message`** — you cannot send messages to channels (WhatsApp, Signal, etc.)
-- **No channel interaction** — your results go back to the requesting agent
+You have no `web_search` tool. Delegate web searches to the search agent.
 
-### Working with the search agent
+### When to delegate
 
-When you need web search results:
+- **Web search** (look something up, find information) → search
+
+### How to delegate
+
+**`sessions_send`** — when you need the result before continuing:
 
     sessions_send({ agentId: "search", message: "Search for Node.js 22 changelog" })
 
-### Announce protocol
+**`sessions_spawn`** — for background tasks (non-blocking, result announced back automatically):
 
-When your task completes, an announce step delivers results to the requester.
-- Provide a clear, concise summary of what you did and the outcome
-- Reply `ANNOUNCE_SKIP` if the task failed and the error is self-explanatory
+    sessions_spawn({ agentId: "search", task: "Research latest security advisories for npm packages" })
+
+### Reply protocol
+
+- After a `sessions_send`, you may get follow-up replies (up to 5 turns). Reply `REPLY_SKIP` to end the exchange early.
+- After the exchange ends, an announce step runs. Reply `ANNOUNCE_SKIP` for instrumental tasks that don't need a user-facing message.
 ```
 
 ### Search agent — AGENTS.md
@@ -697,7 +664,7 @@ Each agent workspace gets its own git repository. Changes to the workspace (agen
 
 ### Setup: initialize workspaces as git repos
 
-Git-init workspaces that hold persistent state. Sandboxed agents (search, browser) have no persistent workspace worth tracking — focus on `main` and any channel agent workspaces:
+Git-init workspaces that hold persistent state. The search agent has no persistent workspace worth tracking — focus on `main` and any channel agent workspaces:
 
 ```bash
 for ws in ~/.openclaw/workspaces/*/; do
@@ -855,6 +822,6 @@ Three approaches: **profiles** (simplest — `--profile` flag, same user), **mul
 → **[Phase 5: Web Search Isolation](phase-5-web-search.md)** — the key differentiator: safe internet access via a dedicated search agent
 
 Or:
-- [Egress Allowlisting](../hardened-multi-agent.md) — optional: give the computer agent runtime network access to pre-approved hosts
+- [Hardened Multi-Agent](../hardened-multi-agent.md) — optional: add a dedicated computer agent for exec isolation
 - [Phase 6: Deployment](phase-6-deployment.md) — VM isolation (macOS VMs, Linux VMs), LaunchDaemon/LaunchAgent/systemd, firewall, Tailscale
 - [Reference](../reference.md) — full tool list, config keys, gotchas

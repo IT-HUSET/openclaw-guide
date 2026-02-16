@@ -180,10 +180,10 @@ Add a dedicated Google Chat agent alongside the existing WhatsApp/Signal agents:
 {
   "agents": {
     "list": [
-      // ... existing agents (main, whatsapp, signal, search, browser, googlechat) ...
+      // ... existing agents (main, whatsapp, signal, search, googlechat) ...
       {
         // GOOGLE CHAT AGENT — same pattern as WhatsApp/Signal agents
-        // No exec/process/web — delegates to search/browser/main.
+        // No exec/process/web — delegates to search/main.
         "id": "googlechat",
         "workspace": "/Users/openclaw/.openclaw/workspaces/googlechat",
         "agentDir": "/Users/openclaw/.openclaw/agents/googlechat/agent",
@@ -204,7 +204,7 @@ Add a dedicated Google Chat agent alongside the existing WhatsApp/Signal agents:
 }
 ```
 
-The Google Chat agent follows the same pattern as WhatsApp/Signal agents: no web tools, no exec, delegates to search/browser/main via `sessions_send`. Docker sandbox (from `agents.defaults`) applies automatically.
+The Google Chat agent follows the same pattern as WhatsApp/Signal agents: no web tools, no exec, delegates to search/main via `sessions_send`. Docker sandbox (from `agents.defaults`) applies automatically.
 
 ### Credential resolution order
 

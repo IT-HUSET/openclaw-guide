@@ -24,8 +24,8 @@ An OpenClaw deployment consists of these components:
 | **Identity files** | `~/.openclaw/identity/` | Yes | Agent identity/keys |
 | **Session history** | `~/.openclaw/agents/<id>/sessions/*.jsonl` | Optional | Large; start fresh if possible |
 | **Google Chat credentials** | `~/.openclaw/credentials/googlechat/` | Yes | Service account JSON — update path + webhook URL |
-| **Search/browser workspaces** | `~/.openclaw/workspaces/search/`, `browser/` | Yes | Same as main agent workspaces |
-| **Search/browser agentDirs** | `~/.openclaw/agents/search/`, `browser/` | Yes | Sessions, auth profiles |
+| **Search workspace** | `~/.openclaw/workspaces/search/` | Yes | Same as main agent workspaces |
+| **Search agentDir** | `~/.openclaw/agents/search/` | Yes | Sessions, auth profiles |
 | **Extensions** | `~/.openclaw/extensions/` | Yes | Plugin source + node_modules |
 | **Memory search index** | Internal (architecture-dependent) | No | Rebuild on target: `openclaw memory index` |
 | **Secrets** | Plist env vars / `secrets.env` | Manual | Re-enter on target (never copy plists with secrets over network) |
@@ -376,7 +376,7 @@ sudo -u openclaw /usr/local/bin/docker ps
 
 OrbStack's docker CLI is at `/usr/local/bin/docker` — this path may not be in the service user's PATH. Use the full path or add it to the plist's `PATH` environment variable.
 
-### Playwright (browser agent)
+### Playwright (browser tool)
 
 Install Chromium for the dedicated user:
 

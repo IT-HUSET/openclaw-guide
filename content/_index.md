@@ -60,7 +60,7 @@ layout: hextra-home
   >}}
   {{< hextra/feature-card
     title="Web Search Isolation"
-    subtitle="Sandboxed search and browser agents with prompt injection scanning via DeBERTa ONNX model."
+    subtitle="Isolated search agent with prompt injection scanning via DeBERTa ONNX model."
     icon="globe-alt"
     link="docs/phases/phase-5-web-search"
     style="background: radial-gradient(ellipse at 50% 80%, rgba(245,158,11,0.1), transparent 60%);"

@@ -19,7 +19,7 @@ Start with [Phase 1]({{< relref "phases/phase-1-getting-started" >}}) and work t
   {{< card link="google-chat" title="Google Chat" subtitle="GCP setup, webhook exposure, multi-agent, multi-org" icon="chat-alt-2" >}}
   {{< card link="multi-gateway" title="Multi-Gateway" subtitle="Profiles, multi-user, VM variants for channel separation" icon="server" >}}
   {{< card link="custom-sandbox-images" title="Custom Sandbox Images" subtitle="Build and deploy custom Docker images for production sandboxes" icon="cube" >}}
-  {{< card link="hardened-multi-agent" title="Egress Allowlisting" subtitle="Optional: give the computer agent network access to pre-approved hosts" icon="shield-check" >}}
+  {{< card link="hardened-multi-agent" title="Hardened Multi-Agent" subtitle="Optional: add a dedicated computer agent for exec isolation" icon="shield-check" >}}
   {{< card link="examples" title="Examples" subtitle="Annotated config and security audit walkthrough" icon="code" >}}
-  {{< card link="extensions" title="Extensions" subtitle="web-guard, channel-guard, agent-guard, image-gen plugins" icon="puzzle" >}}
+  {{< card link="extensions" title="Extensions" subtitle="channel-guard, web-guard, agent-guard, image-gen, computer-use plugins" icon="puzzle" >}}
 {{< /cards >}}

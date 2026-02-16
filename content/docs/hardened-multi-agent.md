@@ -1,17 +1,22 @@
 ---
-title: "Hardened Multi-Agent"
-description: "Optional egress allowlisting for the computer agent — when network:none is too restrictive but you still want to block exfiltration."
+title: "Hardened Multi-Agent Architecture"
+description: "Optional: Add a dedicated computer agent for exec isolation on top of the recommended 2-agent (main + search) configuration."
 weight: 87
 ---
 
-The [recommended config](examples/config.md) runs the computer agent with `network: none` — zero outbound, strongest guarantee. This page covers **optional egress allowlisting** for deployments where the computer agent needs runtime network access (package installs, git operations, web browsing, API calls) while still blocking exfiltration to arbitrary hosts.
+The [recommended configuration](examples/config.md) runs two core agents: **main** (sandboxed with Docker on egress-allowlisted network, with exec + browser + web_fetch) and **search** (web search only, no filesystem). This provides strong isolation for most deployments.
 
-> **Terminology note:** In this architecture, "main" refers to the channel-facing agent (sandboxed, no exec/web/browser, delegates via `sessions_send`). This differs from the standard Phase 4 "main agent" which typically has full host access for operator tasks.
+This page covers an optional hardened variant: **separating exec into a dedicated computer agent** for deployments where the channel-facing agent should not have execution capability directly. This adds exec-isolation at the cost of an extra agent and configuration complexity.
+
+**What changes from the recommended 2-agent setup:**
+| | Recommended (2-agent) | Hardened (3-agent) |
+|---|---|---|
+| **Main agent** | Exec + browser + web_fetch, egress-allowlisted | No exec, no browser, no web — delegates to computer |
+| **Computer agent** | _(does not exist)_ | Exec + browser, egress-allowlisted network |
+| **Search agent** | Unchanged | Unchanged |
 
 **Prerequisites:**
-- [Phase 3 (Security)](phases/phase-3-security.md) baseline applied
-- [Phase 4 (Channels & Multi-Agent)](phases/phase-4-multi-agent.md) understood
-- [Phase 5 (Web Search Isolation)](phases/phase-5-web-search.md) search agent configured
+- [Recommended configuration](examples/config.md) deployed and working (2-agent baseline)
 - [agent-guard plugin](extensions/agent-guard.md) installed
 - Docker running
 - OpenClaw 2026.2.14+ recommended (guide baseline version)
@@ -31,17 +36,18 @@ The [recommended config](examples/config.md) runs the computer agent with `netwo
 
 ## When You Need This
 
-The recommended config uses `network: none` for all agents — zero outbound, zero exfiltration. This is the strongest default and works for most workflows where dependencies are pre-installed and git operations happen outside the agent.
+The recommended 2-agent config gives main full exec + browser on an egress-allowlisted network. This is sufficient for most deployments — main handles everything directly, search handles web queries.
 
-But some workflows need runtime network: `npm install`, `git push`, `pip install`, calling external APIs, or browser automation that fetches remote content. Switching to `network: "host"` reopens the exfiltration path — a compromised agent can `curl` data to any server.
-
-**Egress allowlisting fills this gap** — a middle ground between "no network" and "full network".
+**Add a dedicated computer agent when:**
+- Channel-facing agent should have **zero exec capability** — all execution delegated across an agent boundary with agent-guard scanning
+- You want defense-in-depth: even if main is compromised via prompt injection, it cannot execute code or browse
+- Compliance or policy requires the channel-facing agent to be strictly non-exec
 
 ---
 
 ## How It Works
 
-Create a custom Docker network with host-level firewall rules that restrict outbound traffic to a pre-defined list of hosts. The computer agent moves from `network: none` to this egress-allowlisted network:
+The hardened variant strips exec, browser, and web tools from main and moves them to a dedicated computer agent. Main delegates via `sessions_send`, with agent-guard scanning the boundary. The computer agent reuses the same egress-allowlisted Docker network (`openclaw-egress`) that main uses in the recommended config.
 
 ```
 Channel (WhatsApp / Signal / Google Chat)
@@ -68,7 +74,7 @@ Main Agent (Docker, network:none, no exec/web/browser)
 
 The **main agent** receives all channel input but has no exec, no web access, no browser, and no outbound network. It delegates work to the **computer agent** via `sessions_send`. The [agent-guard plugin](extensions/agent-guard.md) scans payloads crossing the agent boundary.
 
-The **computer agent** does the actual work — full runtime access + browser automation inside a Docker sandbox on a custom network where only allowlisted hosts are reachable.
+The **computer agent** does the actual work — full runtime access + browser automation inside a Docker sandbox on the egress-allowlisted network (same `openclaw-egress` network and firewall rules from the recommended config).
 
 ---
 
@@ -80,17 +86,19 @@ The **computer agent** does the actual work — full runtime access + browser au
 | agent-guard | Injected payloads crossing agent boundary | Plugin hook (`before_tool_call` on `sessions_send`) |
 | Tool policy (main) | Direct exec/web/browser from main | `tools.deny` — hard enforcement |
 | Tool policy (computer) | Web search on computer agent | `tools.deny` — hard enforcement |
-| Docker `network:none` (main + computer default) | All outbound from main and computer | Docker runtime |
-| **Network egress allowlist (computer, optional)** | **Exfiltration to arbitrary hosts when computer needs network** | **nftables/pf + Docker custom network** |
+| Docker `network:none` (main) | All outbound from main (downgraded from egress-allowlisted in recommended config) | Docker runtime |
+| Network egress allowlist (computer) | Exfiltration to arbitrary hosts from computer agent | nftables/pf + Docker custom network (reuses `openclaw-egress` from recommended config) |
 | Workspace isolation | Cross-agent file access | Separate workspace paths |
 
 > **Dominant residual risk:** `sessions_send` remains the primary attack vector. A compromised main agent can send arbitrary payloads to the computer agent. The agent-guard plugin is the mitigation. Network egress allowlisting ensures that even if the computer agent is fully compromised, it can only reach pre-approved hosts.
 
 ---
 
-## Step 1: Create the Docker Network
+## Step 1: Verify Docker Network
 
-The `scripts/network-egress/setup-network.sh` script creates a custom Docker bridge network:
+If you already deployed the [recommended configuration](examples/config.md), the `openclaw-egress` network and firewall rules are already in place — the computer agent reuses them. Skip to [Step 5](#step-5-configure-agents).
+
+If starting fresh, create the network with `scripts/network-egress/setup-network.sh`:
 
 ```bash
 cd scripts/network-egress
@@ -130,7 +138,7 @@ storage.googleapis.com:443
 
 **Tailor this to your use case.** Only allow hosts the computer agent actually needs. The default template covers npm, PyPI, GitHub, and Playwright — add your internal services, container registries, or API endpoints as needed.
 
-> **Browser automation note:** The computer agent has the `browser` tool and runs browser automation on the same egress-allowlisted network. This is **more secure** than the Phase 5 pattern where the browser agent uses `network: host`. Sites visited during browsing don't need to be in the allowlist — only Playwright's CDN hosts (for initial browser binary download). Once Chromium is cached locally, browsing works without additional allowlist entries.
+> **Browser automation note:** The computer agent has the `browser` tool and runs browser automation on the same egress-allowlisted network. This is **more secure** than running browser on main with egress (recommended config), since the computer agent has no direct channel access. Sites visited during browsing don't need to be in the allowlist — only Playwright's CDN hosts (for initial browser binary download). Once Chromium is cached locally, browsing works without additional allowlist entries.
 
 > **DNS caveat:** Hostnames are resolved to IPs at rule-apply time. CDN IP rotation can break rules or (worse) an attacker controlling DNS could point an allowed hostname to a malicious IP. Use IP ranges for critical services and re-run `apply-rules.sh` periodically.
 
@@ -190,6 +198,8 @@ If all checks pass, the firewall rules are correctly filtering traffic on the Do
 ---
 
 ## Step 5: Configure Agents
+
+Starting from the [recommended 2-agent config](examples/config.md), you need to: strip exec/browser/web from main, add a computer agent definition, and update subagent routing.
 
 ### Agent Definitions
 
@@ -269,10 +279,10 @@ If all checks pass, the firewall rules are correctly filtering traffic on the Do
 | Computer denies `web_search` + `web_fetch` | Delegates all web fetching to search agent (clearer separation, smaller attack surface) |
 | Computer denies `message` | Can't send to channels directly — results flow back through `sessions_send` |
 | Computer on `openclaw-egress` (upgraded from default `none`) | Outbound for npm/git/browser/etc., but only to allowlisted hosts |
-| Main on `network: none` (unchanged) | Zero outbound — even if fully compromised, no exfiltration path |
+| Main on `network: none` (downgraded from egress-allowlisted) | Zero outbound — even if fully compromised, no exfiltration path |
 | All agents `sandbox.mode: "all"` | Every session sandboxed, not just non-main |
 
-> **Why separate browser from computer?** We don't. The computer agent has the `browser` tool directly. Since computer already has `exec` + network, it could install Playwright and run browser automation anyway — giving it the tool explicitly is honest about the threat model and avoids the security hole of running a separate browser agent on `network: host`. See [Browser Separation](#browser-separation-when-it-makes-sense-and-when-it-doesnt) for the full rationale.
+> **Why separate browser from computer?** We don't. The computer agent has the `browser` tool directly. Since computer already has `exec` + network, it could install Playwright and run browser automation anyway — giving it the tool explicitly is honest about the threat model and avoids the security hole of running a separate browser agent on `network: host`. See [Browser Separation](#browser-separation-why-computer-gets-the-browser-tool) for the full rationale.
 
 ### Browser Configuration
 
@@ -349,13 +359,15 @@ Enable all three guard plugins:
 }
 ```
 
-The `agent-guard` uses `guardAgents` to scan only `sessions_send` calls originating from main, and `skipTargetAgents` to skip the low-privilege search agent. This focuses scanning on the high-risk main-to-computer boundary.
+The `agent-guard` config: `guardAgents: ["main"]` scans `sessions_send` calls originating from main (the only agent that receives untrusted channel input). `skipTargetAgents: ["search"]` skips scanning to the low-privilege search agent. This focuses scanning on the high-risk main-to-computer boundary — the key addition over the recommended 2-agent config.
 
 ---
 
 ## Step 6: Create Workspaces and SOUL.md
 
-### Directory Setup
+If migrating from the recommended 2-agent config, main and search directories already exist. You only need the computer agent directories. See [Migration Steps](#migration-steps) for the streamlined path.
+
+### Directory Setup (Fresh Install)
 
 ```bash
 # Main agent
@@ -368,13 +380,12 @@ mkdir -p ~/.openclaw/workspaces/computer/memory
 mkdir -p ~/.openclaw/agents/computer/agent
 mkdir -p ~/.openclaw/agents/computer/sessions
 
-# Search agent (if not already created in Phase 5)
+# Search agent
 mkdir -p ~/.openclaw/workspaces/search/memory
 mkdir -p ~/.openclaw/agents/search/agent
 mkdir -p ~/.openclaw/agents/search/sessions
 
-# Copy auth profiles from your existing main agent (Phase 4 setup)
-# If migrating from the 4-agent architecture, these are already at the main path
+# Copy auth profiles
 cp ~/.openclaw/agents/main/agent/auth-profiles.json \
    ~/.openclaw/agents/computer/agent/auth-profiles.json
 cp ~/.openclaw/agents/main/agent/auth-profiles.json \
@@ -439,20 +450,19 @@ from the main agent and execute them using your full set of development tools.
 
 ---
 
-## Comparison with Standard Architecture
+## Comparison with Recommended Config
 
-| Aspect | Standard (Phase 4/5) | Hardened variant |
-|--------|---------------------|------------------|
-| Channel-facing agent | Main agent or dedicated channel agents | Main agent (sandboxed, no exec/web/browser) |
-| Work agent | Main agent (may be unsandboxed) | Computer agent (sandboxed, egress-allowlisted) |
-| Work agent network | `network: none` (default) | Egress-allowlisted custom network |
-| Browser agent | Separate agent on `network: host` | Consolidated into computer (egress-allowlisted) |
-| Exfiltration if work agent compromised | Blocked (`network: none`) | **Only allowlisted hosts reachable** (weaker than none, stronger than host) |
-| `sessions_send` scanning | None | agent-guard plugin |
-| Exec access from channel | Direct (if main unsandboxed) or via `sessions_send` | Indirect via `sessions_send` to sandboxed, egress-limited computer |
-| Core agents | 3 (main, search, browser) + optional channel agents | 3 (main [sandboxed], computer, search) |
-| Operator access | Main agent via Control UI | Main agent (sandboxed) via Control UI |
-| Complexity | Medium | High — custom Docker network, firewall rules |
+| Aspect | Recommended (2-agent) | Hardened (3-agent) |
+|--------|----------------------|-------------------|
+| Channel-facing agent | Main (exec + browser, egress-allowlisted) | Main (no exec/web/browser, `network: none`) |
+| Exec agent | Main (same agent) | Computer (dedicated, egress-allowlisted) |
+| Exec access from channel | Direct on main | Indirect via `sessions_send` + agent-guard scanning |
+| Browser | On main (egress-allowlisted) | On computer (egress-allowlisted) |
+| Search agent | Unchanged | Unchanged |
+| If main compromised | Attacker has exec + egress-allowlisted network | Attacker has no exec, no network — must cross agent boundary |
+| `sessions_send` scanning | Not needed (main does its own exec) | agent-guard scans main-to-computer boundary |
+| Core agents | 2 (main, search) | 3 (main, computer, search) |
+| Complexity | Medium | Higher — extra agent, agent-guard config, SOUL.md for computer |
 
 ---
 
@@ -462,7 +472,7 @@ If you need access to host-level tools that don't work in Docker (Xcode, Homebre
 
 ### Option A: Separate Dev Agent (Recommended)
 
-Add a fourth agent for unsandboxed operator tasks:
+Add a fourth agent (on top of this 3-agent hardened variant) for unsandboxed operator tasks:
 
 ```json5
 {
@@ -525,7 +535,7 @@ main (sandboxed, network:none, channels) → computer (unsandboxed, host network
 
 **What you gain:**
 - ✅ Access to Xcode, Homebrew, host Python/Node, mounted drives
-- ✅ Simpler architecture (three agents instead of four)
+- ✅ Simpler architecture (no Docker required)
 - ✅ **Works in macOS VMs** (no Docker required)
 - ✅ Still have main → computer delegation barrier with agent-guard scanning
 
@@ -539,37 +549,31 @@ main (sandboxed, network:none, channels) → computer (unsandboxed, host network
 
 ---
 
-## Browser Separation: When It Makes Sense (and When It Doesn't)
+## Browser Separation: Why Computer Gets the Browser Tool
 
-**Phase 5 separates search and browser agents** based on least privilege:
-- Search agent: `web_search` + `web_fetch`, no browser DOM access, no exec
-- Browser agent: `browser` + `web_fetch`, no search APIs, no exec
-- Neither can install tools or execute arbitrary code
+In the recommended 2-agent config, main has both exec and browser on the egress-allowlisted network. In this hardened variant, both capabilities move to the computer agent together.
 
-This separation makes sense when **no agent has exec** — it prevents a single compromised agent from having both search APIs and browser automation capabilities.
-
-**In the hardened architecture, this separation is unnecessary:**
-- Computer agent already has `exec` + egress-allowlisted network
+**Why not a separate browser agent?**
+- Computer already has `exec` + egress-allowlisted network
 - It could `npm install playwright` and run browser automation via exec anyway
 - Giving it the `browser` tool explicitly doesn't increase attack surface
-- It **improves security** — browser runs on egress-allowlisted network instead of `network: host`
+- A separate browser agent would need its own network access, adding complexity without security benefit
 
-The original Phase 5 browser agent runs on `network: host` (unrestricted outbound) because it needs full network for browsing. By consolidating browser into the computer agent, browsing happens on the egress-allowlisted network — **more restrictive than Phase 5**.
-
-**Takeaway:** Least privilege boundaries must match actual capabilities. Once an agent has `exec` + network, adding the `browser` tool is honest about the threat model and avoids the `network: host` escape hatch.
+**Takeaway:** Least privilege boundaries must match actual capabilities. Once an agent has `exec` + network, adding the `browser` tool is honest about the threat model.
 
 ---
 
 ## When to Use This Architecture
 
-**Enable egress allowlisting when:**
-- Computer agent needs runtime network (npm install, git push, API calls) **and** you can enumerate the allowed hosts
-- You accept the operational cost of maintaining an allowlist and firewall rules
+**Add the computer agent when:**
+- Channel-facing agent must have zero exec capability (compliance, policy, or defense-in-depth)
+- You want agent-guard scanning on the exec boundary as an additional defense layer
+- The trade-off of an extra agent + configuration complexity is acceptable
 
-**Stay with `network: none` (the default) when:**
-- Agent doesn't need network during exec — pre-install dependencies, clone repos ahead of time
-- You can't enumerate allowed hosts (too many, too dynamic)
-- Operational simplicity is more important than runtime network access
+**Stay with the recommended 2-agent config when:**
+- Main having exec + browser on egress-allowlisted network is acceptable for your threat model
+- Operational simplicity matters — fewer agents, less configuration, simpler debugging
+- The egress allowlist on main already provides sufficient exfiltration protection
 
 ---
 
@@ -584,27 +588,20 @@ The original Phase 5 browser agent runs on `network: host` (unrestricted outboun
 
 ---
 
-## Migrating from 4-Agent Architecture (Pre-2026-02-15)
+## Migrating from Recommended 2-Agent to Hardened 3-Agent
 
-If you deployed the hardened architecture before 2026-02-15, you have 4 agents (receptor, computer, search, browser). This section guides you through upgrading to the simplified 3-agent architecture.
+Starting from the [recommended configuration](examples/config.md), follow these steps to add exec-isolation via a dedicated computer agent.
 
-### What Changed
+### What Changes
 
-**Before (4 agents):**
-- Receptor — channel-facing, no exec/web/browser, `network: none`
-- Computer — exec only, `network: openclaw-egress`
+**Before (2 agents — recommended config):**
+- Main — channel-facing, exec + browser, `network: openclaw-egress`
 - Search — web_search/web_fetch, `network: none`
-- Browser — browser/web_fetch, `network: host` (security weakness)
 
-**After (3 agents):**
-- Main — channel-facing, no exec/web/browser, `network: none` (renamed from receptor)
-- Computer — exec + browser, `network: openclaw-egress` (consolidated browser)
-- Search — web_search/web_fetch, `network: none` (unchanged)
-
-**Benefits:**
-- Browser runs on egress-allowlisted network instead of unrestricted `network: host`
-- Simpler configuration (3 agents instead of 4)
-- Honest threat modeling (computer already had exec, could install Playwright anyway)
+**After (3 agents — hardened variant):**
+- Main — channel-facing, no exec/web/browser, `network: none`
+- Computer — exec + browser, `network: openclaw-egress` (takes over main's exec role)
+- Search — unchanged
 
 ### Migration Steps
 
@@ -620,125 +617,71 @@ If you deployed the hardened architecture before 2026-02-15, you have 4 agents (
 
 3. **Update openclaw.json**
 
-   a. Rename receptor → main in agent definitions:
+   a. Strip exec/browser/web from main and downgrade to `network: none`:
    ```json5
    {
-     "id": "main",  // was: "receptor"
-     "workspace": "~/.openclaw/workspaces/main",  // was: receptor
-     "agentDir": "~/.openclaw/agents/main/agent",
-     // ... rest unchanged
-   }
-   ```
-
-   b. Add browser tool to computer agent:
-   ```json5
-   {
-     "id": "computer",
+     "id": "main",
      "tools": {
-       "allow": ["group:runtime", "group:fs", "group:memory", "group:sessions", "browser"],  // added: browser
-       "deny": ["web_search", "web_fetch", "group:ui", "message"],  // added: web_search, web_fetch
-       // ...
+       "allow": ["group:fs", "group:sessions", "group:memory", "message"],  // removed: group:runtime, browser, web_fetch
+       "deny": ["group:runtime", "group:web", "browser", "group:ui", "group:automation"],
+       "elevated": { "enabled": false }
+     },
+     "subagents": { "allowAgents": ["computer", "search"] },  // added: computer
+     "sandbox": {
+       "mode": "all",
+       "scope": "agent",
+       "workspaceAccess": "rw",
+       "docker": { "network": "none" }  // was: "openclaw-egress"
      }
    }
    ```
 
-   c. Remove the agent definition with `"id": "browser"` entirely
+   b. Add computer agent definition (see [Agent Definitions](#agent-definitions) above for full config)
 
-   d. Update bindings (receptor → main):
-   ```json5
-   "bindings": [
-     { "agentId": "main", "match": { "channel": "whatsapp" } },  // was: receptor
-     { "agentId": "main", "match": { "channel": "signal" } },
-     { "agentId": "main", "match": { "channel": "googlechat" } }
-   ]
-   ```
-
-   e. Update agent-guard plugin config:
+   c. Add agent-guard plugin config:
    ```json5
    "agent-guard": {
+     "enabled": true,
      "config": {
-       "guardAgents": ["main"],  // was: ["receptor"]
-       "skipTargetAgents": ["search"]  // removed: "browser"
+       "failOpen": false,
+       "sensitivity": 0.5,
+       "guardAgents": ["main"],
+       "skipTargetAgents": ["search"]
      }
    }
    ```
 
-   f. Update subagent allowlists (remove browser references):
-   ```json5
-   "subagents": { "allowAgents": ["computer", "search"] }  // removed: "browser"
-   ```
-
-   g. Add browser configuration (if not already present):
-   ```json5
-   {
-     "browser": {
-       "enabled": true,
-       "defaultProfile": "openclaw",
-       "headless": true,
-       "evaluateEnabled": false,
-       "profiles": {
-         "openclaw": { "cdpPort": 18800, "color": "#FF4500" }
-       }
-     },
-     "gateway": {
-       "nodes": {
-         "browser": { "mode": "managed" }
-       }
-     }
-   }
-   ```
-
-4. **Rename directories**
+4. **Create computer agent directories**
    ```bash
-   # Rename receptor → main
-   mv ~/.openclaw/workspaces/receptor ~/.openclaw/workspaces/main
-   mv ~/.openclaw/agents/receptor ~/.openclaw/agents/main
+   mkdir -p ~/.openclaw/workspaces/computer/memory
+   mkdir -p ~/.openclaw/agents/computer/agent
+   mkdir -p ~/.openclaw/agents/computer/sessions
+
+   # Copy auth profiles from main
+   cp ~/.openclaw/agents/main/agent/auth-profiles.json \
+      ~/.openclaw/agents/computer/agent/auth-profiles.json
+   chmod 600 ~/.openclaw/agents/computer/agent/auth-profiles.json
    ```
 
-5. **Update SOUL.md files**
+5. **Create SOUL.md files**
 
-   Replace `~/.openclaw/workspaces/main/SOUL.md` with the new template (see "Main Agent SOUL.md" section above).
+   Create `~/.openclaw/workspaces/main/SOUL.md` with the hardened template (see [Main Agent SOUL.md](#main-agent-soulmd) above) — this replaces the recommended config's SOUL.md since main no longer has exec.
 
-   Replace `~/.openclaw/workspaces/computer/SOUL.md` with the new template (see "Computer Agent SOUL.md" section above).
+   Create `~/.openclaw/workspaces/computer/SOUL.md` with the computer template (see [Computer Agent SOUL.md](#computer-agent-soulmd) above).
 
-6. **Update egress allowlist**
-
-   Add Playwright CDN hosts to `scripts/network-egress/allowlist.conf`:
-   ```conf
-   # Browser automation (Playwright CDN for Chromium downloads)
-   playwright.azureedge.net:443
-   storage.googleapis.com:443
-   ```
-
-   Re-apply firewall rules:
-   ```bash
-   # macOS
-   sudo bash scripts/network-egress/apply-rules.sh
-
-   # Linux
-   sudo bash scripts/network-egress/apply-rules-linux.sh
-   ```
-
-7. **Optional: Clean up old browser agent directories**
-   ```bash
-   # Only if you're sure migration worked
-   rm -rf ~/.openclaw/workspaces/browser
-   rm -rf ~/.openclaw/agents/browser
-   ```
-
-8. **Restart gateway**
+6. **Restart gateway**
    ```bash
    openclaw start
    ```
 
-9. **Verify migration**
+7. **Verify migration**
 
-   Run through the verification checklist below. Key items:
+   Run through the [verification checklist](#verification-checklist) below. Key items:
    - Main agent responds to channel messages
    - Main agent refuses `exec` and `browser` (tool denied)
    - Computer agent can use `browser` tool
    - Computer agent can `npm install` (egress allowlist working)
-   - agent-guard fires on `sessions_send` from main (check logs)
+   - agent-guard fires on `sessions_send` from main (check gateway logs)
 
 ### Troubleshooting
 
@@ -746,17 +689,10 @@ If you deployed the hardened architecture before 2026-02-15, you have 4 agents (
 - First use triggers Playwright Chromium download (~300MB)
 - Check egress allowlist includes `playwright.azureedge.net:443` and `storage.googleapis.com:443`
 - Run `verify-egress.sh` to confirm allowlist is working
-- Check gateway logs for download progress
-
-**Agent refuses to start after rename:**
-- Check all path references updated (workspace, agentDir)
-- Verify SOUL.md files exist at new paths
-- Check auth-profiles.json copied to new agent dirs
 
 **Sessions hang or timeout:**
-- Ensure browser config added to openclaw.json
+- Ensure browser config present in openclaw.json (see [Browser Configuration](#browser-configuration))
 - Check Docker has enough resources (2GB+ RAM for computer agent)
-- Verify browser config: `"browser.enabled": true` in top-level browser section
 
 ---
 
@@ -777,7 +713,7 @@ If you deployed the hardened architecture before 2026-02-15, you have 4 agents (
 
 ## Next Steps
 
-- [Recommended Configuration](examples/config.md) — complete standalone `openclaw.json` for this architecture
+- [Recommended Configuration](examples/config.md) — the 2-agent baseline this page builds on
 - [Phase 6: Deployment](phases/phase-6-deployment.md) — run as a system service, persist firewall rules via LaunchDaemon/systemd
 - [Reference](reference.md) — full config cheat sheet, plugin table, egress allowlisting notes
 - [Architecture](architecture.md) — system internals, hardened variant diagram

@@ -338,29 +338,28 @@ Full dedicated user setup is covered in [Phase 6: Deployment](phase-6-deployment
 
 > **Dedicated machine?** This decision affects where you install OpenClaw. If deploying on a dedicated machine, choose your isolation model *before* installation — see Phase 1 note on dedicated machines. A dedicated machine also changes the trade-off analysis — see the [note below the comparison table](#comparison).
 
-Three deployment postures for isolating OpenClaw from your personal data, trading off between host isolation, internal sandboxing, and operational complexity. All three use the same multi-agent architecture (core agents: main + search + browser, plus channel agents as configured, `sessions_send` delegation). They differ in the outer isolation boundary and internal sandboxing.
+Three deployment postures for isolating OpenClaw from your personal data, trading off between host isolation, internal sandboxing, and operational complexity. All three use the same multi-agent architecture (2 core agents: main + search, plus channel agents as configured, `sessions_send` delegation). They differ in the outer isolation boundary and internal sandboxing.
 
-> **Need runtime network access?** The recommended config uses `network: none` for all agents. If the computer agent needs outbound network (npm install, git push, API calls), see [Egress Allowlisting](../hardened-multi-agent.md) — restricts outbound traffic to pre-approved hosts on a custom Docker network.
+> **Egress allowlisting:** The recommended 2-agent config runs the main agent on an egress-allowlisted Docker network — outbound traffic restricted to pre-approved hosts. See [egress setup](../hardened-multi-agent.md#step-1-verify-docker-network) for the walkthrough.
 
 ### Docker Isolation *(recommended)*
 
-Run a **single multi-agent OpenClaw gateway** as a non-admin `openclaw` user with Docker sandboxing for all agents and `sessions_send` delegation for search/browser isolation.
+Run a **single multi-agent OpenClaw gateway** as a non-admin `openclaw` user with Docker sandboxing for all agents and `sessions_send` delegation for search isolation.
 
 ```
 Host (macOS or Linux)
   └── Dedicated `openclaw` user (non-admin, chmod 700 home)
        └── Single OpenClaw gateway
-            ├── main (Docker sandbox, workspace rw)
+            ├── main (Docker sandbox, workspace rw, egress-allowlisted network)
             ├── whatsapp (Docker sandbox, no network)
             ├── signal (Docker sandbox, no network)
             ├── googlechat (Docker sandbox, no network)
-            ├── search (isolated — web_search only, no filesystem)
-            └── browser (isolated — browser only, no filesystem)
+            └── search (isolated — web_search only, no filesystem)
 ```
 
-**Isolation:** OS user boundary + Docker sandbox (all agents filesystem-rooted; channel agents with no network) + tool policy + SOUL.md. Search and browser agents exist as separate agents within the gateway, reachable only via `sessions_send`.
+**Isolation:** OS user boundary + Docker sandbox (all agents filesystem-rooted; channel agents with no network) + tool policy + SOUL.md. The search agent exists as a separate agent within the gateway, reachable only via `sessions_send`.
 
-**Key property:** Docker closes the `read→exfiltrate` chain for all agents — no agent can access `~/.openclaw/openclaw.json` or `auth-profiles.json` (filesystem rooted to workspace inside container). All agents share one gateway, one config, one process — with `sessions_send` for delegation.
+**Key property:** Docker closes the `read→exfiltrate` chain for all agents — no agent can access `~/.openclaw/openclaw.json` or `auth-profiles.json` (filesystem rooted to workspace inside container). Main runs on an egress-allowlisted Docker network (exec + browser + web_fetch sandboxed). All agents share one gateway, one config, one process — with `sessions_send` for delegation.
 
 **Option:** For running multiple gateways (profiles, multi-user separation, or VM variants), see [Multi-Gateway Deployments](../multi-gateway.md).
 
@@ -378,7 +377,7 @@ macOS host only. Your host macOS is untouched. A dedicated standard (non-admin) 
 macOS Host (personal use, untouched)
   └── macOS VM — "openclaw-vm"
        └── openclaw user (standard, non-admin)
-            └── Gateway: main + search + browser + channel agents as configured
+            └── Gateway: main + search + channel agents as configured
 ```
 
 **Isolation:** Kernel-level VM boundary + standard user (no sudo) + LaunchDaemon (no GUI session) + tool policy + SOUL.md. No Docker inside the VM (macOS doesn't support nested virtualization).
@@ -397,12 +396,11 @@ Works on both macOS and Linux hosts. Docker runs inside the VM, enabling the str
 Host (macOS or Linux, untouched)
   └── Linux VM — "openclaw-vm"
        └── openclaw user (no sudo, docker group)
-            └── Gateway: main + search + browser + channel agents as configured
+            └── Gateway: main + search + channel agents as configured
                  ├── whatsapp (Docker sandbox, no network)
                  ├── signal (Docker sandbox, no network)
                  ├── googlechat (Docker sandbox, no network)
-                 ├── search (Docker sandbox, no filesystem)
-                 └── browser (Docker sandbox, no filesystem)
+                 └── search (Docker sandbox, no filesystem)
 ```
 
 **Isolation:** Kernel-level VM boundary + Docker sandbox (same as Docker isolation) + tool policy + SOUL.md. The `openclaw` user has docker group access but no sudo.
@@ -455,14 +453,14 @@ For VM-based computer-use (macOS GUI/Xcode workflows), see [Phase 8: Computer Us
 - **No macOS tooling** — Xcode, Homebrew-native tools, and macOS-specific coding workflows aren't available inside the VM. Use if your agents don't need macOS-specific capabilities.
 
 **All models:**
-- **`sessions_send` trust chain (dominant residual risk)** — channel agents delegate to search/browser and main via `sessions_send`. A prompt-injected channel agent can:
-  - **Send malicious queries to search/browser agents** — limited impact (no filesystem tools, no exec). The search agent can only return web results; the browser agent can only navigate and screenshot.
+- **`sessions_send` trust chain (dominant residual risk)** — channel agents delegate to search and main via `sessions_send`. A prompt-injected channel agent can:
+  - **Send malicious queries to the search agent** — limited impact (no filesystem tools, no exec). The search agent can only return web results.
   - **Send arbitrary requests to the main agent** — highest impact. Attack flow: incoming WhatsApp message → channel agent (prompt-injected) → `sessions_send("main", "<attacker payload>")` → main agent executes inside Docker with workspace-only access. With sandbox hardening (`mode: "all"`), main can no longer read host files outside its workspace — the blast radius is reduced from "full host access" to "exec inside container + workspace data".
   - **Partial defenses:** (1) two-hop architecture — the attacker's payload must survive two model contexts (channel agent's and main agent's), (2) the main agent evaluates requests against its own AGENTS.md independently, (3) `subagents.allowAgents` restricts which agents can be reached, (4) workspace scoping limits what data is accessible. These reduce but don't eliminate the risk.
   - **No deployment topology addresses this** — `sessions_send` is intra-process communication within the gateway. Docker, VMs, and OS user boundaries don't apply. The main agent's AGENTS.md instructions are the last line of defense.
   - See [Privileged Operation Delegation](phase-4-multi-agent.md#privileged-operation-delegation) for the delegation architecture.
 - **SOUL.md is soft** — model-level guardrails can be bypassed by sophisticated prompt injection. Tool policy (`deny`/`allow`) is the hard enforcement layer.
-- **Web content injection** — poisoned web pages can inject instructions into search/browser agent responses. The [web-guard plugin](phase-5-web-search.md#advanced-prompt-injection-guard) provides optional pre-fetch content scanning, but detection is probabilistic — tool policy remains the hard enforcement layer.
+- **Web content injection** — poisoned web pages can inject instructions into search results or browser content. The [web-guard plugin](phase-5-web-search.md#advanced-prompt-injection-guard) provides optional pre-fetch content scanning, but detection is probabilistic — tool policy remains the hard enforcement layer.
 - **Channel message injection** — adversarial messages from WhatsApp/Signal can attempt to hijack channel agents. Three defense layers apply:
   1. **channel-guard plugin** ([setup](phase-5-web-search.md#inbound-message-guard-channel-guard)) — primary defense, scans incoming messages with DeBERTa ONNX model. Probabilistic — false negatives are possible.
   2. **Dedicated channel agents (optional)** — secondary defense. If channels route to agents that deny `exec`/`process`, a successful injection can't execute commands directly. However, `sessions_send` to main bypasses this restriction (see dominant risk above). A real but narrow defense — blocks the direct attack path while the delegation path remains open.

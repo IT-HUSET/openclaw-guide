@@ -229,10 +229,9 @@ Different agents need different sandbox configurations. Here's when to use each 
 |----------|---------|-------------------|--------|-----------|
 | Channel agents (whatsapp, signal) | `agent` | `rw` | `non-main` | Need workspace for memory writes; sandbox provides network isolation |
 | Search agent | `agent` | `none` | `all` | No filesystem needed; always sandboxed for maximum isolation |
-| Browser agent (Phase 5 pattern) | `agent` | `none` | `all` | No filesystem needed; needs network for browsing. Recommended: consolidate into computer agent |
-| Main agent (standard) | — | — | `off` | Operator interface; needs full host access for exec delegation |
-| Main agent ([hardened](hardened-multi-agent.md)) | `agent` | `rw` | `all` | No exec/web/browser, `network: none`; receives channel input, delegates to computer |
-| Computer ([recommended](examples/config.md)) | `agent` | `rw` | `all` | Full exec + browser, `network: "none"` (default); optionally `"openclaw-egress"` with [egress allowlisting](hardened-multi-agent.md) |
+| Main agent ([recommended](examples/config.md)) | `agent` | `rw` | `all` | Full exec + browser + web_fetch, `network: "openclaw-egress"` with [egress allowlisting](hardened-multi-agent.md) |
+| Main agent (unsandboxed) | — | — | `off` | Operator interface; full host access (no Docker isolation) |
+| Computer (optional [hardened variant](hardened-multi-agent.md)) | `agent` | `rw` | `all` | Separate exec + browser agent, `network: "openclaw-egress"` |
 | Ephemeral tasks | `session` | `none` | `all` | Container destroyed when session ends; no persistent state |
 
 ### Config Includes (`$include`)
@@ -421,7 +420,7 @@ Features below require the listed version or later. Check yours with `openclaw -
 | 2026.2.1 | `before_tool_call` hook | Required for [web-guard plugin](phases/phase-5-web-search.md#advanced-prompt-injection-guard) |
 | 2026.2.3-1 | Security audit baseline | Version used in the [worked audit example](examples/security-audit.md) |
 | 2026.2.9 | xAI (Grok) provider | New [search provider option](phases/phase-5-web-search.md#search-providers) |
-| 2026.2.12 | Channel bindings regression | [#15176](https://github.com/openclaw/openclaw/pull/15176) — bindings to non-default agents broken. Route to main as workaround |
+| 2026.2.12 | Channel bindings regression | [#15176](https://github.com/openclaw/openclaw/pull/15176) — bindings to non-default agents broken. Not relevant for recommended 2-agent config (all channels route to main) |
 
 ---
 

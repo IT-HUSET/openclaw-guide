@@ -23,18 +23,18 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 - `content/docs/phases/phase-2-memory.md` — Phase 2: Two-layer memory architecture, semantic/hybrid search, pre-compaction flush, memory CLI
 - `content/docs/phases/phase-3-security.md` — Phase 3: Threat model, security baseline, SOUL.md, file permissions
 - `content/docs/phases/phase-4-multi-agent.md` — Phase 4: Channel connections (WhatsApp/Signal), multiple agents, routing, workspace isolation
-- `content/docs/phases/phase-5-web-search.md` — Phase 5: Isolated search + browser agents, web-guard plugin
+- `content/docs/phases/phase-5-web-search.md` — Phase 5: Isolated search agent, browser on main, web-guard plugin
 - `content/docs/phases/phase-6-deployment.md` — Phase 6: VM isolation, LaunchDaemon/LaunchAgent/systemd, secrets management, firewall, Tailscale, Signal setup
 - `content/docs/phases/phase-7-migration.md` — Phase 7: Moving a deployment to a new machine — config, credentials, memory, channels, services, cron jobs
 - `content/docs/google-chat.md` — Google Chat: GCP setup, webhook exposure, multi-agent, multi-org, known issues
 - `content/docs/multi-gateway.md` — Multi-Gateway: profiles, multi-user, VM variants for running multiple gateway instances
 - `content/docs/custom-sandbox-images.md` — Custom Sandbox Images: building, deploying, and using custom Docker images for production sandboxes
-- `content/docs/hardened-multi-agent.md` — Egress Allowlisting: optional network access for the computer agent to pre-approved hosts
+- `content/docs/hardened-multi-agent.md` — Hardened Multi-Agent: optional exec isolation via dedicated computer agent on top of 2-agent baseline
 - `content/docs/reference.md` — Config cheat sheet, tool groups, plugins, gotchas, useful commands
 - `content/docs/architecture.md` — System internals: core components, module dependencies, networking, diagrams
 
 ### Examples
-- `examples/openclaw.json` — Recommended config (main/computer/search, all agents network:none, all hardening)
+- `examples/openclaw.json` — Recommended config (main/search, all agents sandboxed, all hardening)
 - `examples/openclaw-basic.json` — Minimal config (main + search, single channel)
 - `content/docs/examples/security-audit.md` — Worked example of `openclaw security audit` output
 
@@ -56,7 +56,7 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 
 - Target deployment: macOS (Apple Silicon) or Linux
 - Three deployment postures: **Docker isolation** (recommended — dedicated OS user + Docker), **VM: macOS VMs** (Lume / Parallels, stronger host isolation, no Docker inside), **VM: Linux VMs** (Multipass / KVM, strongest combined — VM boundary + Docker inside)
-- **Docker isolation:** single gateway on host, core agents (main + search + browser) plus optional channel agents, Docker sandboxing
+- **Docker isolation:** single gateway on host, core agents (main + search) plus optional channel agents, Docker sandboxing
 - **VM: macOS VMs:** single macOS VM, dedicated standard user, multi-agent gateway, no Docker. macOS hosts only. Optional: 2 VMs for channel separation
 - **VM: Linux VMs:** single Linux VM with Docker inside, dedicated user (docker group, no sudo), multi-agent gateway. macOS or Linux hosts. No VM count limit
 - **Multi-gateway options:** profiles (`--profile` flag, simplest), multi-user (separate OS users), VM variants (one VM per channel)
@@ -180,4 +180,4 @@ When updating the guide for a new OpenClaw version:
 
 Version-specific content that should be removed when the referenced fix lands:
 
-- **openclaw#15176** (channel bindings regression): Remove `<!-- TODO: remove after openclaw#15176 merges -->` blocks in `examples/openclaw.json` and `content/docs/phases/phase-4-multi-agent.md`. Check with `openclaw --version` after updating — the fix restores channel bindings to non-default agents.
+- **openclaw#15176** (channel bindings regression): Simplified references remain in `content/docs/phases/phase-4-multi-agent.md` and `content/docs/reference.md`. Not relevant for the recommended 2-agent config (all channels route to main). Check with `openclaw --version` after updating.

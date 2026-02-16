@@ -245,17 +245,6 @@
           "warnThreshold": 0.4,
           "blockThreshold": 0.8
         }
-      },
-      "agent-guard": {
-        "enabled": true,
-        "config": {
-          "failOpen": false,
-          "sensitivity": 0.5,
-          "warnThreshold": 0.4,
-          "blockThreshold": 0.8,
-          "guardAgents": [],
-          "skipTargetAgents": []
-        }
       }
     }
   }

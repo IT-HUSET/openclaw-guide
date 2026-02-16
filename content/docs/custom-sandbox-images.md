@@ -158,14 +158,15 @@ For images used across both architectures, build a multi-arch manifest with `doc
   "agents": {
     "list": [
       {
-        "id": "computer",
+        "id": "main",
+        "default": true,
         "sandbox": {
           "mode": "all",
           "scope": "agent",
           "workspaceAccess": "rw",
           "docker": {
             "image": "my-sandbox:latest",   // custom image
-            "network": "none"               // ✅ secure defaults preserved
+            "network": "openclaw-egress"    // ✅ egress-allowlisted network
           }
         }
       }
@@ -196,7 +197,7 @@ Force container recreation to pick up the new image:
 
 ```bash
 openclaw sandbox recreate --all              # all containers
-openclaw sandbox recreate --agent computer   # specific agent
+openclaw sandbox recreate --agent main      # specific agent
 openclaw sandbox recreate --all --force      # skip confirmation
 ```
 
