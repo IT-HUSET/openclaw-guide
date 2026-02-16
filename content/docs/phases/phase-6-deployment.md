@@ -85,6 +85,8 @@ Keep `openclaw.json` secrets-free — use `${ENV_VAR}` references in config, sto
 | *(web-guard & channel-guard use local ONNX models — no API keys needed)* | | See [plugin setup](phase-5-web-search.md#advanced-prompt-injection-guard) |
 
 > **Empty env vars cause startup failure.** If a `${VAR}` reference resolves to an empty string, the gateway exits with `EX_CONFIG` (exit 78). For optional keys not yet provisioned (e.g., `BRAVE_API_KEY` when using Perplexity instead), use a non-empty placeholder like `"not-configured"` rather than leaving the variable empty or unset.
+>
+> **Version note (2026.2.16):** Telegram bot tokens are now auto-redacted from gateway logs (same mechanism as `redactSensitive: "tools"` for other secrets).
 
 ### GitHub token setup
 

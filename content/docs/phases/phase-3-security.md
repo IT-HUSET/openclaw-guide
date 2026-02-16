@@ -26,6 +26,8 @@ What can go wrong with an AI agent that has tools?
 The fix isn't one setting — it's layered defense. Each setting below blocks a specific attack path. Mitigations fire at different points in the pipeline: **channel-guard** scans on message ingestion, **web-guard** on `web_fetch` calls, **tool policy** (`deny`/`allow`) on every tool call, and **SOUL.md/AGENTS.md** instructions influence every model turn.
 
 > **Version note:** A token exfiltration vulnerability via Control UI (CVSS 8.8) was patched in 2026.1.29. Ensure you're on that version or later. See the [official security advisories](https://github.com/openclaw/openclaw/security/advisories) for the latest vulnerability information.
+>
+> **Version note (2026.2.16):** XSS hardening via Content Security Policy enforcement in the Control UI, and workspace path sanitization — agents can no longer use `../` traversal to escape their workspace root. Skill `targetDir` is now restricted to the workspace boundary.
 
 ---
 
@@ -231,6 +233,10 @@ npx playwright install chromium
 
 See [OpenClaw browser docs](https://docs.openclaw.ai/tools/browser) for full configuration.
 
+### Sandbox Security Hardening
+
+> **Version note (2026.2.16):** OpenClaw now blocks dangerous Docker sandbox configurations at startup: bind mounts to sensitive host paths, `--network host`, and unconfined seccomp/AppArmor profiles are rejected. This prevents misconfigured `sandbox.docker` blocks from silently weakening isolation. The gateway logs a clear error and refuses to start if a blocked config is detected.
+
 ---
 
 ## SOUL.md Boundaries
@@ -280,6 +286,7 @@ These are soft guardrails — the model can technically ignore them, but they're
 | No data exfiltration | Sending your data to attacker-controlled services |
 | No shell network access | Bypassing `web_fetch` deny via `exec` → `curl`/`wget` exfiltration |
 | No untrusted instructions | Prompt injection via forwarded messages or web content |
+| No workspace escape | Path traversal (`../`) to read files outside workspace root (patched 2026.2.16) |
 
 **Rule of thumb:** `SOUL.md` = who the agent is (identity, values, boundaries). `AGENTS.md` = how it operates (workflows, safety rules, procedures).
 

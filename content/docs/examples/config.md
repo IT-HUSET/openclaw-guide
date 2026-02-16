@@ -154,7 +154,9 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
       "subagents": {
         "maxConcurrent": 8,
         "model": "anthropic/claude-sonnet-4-5",
-        "thinking": "low"
+        "thinking": "low",
+        // "maxSpawnDepth": 3,          // Max nesting depth for nested sub-agents (2026.2.16+)
+        // "maxChildrenPerAgent": 10    // Max concurrent children per parent agent (2026.2.16+)
       }
       // NOTE: No default sandbox block — each agent defines its own sandbox explicitly.
       // Both core agents use mode:"all" with different network settings,

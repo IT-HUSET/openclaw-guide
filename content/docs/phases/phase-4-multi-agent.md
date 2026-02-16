@@ -475,6 +475,8 @@ Control which agents can spawn which other agents as subagents:
 
 `allowAgents: []` prevents the agent from spawning anything — important for isolation agents like `search` that should never delegate further.
 
+> **Version note (2026.2.16):** Nested sub-agents now support depth and fan-out limits via `subagents.maxSpawnDepth` (max nesting depth) and `subagents.maxChildrenPerAgent` (max concurrent children per parent). Useful for controlling recursive spawning in complex delegation chains. See [Reference: Config Quick Reference](../reference.md#most-important-keys) for defaults.
+
 ### Agent-to-agent tool (optional)
 
 For direct agent-to-agent messaging (beyond `sessions_send`), there's a global opt-in tool:

@@ -110,6 +110,8 @@ Each file contains notes, facts, and context the agent captured during conversat
 
 **Auto-loading:** Today's and yesterday's daily files are automatically loaded into context at session start. Older files are accessible via `memory_search` and `memory_get`.
 
+> **Version note (2026.2.16):** Daily memory filenames are now timezone-aware — files use the agent's configured timezone (or system timezone) instead of UTC. Existing UTC-dated files are still loaded correctly.
+
 ### Layer 2: Curated MEMORY.md
 
 `workspace/MEMORY.md` is the agent's curated long-term memory — like a human's mental model built from experience. It holds durable facts, preferences, decisions, significant events, opinions, and lessons learned. Think of daily files as a journal and `MEMORY.md` as the wisdom distilled from it.
@@ -148,6 +150,8 @@ By default, the agent can only see today's and yesterday's memory files. **Memor
 | `voyage` | `VOYAGE_API_KEY` | ~200ms | Embeddings sent to Voyage AI |
 
 **Recommendation:** Start with `local` for privacy and zero ongoing cost. Switch to a remote provider only if you need higher-quality embeddings for large memory corpora.
+
+> **Version note (2026.2.16):** Full-text search (BM25 component of hybrid search) is now Unicode-aware with CJK keyword tokenization. Memory files containing Chinese, Japanese, or Korean text are indexed and searched correctly without requiring a remote provider.
 
 ### Basic Config
 
@@ -555,6 +559,8 @@ The `qmd` binary must be on the gateway's `PATH`. QMD runs fully locally via Bun
 - Need BM25 + vector + reranking combined
 - Want session transcript indexing (`memory.qmd.sessions.enabled`)
 - If QMD fails or the binary is missing, OpenClaw falls back to the built-in SQLite indexer
+
+> **Version note (2026.2.16):** QMD now supports per-agent collection scoping — each agent's memory is indexed into a separate collection, preventing cross-agent result contamination in multi-agent setups.
 
 > **Limitations:** QMD is experimental — may not survive OpenClaw updates, has no official documentation, and behavior may change without notice. Test thoroughly before relying on it in production.
 

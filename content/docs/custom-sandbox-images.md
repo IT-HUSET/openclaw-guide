@@ -65,11 +65,15 @@ The container runs with whatever security posture you configure — there is **n
 
 This means the container **permanently** runs with network access and a writable filesystem — exactly the isolation you're trying to achieve with Docker sandboxing.
 
+> **Version note (2026.2.16):** OpenClaw now rejects dangerous Docker sandbox configurations at startup — bind mounts to sensitive host paths, `--network host`, and unconfined seccomp/AppArmor profiles are blocked. This catches common misconfigurations before they weaken isolation.
+
 ### When setupCommand is fine
 
 - **Prototyping** — fast iteration without rebuilding images
 - **Non-security-critical agents** — agents that already need `network: "bridge"` anyway
 - **Trivial setup** — commands that don't need network or root (e.g., creating directories)
+
+> **Note:** Paths inside the container are relative to the sandbox root, not the host. Sandboxed agents see `/home/sandbox/workspace/` — not the host path configured in `workspace`. The gateway handles the mount mapping transparently.
 
 ### When to use a custom image instead
 

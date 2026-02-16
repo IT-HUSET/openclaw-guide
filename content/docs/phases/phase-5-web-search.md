@@ -57,6 +57,8 @@ The search agent:
 
 Even if the search agent is manipulated via a poisoned web page, the blast radius is minimal — it has no filesystem tools and nothing worth stealing.
 
+> **Version note (2026.2.16):** `web_fetch` now enforces an upstream response body size cap (default 5 MB), preventing denial-of-service via unbounded downloads. Configurable via `tools.web.fetch.maxResponseBytes`.
+
 ---
 
 ## Why sessions_send (Not sessions_spawn)

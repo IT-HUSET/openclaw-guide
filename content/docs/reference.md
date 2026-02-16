@@ -77,7 +77,12 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
         query: { hybrid: { enabled: true, vectorWeight: 0.7, textWeight: 0.3 } },
         cache: { enabled: true, maxEntries: 50000 }
       },
-      compaction: { memoryFlush: { enabled: true, softThresholdTokens: 4000 } }
+      compaction: { memoryFlush: { enabled: true, softThresholdTokens: 4000 } },
+      subagents: {
+        maxConcurrent: 8,
+        // maxSpawnDepth: 3,           // Max nesting depth for nested sub-agents (added 2026.2.16)
+        // maxChildrenPerAgent: 10,    // Max concurrent children per parent agent (added 2026.2.16)
+      }
     },
     list: [{
       id: "main", default: true, workspace: "...",
@@ -121,7 +126,14 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
   discovery: { mdns: { mode: "minimal" } },
 
   // Logging
-  logging: { redactSensitive: "tools" }
+  logging: { redactSensitive: "tools" },
+
+  // Cron — scheduled tasks (added 2026.2.16: webhookToken, notify)
+  cron: {
+    // webhookToken: "...",          // Auth token for external cron webhook triggers
+    // notify: { channel: "whatsapp", peer: "+..." },  // Deliver cron output to a channel
+    jobs: [/* ... */]
+  }
 }
 ```
 
@@ -421,6 +433,7 @@ Features below require the listed version or later. Check yours with `openclaw -
 | 2026.2.3-1 | Security audit baseline | Version used in the [worked audit example](examples/security-audit.md) |
 | 2026.2.9 | xAI (Grok) provider | New [search provider option](phases/phase-5-web-search.md#search-providers) |
 | 2026.2.12 | Channel bindings regression | [#15176](https://github.com/openclaw/openclaw/pull/15176) — bindings to non-default agents broken. Not relevant for recommended 2-agent config (all channels route to main) |
+| 2026.2.16 | Security hardening + plugin hooks + subagent limits | CSP enforcement, workspace path sanitization, `web_fetch` response size cap, dangerous Docker config rejection, `llm_input`/`llm_output` plugin hooks, `maxSpawnDepth`/`maxChildrenPerAgent` for nested subagents, Unicode-aware FTS, timezone-aware memory dates, per-agent QMD scoping, Telegram token auto-redaction |
 
 ---
 
@@ -438,6 +451,19 @@ Features below require the listed version or later. Check yours with `openclaw -
 | `computer-use` | VM computer interaction (Lume) | — (WebSocket to cua-computer-server) |
 
 The `web-guard` plugin intercepts `web_fetch` calls, pre-fetches the URL, and scans content for prompt injection before the agent sees it. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing. The `agent-guard` plugin scans inter-agent `sessions_send` messages for injection. All three use the same local DeBERTa ONNX model, are fail-closed by default (`failOpen: false`), and share the model cache. See [web-search-isolation.md](phases/phase-5-web-search.md#advanced-prompt-injection-guard) for full setup and limitations.
+
+### Plugin Hooks
+
+Plugins can register handlers for these lifecycle hooks:
+
+| Hook | When it fires | Example use |
+|------|--------------|-------------|
+| `before_tool_call` | Before a tool executes | web-guard: pre-fetch + scan URLs |
+| `message_received` | Incoming channel message (WhatsApp/Signal/Google Chat) | channel-guard: scan for injection |
+| `llm_input` | Before prompt is sent to the model (added 2026.2.16) | Input logging, token counting, content filtering |
+| `llm_output` | After model response received (added 2026.2.16) | Output logging, response filtering, compliance checks |
+
+> **Note:** `after_tool_result` is [not yet wired](https://github.com/openclaw/openclaw/issues/6535) — `before_tool_call` + pre-fetch is the current workaround for content scanning.
 
 The `image-gen` plugin registers a `generate_image` tool that agents can call to create images from text prompts. Uses OpenRouter's unified API — supports FLUX, Gemini, GPT, and Sourceful models. See [extensions/image-gen/](extensions/image-gen.md) for source.
 
