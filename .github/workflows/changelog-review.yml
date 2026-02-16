@@ -68,7 +68,7 @@ jobs:
           prompt: ${{ env.REVIEW_PROMPT }}
           claude_args: |
             --model sonnet
-            --max-turns 6
+            --max-turns 20
             --allowedTools "Read,Glob,Grep"
             --json-schema '{"type":"object","properties":{"needs_update":{"type":"boolean"},"report":{"type":"string"}},"required":["needs_update","report"]}'
 
