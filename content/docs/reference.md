@@ -367,7 +367,7 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 
 ### Sandbox & Docker
 
-19. **Sandbox `network: "none"` blocks package installs** — if your `setupCommand` needs packages, set `network: "bridge"` for setup only.
+19. **Sandbox `network: "none"` blocks package installs** — `setupCommand` requires `network: "bridge"` and `readOnlyRoot: false`, which weakens sandbox isolation. Prefer [custom images](custom-sandbox-images.md) for production — tools are pre-installed, so secure defaults are preserved.
 
 20. **Bind mounts pierce sandbox filesystem** — always use `:ro` suffix. Never bind `docker.sock`.
 

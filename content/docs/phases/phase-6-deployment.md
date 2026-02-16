@@ -584,7 +584,7 @@ docker network connect openclaw-sandbox gateway
 
 Agents on the internal network can communicate with the gateway but have no route to the internet. This is particularly useful for the search agent — the gateway mediates all external access.
 
-See [OpenClaw sandboxing docs](https://docs.openclaw.ai/gateway/sandboxing) for full Docker configuration.
+See [OpenClaw sandboxing docs](https://docs.openclaw.ai/gateway/sandboxing) for full Docker configuration. For agents that need additional tools beyond the default image, see [Custom Sandbox Images](../custom-sandbox-images.md).
 
 #### Sandbox the Main Agent
 

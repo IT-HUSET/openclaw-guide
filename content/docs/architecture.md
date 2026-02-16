@@ -691,8 +691,11 @@ graph TB
 |--------|--------|---------|
 | `workspaceAccess` | `none`, `ro`, `rw` | `none` |
 | `docker.network` | `none`, `host`, custom | `none` |
-| `docker.readOnlyRoot` | `true`, `false` | `false` |
+| `docker.readOnlyRoot` | `true`, `false` | `true` |
 | `docker.image` | image name | `openclaw-sandbox:bookworm-slim` |
+| `docker.setupCommand` | shell command | *(none)* |
+
+> **Custom images:** The default image includes bash, curl, git, jq, python3, and ripgrep. For agents that need additional tools (Node.js, build toolchains, etc.), build a [custom sandbox image](custom-sandbox-images.md) rather than using `setupCommand` — this preserves `network: "none"` and `readOnlyRoot: true`.
 
 > **Custom networks with egress allowlisting:** Set `docker.network` to a custom Docker network name (e.g., `"openclaw-egress"`) combined with host-level firewall rules (pf on macOS, nftables on Linux) to restrict outbound traffic to an allowlist. This gives the computer agent network access for package installs and git while blocking exfiltration to arbitrary hosts. See [Hardened Multi-Agent](hardened-multi-agent.md) for the full architecture.
 

@@ -28,6 +28,7 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 - `content/docs/phases/phase-7-migration.md` — Phase 7: Moving a deployment to a new machine — config, credentials, memory, channels, services, cron jobs
 - `content/docs/google-chat.md` — Google Chat: GCP setup, webhook exposure, multi-agent, multi-org, known issues
 - `content/docs/multi-gateway.md` — Multi-Gateway: profiles, multi-user, VM variants for running multiple gateway instances
+- `content/docs/custom-sandbox-images.md` — Custom Sandbox Images: building, deploying, and using custom Docker images for production sandboxes
 - `content/docs/hardened-multi-agent.md` — Egress Allowlisting: optional network access for the computer agent to pre-approved hosts
 - `content/docs/reference.md` — Config cheat sheet, tool groups, plugins, gotchas, useful commands
 - `content/docs/architecture.md` — System internals: core components, module dependencies, networking, diagrams
