@@ -4,10 +4,10 @@ description: "Deployment methods, isolation models, LaunchDaemon/systemd, secret
 weight: 60
 ---
 
-Run OpenClaw as a system service that starts at boot, survives reboots, and is locked down at the network level.
+Run OpenClaw as a system service that starts at boot, survives reboots, and is locked down at the network level. Assumes [Phase 3 security baseline](phase-3-security.md) complete.
 
 - **Coming from Phase 1 quick start?** Each isolation model section below covers migrating your existing config to the dedicated user/VM — stop the personal gateway first, then follow the migration steps in your chosen section.
-- **Fresh dedicated machine?** Each section installs OpenClaw from scratch in the right place — no prior installation needed. A dedicated machine also changes the isolation trade-offs — see [Security: dedicated machine note](phase-3-security.md#comparison).
+- **Fresh dedicated machine?** Each section installs OpenClaw from scratch in the right place — no prior installation needed.
 
 **Choose your deployment method and skip the others** — each section is self-contained:
 - [Docker Containerized](#docker-containerized-gateway) — official Docker setup, simplest path
@@ -15,7 +15,7 @@ Run OpenClaw as a system service that starts at boot, survives reboots, and is l
 - [VM: macOS VMs](#vm-isolation-macos-vms) — macOS hosts, stronger host isolation, no Docker inside
 - [VM: Linux VMs](#vm-isolation-linux-vms) — any host, strongest combined (VM + Docker)
 
-**Shared sections** (apply to all models, read after completing your chosen model): [Secrets Management](#secrets-management) | [Firewall](#macos-firewall) | [Tailscale ACLs](#tailscale-acls) | [Signal Setup](#signal-setup) | [Verification](#verification-checklist) | [Emergency](#emergency-procedures)
+**Shared sections** (apply to all methods): [Secrets Management](#secrets-management-all-methods) (read first) | [Firewall](#macos-firewall) | [Tailscale ACLs](#tailscale-acls) | [Signal Setup](#signal-setup) | [Verification](#verification-checklist) | [Emergency](#emergency-procedures)
 
 ### Deployment Methods Overview
 
@@ -25,6 +25,7 @@ Run OpenClaw as a system service that starts at boot, survives reboots, and is l
 | **Docker Isolation** *(recommended)* | OS user boundary | Docker (per-agent sandboxing) | Dedicated hardware, full control |
 | **VM: macOS VMs** | Kernel-level VM | Tool policy only (no Docker) | macOS hosts, strongest host isolation |
 | **VM: Linux VMs** | Kernel-level VM | Docker inside VM | Any host, strongest combined |
+| **Computer Use (Experimental)** | Lume VM + host gateway | Docker (host) + VM boundary | macOS GUI/Xcode ([Phase 8](phase-8-computer-use.md)) |
 
 ### Hosting Options
 
@@ -61,6 +62,70 @@ The isolation models (Docker Isolation, macOS VMs, Linux VMs) all use the same m
 - **Docker Isolation:** OS user boundary + Docker sandbox. LaunchDaemon/systemd on host.
 - **VM: macOS VMs:** Kernel-level VM boundary + standard user (no sudo). LaunchDaemon inside VM. No Docker.
 - **VM: Linux VMs:** Kernel-level VM boundary + Docker sandbox inside VM. systemd inside VM.
+
+---
+
+## Secrets Management (All Methods)
+
+Keep `openclaw.json` secrets-free — use `${ENV_VAR}` references in config, store actual values in the service plist (macOS) or environment file (Linux). This applies to all deployment methods.
+
+**Choose your secrets method:**
+- **Docker isolation (macOS)** → LaunchDaemon `EnvironmentVariables` block
+- **Docker isolation (Linux)** → `/etc/openclaw/secrets.env` file
+- **VM: macOS/Linux** → SSH-load secrets before gateway start
+
+### Secrets to externalize
+
+| Secret | Env var | Notes |
+|--------|---------|-------|
+| Gateway token | `OPENCLAW_GATEWAY_TOKEN` | Included in all plist/systemd examples below |
+| Anthropic API key | `ANTHROPIC_API_KEY` | SDK reads from env directly |
+| Brave search key | `BRAVE_API_KEY` | Referenced as `${BRAVE_API_KEY}` in config |
+| OpenRouter key | `OPENROUTER_API_KEY` | If using Perplexity via OpenRouter |
+| GitHub token | `GITHUB_TOKEN` | Fine-grained PAT — see [GitHub token setup](#github-token-setup) below |
+| *(web-guard & channel-guard use local ONNX models — no API keys needed)* | | See [plugin setup](phase-5-web-search.md#advanced-prompt-injection-guard) |
+
+> **Empty env vars cause startup failure.** If a `${VAR}` reference resolves to an empty string, the gateway exits with `EX_CONFIG` (exit 78). For optional keys not yet provisioned (e.g., `BRAVE_API_KEY` when using Perplexity instead), use a non-empty placeholder like `"not-configured"` rather than leaving the variable empty or unset.
+
+### GitHub token setup
+
+Use a **fine-grained personal access token** (not a classic token). Fine-grained PATs let you scope access to specific repositories with minimal permissions.
+
+1. Go to **[github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new)**
+2. **Token name:** e.g., `openclaw-workspace-sync`
+3. **Expiration:** set a reasonable expiry (e.g., 90 days) and create a reminder to rotate
+4. **Repository access:** select **"Only select repositories"** → pick only your workspace repos
+5. **Permissions:**
+
+   | Permission | Access | Why |
+   |------------|--------|-----|
+   | Contents | Read and write | Push/pull workspace commits |
+   | Metadata | Read | Automatically selected (read-only) |
+
+   No other permissions needed. Do **not** grant "All repositories" access.
+
+6. Click **Generate token** — the value starts with `github_pat_`
+
+Set the token in your LaunchDaemon plist (macOS) or environment file (Linux) as `GITHUB_TOKEN`. The `gh` CLI and `git push`/`pull` over HTTPS both read from this env var.
+
+> **Rotation:** When the token expires, generate a new one with the same settings and update the plist/env file. Restart the gateway to pick up the new value.
+
+### Config references
+
+In `openclaw.json`, reference secrets with `${...}` — OpenClaw substitutes at startup:
+
+```json
+{
+  "tools": {
+    "web": { "search": { "apiKey": "${BRAVE_API_KEY}" } }
+  },
+  "gateway": {
+    "auth": { "token": "${OPENCLAW_GATEWAY_TOKEN}" }
+  }
+}
+```
+
+Result: `openclaw.json` contains zero plaintext secrets — safe to copy between VMs, diff, or version-control.
 
 ---
 
@@ -180,6 +245,12 @@ If OpenClaw is already installed globally (e.g., via Homebrew or by the admin us
 sudo -u openclaw openclaw --version
 sudo -u openclaw openclaw doctor
 ```
+
+{{< callout type="info" >}}
+**Two `sudo -u openclaw` patterns:**
+- Bare form: `sudo -u openclaw <cmd>` — for simple commands
+- `bash -c` form: `sudo -u openclaw bash -c 'cd ... && HOME=... <cmd>'` — when command requires specific working directory or HOME
+{{< /callout >}}
 
 Otherwise, install as the `openclaw` user:
 
@@ -310,13 +381,13 @@ sudo tee /Library/LaunchDaemons/ai.openclaw.gateway.plist > /dev/null << 'PLIST'
       <key>OPENCLAW_GATEWAY_PORT</key>
       <string>18789</string>
       <key>OPENCLAW_GATEWAY_TOKEN</key>
-      <string>YOUR_GATEWAY_TOKEN_HERE</string>
+      <string><!-- See Secrets Management section above --></string>
       <key>ANTHROPIC_API_KEY</key>
-      <string>YOUR_ANTHROPIC_KEY_HERE</string>
+      <string><!-- See Secrets Management section above --></string>
       <key>BRAVE_API_KEY</key>
-      <string>YOUR_BRAVE_KEY_HERE</string>
+      <string><!-- See Secrets Management section above --></string>
       <key>GITHUB_TOKEN</key>
-      <string>YOUR_GITHUB_TOKEN_HERE</string>
+      <string><!-- See Secrets Management section above --></string>
       <key>OPENCLAW_SERVICE_MARKER</key>
       <string>openclaw</string>
       <key>OPENCLAW_SERVICE_KIND</key>
@@ -327,11 +398,9 @@ sudo tee /Library/LaunchDaemons/ai.openclaw.gateway.plist > /dev/null << 'PLIST'
 PLIST
 ```
 
-> **Secrets:** Replace `YOUR_*_HERE` placeholders with real values — see [Secrets Management](#secrets-management).
-
 #### If using Docker (OrbStack)
 
-Required if using Docker sandboxing with OrbStack (not needed for Docker Desktop or native Docker on Linux). OrbStack runs as a user-session LaunchAgent. Bootstrap it into the `openclaw` user's GUI domain so the Docker socket is available to the gateway:
+Required if using Docker sandboxing with OrbStack (not needed for Docker Desktop or native Docker on Linux). OrbStack runs as a user-session LaunchAgent. Bootstrap it into the `openclaw` user's GUI domain so the Docker socket is available to the gateway. Run **before** creating the LaunchDaemon — Docker socket must be available at gateway start:
 
 ```bash
 sudo launchctl bootstrap gui/$(id -u openclaw) /Library/LaunchAgents/com.orbstack.helper.plist
@@ -436,13 +505,13 @@ sudo -u openclaw tee /Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.pl
       <key>OPENCLAW_GATEWAY_PORT</key>
       <string>18789</string>
       <key>OPENCLAW_GATEWAY_TOKEN</key>
-      <string>YOUR_GATEWAY_TOKEN_HERE</string>
+      <string><!-- See Secrets Management section above --></string>
       <key>ANTHROPIC_API_KEY</key>
-      <string>YOUR_ANTHROPIC_KEY_HERE</string>
+      <string><!-- See Secrets Management section above --></string>
       <key>BRAVE_API_KEY</key>
-      <string>YOUR_BRAVE_KEY_HERE</string>
+      <string><!-- See Secrets Management section above --></string>
       <key>GITHUB_TOKEN</key>
-      <string>YOUR_GITHUB_TOKEN_HERE</string>
+      <string><!-- See Secrets Management section above --></string>
       <key>OPENCLAW_SERVICE_MARKER</key>
       <string>openclaw</string>
       <key>OPENCLAW_SERVICE_KIND</key>
@@ -566,7 +635,7 @@ macOS Host (personal use, untouched)
             └── Gateway (port 18789): main + whatsapp + signal + googlechat + search + browser
 ```
 
-Same multi-agent architecture as Docker isolation (main + search + browser core, plus channel agents as configured, `sessions_send` delegation), but with a VM boundary instead of an OS user boundary. No Docker inside the VM (macOS doesn't support nested virtualization).
+Same multi-agent architecture as Docker isolation (main + search + browser core, plus channel agents as configured, `sessions_send` delegation), but with a VM boundary instead of an OS user boundary. No Docker inside the VM (macOS doesn't support nested virtualization). For computer-use agents that need macOS GUI interaction inside VMs, see [Phase 8: Computer Use](phase-8-computer-use.md).
 
 Two hypervisor options:
 
@@ -784,13 +853,13 @@ sudo tee /Library/LaunchDaemons/ai.openclaw.gateway.plist > /dev/null << 'PLIST'
       <key>OPENCLAW_GATEWAY_PORT</key>
       <string>18789</string>
       <key>OPENCLAW_GATEWAY_TOKEN</key>
-      <string>YOUR_GATEWAY_TOKEN_HERE</string>
+      <string><!-- See Secrets Management section above --></string>
       <key>ANTHROPIC_API_KEY</key>
-      <string>YOUR_ANTHROPIC_KEY_HERE</string>
+      <string><!-- See Secrets Management section above --></string>
       <key>BRAVE_API_KEY</key>
-      <string>YOUR_BRAVE_KEY_HERE</string>
+      <string><!-- See Secrets Management section above --></string>
       <key>GITHUB_TOKEN</key>
-      <string>YOUR_GITHUB_TOKEN_HERE</string>
+      <string><!-- See Secrets Management section above --></string>
       <key>OPENCLAW_SERVICE_MARKER</key>
       <string>openclaw</string>
       <key>OPENCLAW_SERVICE_KIND</key>
@@ -1098,63 +1167,6 @@ sudo journalctl -u openclaw-gateway -f
 
 ---
 
-## Secrets Management
-
-Keep `openclaw.json` secrets-free — use `${ENV_VAR}` references in config, store actual values in the service plist (macOS) or environment file (Linux). This applies to both deployment options.
-
-### Secrets to externalize
-
-| Secret | Env var | Notes |
-|--------|---------|-------|
-| Gateway token | `OPENCLAW_GATEWAY_TOKEN` | Included in all plist/systemd examples above |
-| Anthropic API key | `ANTHROPIC_API_KEY` | SDK reads from env directly |
-| Brave search key | `BRAVE_API_KEY` | Referenced as `${BRAVE_API_KEY}` in config |
-| OpenRouter key | `OPENROUTER_API_KEY` | If using Perplexity via OpenRouter |
-| GitHub token | `GITHUB_TOKEN` | Fine-grained PAT — see [GitHub token setup](#github-token-setup) below |
-| *(web-guard & channel-guard use local ONNX models — no API keys needed)* | | See [plugin setup](phase-5-web-search.md#advanced-prompt-injection-guard) |
-
-> **Empty env vars cause startup failure.** If a `${VAR}` reference resolves to an empty string, the gateway exits with `EX_CONFIG` (exit 78). For optional keys not yet provisioned (e.g., `BRAVE_API_KEY` when using Perplexity instead), use a non-empty placeholder like `"not-configured"` rather than leaving the variable empty or unset.
-
-### GitHub token setup
-
-Use a **fine-grained personal access token** (not a classic token). Fine-grained PATs let you scope access to specific repositories with minimal permissions.
-
-1. Go to **[github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new)**
-2. **Token name:** e.g., `openclaw-workspace-sync`
-3. **Expiration:** set a reasonable expiry (e.g., 90 days) and create a reminder to rotate
-4. **Repository access:** select **"Only select repositories"** → pick only your workspace repos
-5. **Permissions:**
-
-   | Permission | Access | Why |
-   |------------|--------|-----|
-   | Contents | Read and write | Push/pull workspace commits |
-   | Metadata | Read | Automatically selected (read-only) |
-
-   No other permissions needed. Do **not** grant "All repositories" access.
-
-6. Click **Generate token** — the value starts with `github_pat_`
-
-Set the token in your LaunchDaemon plist (macOS) or environment file (Linux) as `GITHUB_TOKEN`. The `gh` CLI and `git push`/`pull` over HTTPS both read from this env var.
-
-> **Rotation:** When the token expires, generate a new one with the same settings and update the plist/env file. Restart the gateway to pick up the new value.
-
-### Config references
-
-In `openclaw.json`, reference secrets with `${...}` — OpenClaw substitutes at startup:
-
-```json
-{
-  "tools": {
-    "web": { "search": { "apiKey": "${BRAVE_API_KEY}" } }
-  },
-  "gateway": {
-    "auth": { "token": "${OPENCLAW_GATEWAY_TOKEN}" }
-  }
-}
-```
-
-Result: `openclaw.json` contains zero plaintext secrets — safe to copy between VMs, diff, or version-control.
-
 ### VM isolation: secrets via SSH
 
 **macOS VMs:** Push secrets from the host to the VM's LaunchDaemon plist. Uses `lume ssh` — for Parallels, replace with `prlctl exec` or regular `ssh user@<vm-ip>`.
@@ -1321,6 +1333,10 @@ Alternative (per-launch): `open -a OpenClaw --args --attach-only`
 ---
 
 ## Signal Setup
+
+{{< callout type="warning" >}}
+Signal device links are host-specific. If migrating to new hardware, you'll need to re-pair (see [Phase 7: Migration](phase-7-migration.md#signal)).
+{{< /callout >}}
 
 Signal requires `signal-cli` (Java-based) linked as a device.
 
@@ -1564,7 +1580,7 @@ Operational issues discovered during real deployments. Most are macOS-specific.
 
 - **`sysadminctl` doesn't create home directories** — `sysadminctl -addUser` assigns a home path but doesn't create it. After creating the user: `sudo mkdir -p /Users/openclaw && sudo chown openclaw:staff /Users/openclaw`
 - **Home dir ownership** — `sudo mkdir -p` creates directories owned by root. Always `chown user:staff` explicitly after.
-- **Admin access to service user files** — service user home dirs are `drwx------`. Use macOS ACLs for admin read/write access:
+- **Admin access to dedicated user files** — dedicated user home dirs are `drwx------`. Use macOS ACLs for admin read/write access:
   ```bash
   # Traverse-only on home dir (minimal — just enough to reach .openclaw)
   sudo chmod +a "youradmin allow list,search,execute" /Users/openclaw
@@ -1595,7 +1611,7 @@ Use the `bash -c` pattern for interactive setup, `openclaw doctor`, `openclaw se
 
 ### Docker/OrbStack
 
-- **OrbStack docker CLI not in PATH** — OrbStack installs at `/usr/local/bin/docker`, which may not be in PATH for service users or non-interactive shells. Use the full path, ensure the engine is running with `orbctl start`, or symlink: `sudo ln -sf /Applications/OrbStack.app/Contents/MacOS/orbctl /usr/local/bin/docker`
+- **OrbStack docker CLI not in PATH** — OrbStack installs at `/usr/local/bin/docker`, which may not be in PATH for dedicated users or non-interactive shells. Use the full path, ensure the engine is running with `orbctl start`, or symlink: `sudo ln -sf /Applications/OrbStack.app/Contents/MacOS/orbctl /usr/local/bin/docker`
 
 ### Playwright
 

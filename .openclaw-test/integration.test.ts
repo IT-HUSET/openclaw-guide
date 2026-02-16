@@ -524,3 +524,116 @@ describe("Config validation", { timeout: 120_000, skip: SKIP_REASON }, () => {
     // Diagnostic — we move to agent level regardless (per reference.md).
   });
 });
+
+// ---------------------------------------------------------------------------
+// computer-use plugin (separate gateway instance — no real VM needed)
+// ---------------------------------------------------------------------------
+describe("computer-use plugin", { timeout: 120_000, skip: SKIP_REASON }, () => {
+  const tempDir = resolve(TEMP_CONFIG_DIR, "configs");
+  const tempWorkspace = resolve(TEMP_CONFIG_DIR, "workspaces", "computer-use");
+
+  before(() => {
+    mkdirSync(tempDir, { recursive: true });
+    mkdirSync(tempWorkspace, { recursive: true });
+  });
+
+  it("plugin loads and registers tools", async () => {
+    const configPath = resolve(tempDir, "computer-use.json");
+    writeFileSync(configPath, JSON.stringify({
+      gateway: {
+        port: CONFIG_VALIDATION_PORT,
+        mode: "local",
+        bind: "loopback",
+        auth: { mode: "token", token: "${OPENCLAW_GATEWAY_TOKEN}" },
+        http: { endpoints: { chatCompletions: { enabled: true } } },
+      },
+      agents: {
+        list: [{ id: "main", default: true, workspace: tempWorkspace }],
+      },
+      plugins: {
+        enabled: true,
+        load: { paths: ["./extensions/computer-use"] },
+        entries: {
+          "computer-use": {
+            enabled: true,
+            config: {
+              vmName: "test-vm",
+              lumeApiUrl: "http://localhost:7777",
+              serverPort: 5000,
+            },
+          },
+        },
+      },
+    }, null, 2));
+
+    const result = await startGatewayBrief(configPath);
+    console.log(`  computer-use load → started: ${result.started}, exit: ${result.exitCode}`);
+
+    assert.ok(
+      result.started,
+      `Gateway with computer-use plugin failed to start. Exit: ${result.exitCode}\nOutput:\n${result.output.slice(-2000)}`,
+    );
+
+    assert.ok(
+      result.output.includes("[computer-use] Registered"),
+      `computer-use plugin did not register.\nOutput:\n${result.output.slice(-2000)}`,
+    );
+  });
+
+  it("registers 7 vm_* tools", async () => {
+    const configPath = resolve(tempDir, "computer-use.json");
+    // Reuse config written by previous test (or write again for independence)
+    writeFileSync(configPath, JSON.stringify({
+      gateway: {
+        port: CONFIG_VALIDATION_PORT,
+        mode: "local",
+        bind: "loopback",
+        auth: { mode: "token", token: "${OPENCLAW_GATEWAY_TOKEN}" },
+        http: { endpoints: { chatCompletions: { enabled: true } } },
+      },
+      agents: {
+        list: [{ id: "main", default: true, workspace: tempWorkspace }],
+      },
+      plugins: {
+        enabled: true,
+        load: { paths: ["./extensions/computer-use"] },
+        entries: {
+          "computer-use": {
+            enabled: true,
+            config: {
+              vmName: "test-vm",
+              lumeApiUrl: "http://localhost:7777",
+              serverPort: 5000,
+            },
+          },
+        },
+      },
+    }, null, 2));
+
+    const result = await startGatewayBrief(configPath);
+
+    assert.ok(
+      result.started,
+      `Gateway with computer-use plugin failed to start. Exit: ${result.exitCode}\nOutput:\n${result.output.slice(-2000)}`,
+    );
+
+    const expectedTools = [
+      "vm_screenshot", "vm_exec", "vm_click",
+      "vm_type", "vm_key", "vm_launch", "vm_scroll",
+    ];
+
+    const registeredTools = expectedTools.filter((t) => result.output.includes(t));
+    const missingTools = expectedTools.filter((t) => !result.output.includes(t));
+
+    console.log(`  Registered tools: ${registeredTools.join(", ")}`);
+    if (missingTools.length > 0) {
+      console.log(`  Missing tools: ${missingTools.join(", ")}`);
+    }
+
+    assert.equal(
+      registeredTools.length,
+      7,
+      `Expected 7 vm_* tools registered, found ${registeredTools.length}. Missing: ${missingTools.join(", ")}\nOutput:\n${result.output.slice(-2000)}`,
+    );
+  });
+});

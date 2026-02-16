@@ -49,6 +49,7 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 - `extensions/channel-guard/` — OpenClaw plugin (TypeScript): prompt injection scanning for incoming channel messages (WhatsApp, Signal, Google Chat) using local DeBERTa ONNX model
 - `extensions/agent-guard/` — OpenClaw plugin (TypeScript): prompt injection scanning for inter-agent sessions_send messages using local DeBERTa ONNX model
 - `extensions/image-gen/` — OpenClaw plugin (TypeScript): image generation via OpenRouter API (FLUX, Gemini, GPT models)
+- `extensions/computer-use/` — OpenClaw plugin (TypeScript): VM-based macOS computer interaction via Lume and cua-computer-server WebSocket protocol
 
 ## Key Context
 
@@ -68,9 +69,14 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 cd extensions/channel-guard && npm install && npm test
 cd extensions/agent-guard && npm install && npm test
 cd extensions/web-guard && npm install && npm test
-cd extensions/image-gen && npm install && npm test
 ```
-Guard plugin tests use real DeBERTa ONNX model (~370 MB, cached in each plugin's `node_modules/`). First run downloads the model. Image-gen tests use mocked HTTP (no API key needed).
+Guard plugin tests use real DeBERTa ONNX model (~370 MB, cached in each plugin's `node_modules/`). First run downloads the model.
+
+```bash
+cd extensions/image-gen && npm install && npm test
+cd extensions/computer-use && npm install && npm test
+```
+Image-gen tests use mocked HTTP (no API key needed).
 
 ### Integration tests (requires running gateway)
 ```bash
@@ -78,7 +84,7 @@ cd .openclaw-test && npm install && npm test
 ```
 Starts an OpenClaw gateway, sends messages via HTTP chat completions API, verifies plugin behavior. Requires `.env` at project root with `ANTHROPIC_API_KEY` and `OPENCLAW_GATEWAY_TOKEN`.
 
-**Known behavior:** `message_received` hook (used by channel-guard) only fires for configured channel bridges (WhatsApp/Signal), not for HTTP API messages. `before_tool_call` (used by web-guard) fires for all tool calls regardless of message source.
+**Known behavior:** `message_received` hook (used by channel-guard) only fires for configured channel bridges (WhatsApp/Signal), not for HTTP API messages. `before_tool_call` (used by web-guard) fires for all tool calls regardless of message source. Computer-use smoke tests require a running Lume VM and `cua-computer-server`.
 
 ## Conventions
 

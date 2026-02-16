@@ -70,7 +70,7 @@ load_instances() {
         INST_PORTS+=("$port")
         INST_CDPS+=("18800")
         INST_CHANNELS+=("whatsapp,signal")
-        INST_AGENTS+=("main,whatsapp,signal,search,browser")
+        INST_AGENTS+=("main,whatsapp,signal,computer,search")
     fi
 }
 

@@ -304,9 +304,9 @@ This ensures only your user (or the dedicated `openclaw` user — see [Phase 6](
 
 > **Note:** On multi-user systems, review group permissions carefully. The `600`/`700` permissions above assume a dedicated `openclaw` user with no shared group access.
 
-> **Dedicated user setup:** If files were created or copied as root (e.g., via `sudo cp`), set ownership **before** permissions — otherwise the service user gets `EACCES` at runtime:
+> **Dedicated user setup:** If files were created or copied as root (e.g., via `sudo cp`), set ownership **before** permissions — otherwise the dedicated user gets `EACCES` at runtime:
 > ```bash
-> sudo chown -R openclaw:staff /Users/openclaw/.openclaw  # macOS
+> sudo chown -R openclaw:staff /Users/openclaw/.openclaw  # macOS (staff = default group for standard users)
 > sudo chown -R openclaw:openclaw /home/openclaw/.openclaw # Linux
 > ```
 > See [Phase 6](phase-6-deployment.md) for the full dedicated user setup.
@@ -336,7 +336,7 @@ Full dedicated user setup is covered in [Phase 6: Deployment](phase-6-deployment
 
 ## Deployment Isolation Options
 
-> **Dedicated machine?** This decision affects where you install OpenClaw. If deploying on a dedicated machine, choose your isolation model *before* installation — see [Phase 1: Deployment Decision](phase-1-getting-started.md#deployment-decision). A dedicated machine also changes the trade-off analysis — see the [note below the comparison table](#comparison).
+> **Dedicated machine?** This decision affects where you install OpenClaw. If deploying on a dedicated machine, choose your isolation model *before* installation — see Phase 1 note on dedicated machines. A dedicated machine also changes the trade-off analysis — see the [note below the comparison table](#comparison).
 
 Three deployment postures for isolating OpenClaw from your personal data, trading off between host isolation, internal sandboxing, and operational complexity. All three use the same multi-agent architecture (core agents: main + search + browser, plus channel agents as configured, `sessions_send` delegation). They differ in the outer isolation boundary and internal sandboxing.
 
@@ -435,6 +435,8 @@ See [Phase 6: VM Isolation — Linux VMs](phase-6-deployment.md#vm-isolation-lin
 > **Dedicated machine with no personal data?** The comparison above assumes personal data on the host — which is what makes the VM's host boundary valuable. On a **dedicated machine** (no personal files, no external drives, no browser sessions), Docker isolation is actually the stronger choice: Docker closes `read→exfiltrate` for credentials while the VM protects an empty host. macOS VMs are weaker internally — no Docker means no agent sandboxing (the `read→exfiltrate` chain is open within the VM). For dedicated machines, use **Docker isolation** (simplest) or **Linux VMs** (VM boundary + Docker inside).
 
 **In plain terms:** Docker isolation gives you Docker-level internal isolation with a single gateway — the recommended approach for most deployments. macOS VM isolation gives the strongest host boundary at the cost of running a macOS VM, but with no Docker inside. Linux VM isolation combines both — VM host boundary *and* Docker sandbox inside — giving the strongest overall posture, at the cost of more moving parts and no native macOS tooling (Xcode, etc.) inside the VM.
+
+For VM-based computer-use (macOS GUI/Xcode workflows), see [Phase 8: Computer Use](phase-8-computer-use.md).
 
 ### Accepted Risks
 

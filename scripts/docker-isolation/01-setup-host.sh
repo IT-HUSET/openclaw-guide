@@ -81,7 +81,14 @@ if command -v node &>/dev/null; then
 else
     echo "Installing Node.js via Homebrew..."
     brew install node
-    echo -e "${GREEN}Done: $(node --version)${NC}"
+    NODE_VERSION=$(node --version)
+    echo -e "${GREEN}Done: $NODE_VERSION${NC}"
+fi
+# OpenClaw requires Node.js 22+
+NODE_MAJOR=$(node --version | sed 's/v//' | cut -d. -f1)
+if [[ "$NODE_MAJOR" -lt 22 ]]; then
+    echo -e "${RED}Node.js 22+ required (found v$NODE_MAJOR) — upgrade with: brew upgrade node${NC}"
+    exit 1
 fi
 echo ""
 
@@ -189,7 +196,7 @@ if [[ "${SKIP_PLANNING:-}" != "true" ]]; then
     if [[ "$INSTANCE_CHOICE" == "1" ]]; then
         # Single instance
         echo "# name:user:port:cdp_port:channels:agents" > "$INSTANCES_FILE"
-        echo "default:${OPENCLAW_USER}:18789:18800:whatsapp,signal,googlechat:main,whatsapp,signal,googlechat,search,browser" >> "$INSTANCES_FILE"
+        echo "default:${OPENCLAW_USER}:18789:18800:whatsapp,signal,googlechat:main,whatsapp,signal,googlechat,computer,search" >> "$INSTANCES_FILE"
         INSTANCE_USERS=("$OPENCLAW_USER")
         echo ""
         echo -e "${GREEN}Single-instance mode — user '$OPENCLAW_USER', port 18789${NC}"
@@ -219,24 +226,28 @@ if [[ "${SKIP_PLANNING:-}" != "true" ]]; then
                 exit 1
             fi
             # Check uniqueness
-            for used in "${USED_NAMES[@]}"; do
-                if [[ "$used" == "$INST_NAME" ]]; then
-                    echo -e "${RED}Duplicate instance name '$INST_NAME'${NC}"
-                    exit 1
-                fi
-            done
+            if [[ ${#USED_NAMES[@]} -gt 0 ]]; then
+                for used in "${USED_NAMES[@]}"; do
+                    if [[ "$used" == "$INST_NAME" ]]; then
+                        echo -e "${RED}Duplicate instance name '$INST_NAME'${NC}"
+                        exit 1
+                    fi
+                done
+            fi
             USED_NAMES+=("$INST_NAME")
 
             echo "  Channel:"
             echo "    1) WhatsApp"
             echo "    2) Signal"
-            echo "    3) Both"
+            echo "    3) Both (WhatsApp + Signal)"
+            echo "    4) Google Chat"
             read -rp "  Choice [1]: " CH_CHOICE
             CH_CHOICE="${CH_CHOICE:-1}"
             case "$CH_CHOICE" in
-                1) CHANNELS="whatsapp"; AGENTS="main,whatsapp,search" ;;
-                2) CHANNELS="signal"; AGENTS="main,signal,search" ;;
-                3) CHANNELS="whatsapp,signal"; AGENTS="main,whatsapp,signal,search" ;;
+                1) CHANNELS="whatsapp"; AGENTS="main,whatsapp,computer,search" ;;
+                2) CHANNELS="signal"; AGENTS="main,signal,computer,search" ;;
+                3) CHANNELS="whatsapp,signal"; AGENTS="main,whatsapp,signal,computer,search" ;;
+                4) CHANNELS="googlechat"; AGENTS="main,googlechat,computer,search" ;;
                 *) echo -e "${RED}Invalid choice${NC}"; exit 1 ;;
             esac
 
@@ -247,19 +258,21 @@ if [[ "${SKIP_PLANNING:-}" != "true" ]]; then
                 exit 1
             fi
             # Check port uniqueness
-            for used in "${USED_PORTS[@]}"; do
-                if [[ "$used" == "$PORT" ]]; then
-                    echo -e "${RED}Duplicate port $PORT — each instance needs a unique port${NC}"
-                    exit 1
-                fi
-            done
+            if [[ ${#USED_PORTS[@]} -gt 0 ]]; then
+                for used in "${USED_PORTS[@]}"; do
+                    if [[ "$used" == "$PORT" ]]; then
+                        echo -e "${RED}Duplicate port $PORT — each instance needs a unique port${NC}"
+                        exit 1
+                    fi
+                done
+            fi
             USED_PORTS+=("$PORT")
 
             CDP="$NEXT_CDP"
 
-            read -rp "  Include browser agent? (Y/n): " BROWSER_CHOICE
-            if [[ ! "$BROWSER_CHOICE" =~ ^[Nn]$ ]]; then
-                AGENTS="$AGENTS,browser"
+            read -rp "  Include computer agent? (Y/n): " COMPUTER_CHOICE
+            if [[ "$COMPUTER_CHOICE" =~ ^[Nn]$ ]]; then
+                AGENTS="${AGENTS//,computer/}"
             fi
 
             INST_USER="openclaw-${INST_NAME}"

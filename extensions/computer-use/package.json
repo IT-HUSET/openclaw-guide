@@ -1,0 +1,23 @@
+{
+  "name": "openclaw-computer-use",
+  "version": "0.1.0",
+  "description": "OpenClaw plugin: VM-based macOS computer interaction via Lume and cua-computer-server",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "tsx --test test/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/ws": "^8",
+    "tsx": "^4.20.5"
+  },
+  "dependencies": {
+    "ws": "^8.19.0"
+  },
+  "openclaw": {
+    "extensions": ["./index.ts"]
+  }
+}

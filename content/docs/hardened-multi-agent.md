@@ -222,8 +222,8 @@ If all checks pass, the firewall rules are correctly filtering traffic on the Do
         "workspace": "~/.openclaw/workspaces/computer",
         "agentDir": "~/.openclaw/agents/computer/agent",
         "tools": {
-          "allow": ["group:runtime", "group:fs", "group:memory", "group:sessions", "browser", "web_fetch"],
-          "deny": ["web_search", "group:ui", "message"],
+          "allow": ["group:runtime", "group:fs", "group:memory", "group:sessions", "browser"],
+          "deny": ["web_search", "web_fetch", "group:ui", "message"],
           "elevated": { "enabled": false }
         },
         "subagents": { "allowAgents": ["search"] },
@@ -265,8 +265,8 @@ If all checks pass, the firewall rules are correctly filtering traffic on the Do
 |----------|-----------|
 | Main uses `tools.allow` (exclusive list) | Strictest mode — only listed tools available. `deny` as belt-and-suspenders |
 | Main denies all runtime/web/browser | No exec, no web search, no browsing — delegates everything to computer/search |
-| Computer allows `browser` + `web_fetch` | Handles browser automation on egress-allowlisted network (more secure than Phase 5 `network: host`) |
-| Computer denies `web_search` | Delegates web search to search agent (search doesn't need browser DOM, computer doesn't need search APIs) |
+| Computer allows `browser` only | Handles browser automation on egress-allowlisted network (more secure than Phase 5 `network: host`) |
+| Computer denies `web_search` + `web_fetch` | Delegates all web fetching to search agent (clearer separation, smaller attack surface) |
 | Computer denies `message` | Can't send to channels directly — results flow back through `sessions_send` |
 | Computer on `openclaw-egress` (upgraded from default `none`) | Outbound for npm/git/browser/etc., but only to allowlisted hosts |
 | Main on `network: none` (unchanged) | Zero outbound — even if fully compromised, no exfiltration path |
@@ -417,9 +417,11 @@ from the main agent and execute them using your full set of development tools.
 
 ## How You Work
 - Execute coding tasks, file operations, git commands, and builds
-- Navigate web pages, take screenshots, and automate browser tasks
-- Delegate web searches to the search agent when you need search results or
-  AI-synthesized answers (use search for questions, browser for specific URLs)
+- Navigate web pages, take screenshots, and automate browser tasks (browser tool)
+- Delegate web searches AND simple page fetching to the search agent (you don't
+  have web_search or web_fetch — use search agent for all web content retrieval,
+  use browser tool only when you need full browser automation like screenshots
+  or form interaction)
 - Return results to the calling agent when done
 
 ## Boundaries
@@ -502,8 +504,8 @@ Run the computer agent with `sandbox.mode: "off"`:
   "workspace": "~/.openclaw/workspaces/computer",
   "agentDir": "~/.openclaw/agents/computer/agent",
   "tools": {
-    "allow": ["group:runtime", "group:fs", "group:memory", "group:sessions", "browser", "web_fetch"],
-    "deny": ["web_search", "message"]
+    "allow": ["group:runtime", "group:fs", "group:memory", "group:sessions", "browser"],
+    "deny": ["web_search", "web_fetch", "message"]
   },
   "sandbox": { "mode": "off" },  // No Docker, runs on host
   "subagents": { "allowAgents": ["search"] }
@@ -628,13 +630,13 @@ If you deployed the hardened architecture before 2026-02-15, you have 4 agents (
    }
    ```
 
-   b. Add browser tools to computer agent:
+   b. Add browser tool to computer agent:
    ```json5
    {
      "id": "computer",
      "tools": {
-       "allow": ["group:runtime", "group:fs", "group:memory", "group:sessions", "browser", "web_fetch"],  // added: browser, web_fetch
-       "deny": ["web_search", "group:ui", "message"],  // added: web_search
+       "allow": ["group:runtime", "group:fs", "group:memory", "group:sessions", "browser"],  // added: browser
+       "deny": ["web_search", "web_fetch", "group:ui", "message"],  // added: web_search, web_fetch
        // ...
      }
    }

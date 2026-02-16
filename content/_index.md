@@ -12,7 +12,7 @@ layout: hextra-home
 >}}
 
 {{< hextra/hero-badge link="https://github.com/IT-HUSET/openclaw-guide" >}}
-  <span>Open Source</span>
+  <span>IT-HUSET/openclaw-guide</span>
 {{< /hextra/hero-badge >}}
 
 {{< hextra/hero-headline >}}

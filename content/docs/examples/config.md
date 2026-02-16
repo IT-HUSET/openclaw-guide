@@ -211,7 +211,8 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
           "workspaceAccess": "rw",
           "docker": { "network": "none" }
           // Optional: egress-allowlisted network for npm/git/browse at runtime.
-          // Requires custom Docker network + host firewall rules.
+          // IMPORTANT: Create network FIRST: docker network create openclaw-egress
+          // Gateway startup will fail if network doesn't exist.
           // See hardened-multi-agent.md for setup walkthrough.
           // "docker": { "network": "openclaw-egress" }
         }

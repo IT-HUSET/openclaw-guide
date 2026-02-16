@@ -358,8 +358,8 @@ OPENCLAW_GATEWAY_TOKEN=<generate with openssl rand -hex 32>
 BRAVE_API_KEY=...
 GITHUB_TOKEN=github_pat_...
 EOF
-sudo chmod 600 /etc/openclaw/secrets.env
 sudo chown root:root /etc/openclaw/secrets.env
+sudo chmod 600 /etc/openclaw/secrets.env
 ```
 
 > **Empty env vars cause startup failure.** For optional keys not yet provisioned, use a non-empty placeholder like `"not-configured"` — not an empty string.

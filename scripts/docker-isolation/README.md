@@ -15,8 +15,8 @@ Host (macOS, dedicated machine)
             ├── main (unsandboxed, full access)
             ├── whatsapp (Docker sandbox, no network)
             ├── signal (Docker sandbox, no network)
-            ├── search (isolated — web_search only, no filesystem)
-            └── browser (isolated — browser only, no filesystem)
+            ├── computer (isolated — VM-based computer use)
+            └── search (isolated — web_search only, no filesystem)
 ```
 
 ### Multi-gateway (channel separation)
@@ -27,15 +27,15 @@ Host (macOS, dedicated machine)
   │    └── Gateway instance "wa" (port 18789)
   │         ├── main (unsandboxed, full access)
   │         ├── whatsapp (Docker sandbox, no network)
-  │         ├── search (isolated)
-  │         └── browser (isolated)
+  │         ├── computer (isolated)
+  │         └── search (isolated)
   │
   └── Dedicated `openclaw-sig` user (non-admin, chmod 700 home)
        └── Gateway instance "sig" (port 18790)
             ├── main (unsandboxed, full access)
             ├── signal (Docker sandbox, no network)
-            ├── search (isolated)
-            └── browser (isolated)
+            ├── computer (isolated)
+            └── search (isolated)
 ```
 
 Multi-gateway provides stronger isolation: each channel runs under a separate OS user with its own gateway, config, credentials, and API tokens. A compromised WhatsApp agent cannot access Signal credentials (or vice versa).
@@ -77,9 +77,9 @@ How many gateway instances?
 
 **Multiple gateways** prompts for each instance:
 - **Name** — short identifier (e.g. `wa`, `sig`)
-- **Channel** — WhatsApp, Signal, or Both
+- **Channel** — WhatsApp, Signal, Both, or Google Chat
 - **Port** — gateway port (auto-increments from 18789)
-- **Browser agent** — optional per instance
+- **Computer agent** — optional per instance
 
 The plan is confirmed before proceeding, and saved to `scripts/docker-isolation/.instances`.
 
@@ -116,8 +116,8 @@ Override defaults by exporting before running (single-instance fallback only —
        ├── disable-launchagent
        ├── logs/
        ├── credentials/{whatsapp,signal}/
-       ├── agents/{main,whatsapp,signal,search,browser}/agent/
-       ├── workspaces/{main,whatsapp,signal,search,browser}/
+       ├── agents/{main,whatsapp,signal,search,computer}/agent/
+       ├── workspaces/{main,whatsapp,signal,search,computer}/
        ├── identity/
        └── devices/
 
@@ -140,13 +140,15 @@ Multi-instance configs are generated from `examples/openclaw.json` — filtered 
 
 ## Plugins
 
-Scripts install three plugins from `extensions/` per instance:
+Scripts install five plugins from `extensions/` per instance:
 
 - **web-guard** — pre-fetch prompt injection scanning for `web_fetch`
 - **channel-guard** — prompt injection scanning for incoming channel messages
+- **agent-guard** — prompt injection scanning for inter-agent `sessions_send` messages
 - **image-gen** — image generation via OpenRouter (needs `OPENROUTER_API_KEY`)
+- **computer-use** — VM-based macOS computer interaction via Lume
 
-The ONNX model (~370MB, shared by web-guard and channel-guard) downloads on first gateway start.
+The ONNX model (~370MB, shared by web-guard, channel-guard, and agent-guard) downloads on first gateway start.
 
 ## After Setup
 
@@ -168,19 +170,24 @@ sudo -u openclaw signal-cli link -n "OpenClaw"
 sudo -u openclaw-sig signal-cli link -n "OpenClaw"
 ```
 
-### Customize SOUL.md
+### Customize Workspace Files
+
+Each agent's workspace is bootstrapped with role-specific AGENTS.md instructions (delegation patterns, tool awareness, announce protocol) and a generic SOUL.md. Customize both:
 
 ```bash
 # Single instance
 sudo -u openclaw vi /Users/openclaw/.openclaw/workspaces/main/SOUL.md
+sudo -u openclaw vi /Users/openclaw/.openclaw/workspaces/main/AGENTS.md
 # Multi-instance
 sudo -u openclaw-wa vi /Users/openclaw-wa/.openclaw/workspaces/main/SOUL.md
-sudo -u openclaw-sig vi /Users/openclaw-sig/.openclaw/workspaces/main/SOUL.md
+sudo -u openclaw-wa vi /Users/openclaw-wa/.openclaw/workspaces/main/AGENTS.md
 ```
+
+The main agent's AGENTS.md includes delegation instructions for the computer and search agents. The computer and search agents' AGENTS.md files define their roles and tool boundaries. See [Phase 4: Core Agent Workspace Instructions](../../content/docs/phases/phase-4-multi-agent.md#core-agent-workspace-instructions) for the full templates.
 
 ### Workspace Git Sync
 
-Initialize git repos in workspaces that hold persistent state (typically `main` — search and browser agents are sandboxed with no persistent workspace worth tracking):
+Initialize git repos in workspaces that hold persistent state (typically `main` — search and computer agents are sandboxed with no persistent workspace worth tracking):
 
 ```bash
 # Single instance
@@ -225,6 +232,16 @@ Add to `/etc/newsyslog.d/openclaw.conf`:
 /Users/openclaw-sig/.openclaw/logs/gateway.log     openclaw-sig:staff  640  7  1024  *  J
 /Users/openclaw-sig/.openclaw/logs/gateway.err.log openclaw-sig:staff  640  7  1024  *  J
 ```
+
+## Upgrading from Previous Versions
+
+If you ran these scripts before 2026-02-16, the default agent set was `main, whatsapp, signal, search, browser`. The `browser` agent has been replaced by `computer` (VM-based computer use). If you have an existing `.instances` file:
+
+1. Edit `.instances` — replace `browser` with `computer` in the agents column
+2. Rename the workspace directory: `mv workspaces/browser workspaces/computer`
+3. Re-run `02-setup-gateway.sh` to regenerate AGENTS.md files with role-specific instructions
+
+If you don't need computer-use capabilities, remove the `computer` agent from the agents column entirely.
 
 ## Troubleshooting
 

@@ -1,14 +1,14 @@
 ---
 title: "Phase 5 — Web Search Isolation"
-description: "Isolated search and browser agents, web-guard plugin."
+description: "Isolated search agent (required) + optional browser agent. Web-guard plugin."
 weight: 50
 ---
 
 This is the key security pattern in this guide: give your agents internet access without giving them the ability to exfiltrate data.
 
-**Prerequisite:** [Phase 4 (Channels & Multi-Agent)](phase-4-multi-agent.md) — this phase adds search and browser agents to your existing multi-agent gateway.
+**Prerequisite:** [Phase 4 (Channels & Multi-Agent)](phase-4-multi-agent.md) — this phase adds a search agent (required) and optionally a browser agent to your existing multi-agent gateway.
 
-> **VM isolation:** macOS VMs — skip the `sandbox` config blocks (no Docker). Linux VMs — keep the `sandbox` blocks (Docker works inside the VM). Both run the same search/browser delegation pattern.
+> **VM isolation:** macOS VMs — skip the `sandbox` config blocks (no Docker). Linux VMs — keep the `sandbox` blocks (Docker works inside the VM). Both run the same search delegation pattern (browser agent is optional).
 
 ---
 
@@ -30,23 +30,33 @@ The solution: **don't give your main agent web access**. Instead, create a dedic
 
 ## Architecture
 
+### Core: Search Agent (Required)
+
 ```
 User → WhatsApp → Channel Agent (no web/browser tools)
                        │
-                       ├─ sessions_send("search for X")
-                       │       ▼
-                       │  Search Agent (web_search, web_fetch only)
-                       │       │
-                       │       ▼
-                       │  Brave/Perplexity API → results → Channel Agent
-                       │
-                       └─ sessions_send("browse URL Y")
+                       └─ sessions_send("search for X")
                                ▼
-                          Browser Agent (browser, web_fetch only)
+                          Search Agent (web_search, web_fetch only)
                                │
                                ▼
-                          Playwright → page content → Channel Agent
+                          Brave/Perplexity API → results → Channel Agent
 ```
+
+### Optional: Browser Agent
+
+```
+Channel Agent
+    │
+    └─ sessions_send("browse URL Y")
+            ▼
+       Browser Agent (browser, web_fetch only)
+            │
+            ▼
+       Playwright → page content → Channel Agent
+```
+
+See [Browser Automation (Optional)](#browser-automation-optional) below for when to use a separate browser agent vs alternatives.
 
 The search agent has no persistent memory — each request is stateless. This is intentional: search agents don't need conversation history.
 
@@ -270,13 +280,58 @@ Do **not** add a binding for the search agent. It should only be reachable via `
 
 ---
 
-## Browser Agent
+## Browser Automation (Optional)
 
-The browser agent provides isolated browser automation — page navigation, screenshots, form interaction. Like the search agent, it's separated to limit blast radius.
+If you need browser automation (page navigation, screenshots, form interaction), you have several options:
 
-### Why a separate browser agent?
+### Option 1: Separate Browser Agent (This Page)
 
-The `browser` tool controls a Playwright-managed Chromium instance. Combining it with the search agent would give web-search-processing code access to DOM manipulation, and browser automation code access to search APIs. Separating them follows least privilege.
+Create a dedicated browser agent similar to the search agent — isolated, restricted tools, delegates via `sessions_send`.
+
+**When to use:**
+- ✅ Your main/channel agents are **also sandboxed** (restricted tools, no exec)
+- ✅ You want to separate search APIs from browser DOM access (defense in depth)
+- ❌ Your main agent is **unsandboxed** (full host access) — separation adds complexity with minimal security benefit
+
+**Trade-off:** This browser agent runs on `network: host` (unrestricted outbound) because Playwright needs full network access. This is a security gap — a compromised browser agent can exfiltrate data to any server.
+
+### Option 2: Computer Agent with Browser Tool
+
+{{< callout type="info" >}}
+See [Hardened Multi-Agent Architecture](../hardened-multi-agent.md) for the complete setup guide with egress allowlisting. For VM-based computer-use with macOS GUI interaction, see [Phase 8: Computer Use](phase-8-computer-use.md).
+{{< /callout >}}
+
+Give the computer agent the `browser` tool directly, running on an egress-allowlisted network (only pre-approved hosts reachable).
+
+**When to use:**
+- ✅ Computer agent already has `exec` + network (adding browser doesn't increase attack surface)
+- ✅ You want browser on a **restricted network** (egress allowlist > `network: host`)
+- ✅ Simpler architecture (no separate browser agent)
+
+**Trade-off:** Requires Docker + firewall rules (more complex setup).
+
+### Option 3: Main Agent with Browser Tool (Simplest)
+
+{{< callout type="warning" >}}
+No delegation, no network restrictions. Only use if simplicity matters more than isolation.
+{{< /callout >}}
+
+Give your main agent the `browser` tool directly (no delegation).
+
+**When to use:**
+- ✅ Simplicity matters more than isolation
+- ✅ Main agent is already unsandboxed or has broad network access
+- ❌ Don't use if main agent is exposed to untrusted channel input without strong prompt injection defenses
+
+---
+
+## Browser Agent Setup (Option 1)
+
+The following instructions set up a **separate browser agent** (Option 1 above). Skip this section if you're using Option 2 or 3.
+
+### Why separate browser from search?
+
+The `browser` tool controls a Playwright-managed Chromium instance. Combining it with the search agent would give web-search-processing code access to DOM manipulation, and browser automation code access to search APIs. Separating them follows least privilege (when both agents have restricted tools).
 
 ### Tool assignments
 
@@ -454,19 +509,11 @@ The user sees this as a seamless conversation — the delegation happens transpa
 
 ## Testing the Setup
 
-1. Restart the gateway after config changes
-
-2. Send a message to your main agent:
-   > "Search the web for the latest OpenClaw security advisories"
-
-3. The main agent should delegate to the search agent via `sessions_send`
-
-4. Results should appear in your chat
-
-5. Verify isolation — ask the main agent to search directly:
-   > "Use web_search to find something"
-
-   It should refuse (tool is denied).
+- [ ] Restart the gateway after config changes
+- [ ] Send a message to your main agent: "Search the web for the latest OpenClaw security advisories"
+- [ ] Main agent should delegate to the search agent via `sessions_send`
+- [ ] Results should appear in your chat
+- [ ] Verify isolation — ask the main agent to search directly: "Use web_search to find something" (should refuse, tool is denied)
 
 ---
 

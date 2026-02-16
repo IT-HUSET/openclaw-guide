@@ -17,11 +17,11 @@ Get a working OpenClaw agent in minutes — no channels, no external exposure.
 
 {{% details title="macOS Setup" %}}
 
-Install Node.js 22+ via [Homebrew](https://brew.sh) (recommended) or [nvm](https://github.com/nvm-sh/nvm):
+Install Node.js 22+ via [Homebrew](https://brew.sh) (macOS package manager, recommended) or [nvm](https://github.com/nvm-sh/nvm):
 
 ```bash
 # Option A: Homebrew (recommended)
-brew install node@22
+brew install node
 
 # Option B: nvm (no Homebrew needed)
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
@@ -225,7 +225,9 @@ Your agent works, but it's running with default settings. Next:
 
 → **[Phase 2: Memory & Search](phase-2-memory.md)** — give your agent persistent memory and semantic search
 
-> **Is Phase 2 required?** Recommended for production deployments but can be skipped initially — your agent works without it. You can return to it later.
+{{< callout type="info" >}}
+**Phase 3 (Security) is mandatory before connecting channels (Phase 4)**. Phase 2 can be skipped initially.
+{{< /callout >}}
 
 Then lock it down:
 

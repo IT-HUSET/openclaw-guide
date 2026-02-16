@@ -1,0 +1,67 @@
+{
+  "id": "computer-use",
+  "name": "Computer Use (Lume VM)",
+  "description": "VM-based macOS computer interaction via Lume and cua-computer-server. Registers 7 vm_* tools for controlling a macOS VM through WebSocket protocol.",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "vmName": {
+        "type": "string",
+        "default": "openclaw-vm",
+        "description": "Lume VM name for IP lookup."
+      },
+      "lumeApiUrl": {
+        "type": "string",
+        "default": "http://localhost:7777",
+        "description": "Lume HTTP server URL."
+      },
+      "serverPort": {
+        "type": "number",
+        "default": 5000,
+        "description": "cua-computer-server WebSocket port inside the VM."
+      },
+      "connectTimeoutMs": {
+        "type": "number",
+        "minimum": 1000,
+        "default": 30000,
+        "description": "Max ms for WebSocket connect + handshake + Lume HTTP call."
+      },
+      "commandTimeoutMs": {
+        "type": "number",
+        "minimum": 1000,
+        "default": 60000,
+        "description": "Max ms per command execution."
+      },
+      "screenshotScale": {
+        "type": "number",
+        "minimum": 0.1,
+        "maximum": 1.0,
+        "default": 0.5,
+        "description": "Informational only (no server-side scaling). Documents expected resolution for user awareness."
+      },
+      "logVerbose": {
+        "type": "boolean",
+        "default": false,
+        "description": "Extra protocol debug logs (never logs screenshot data)."
+      },
+      "maxScreenshotBytes": {
+        "type": "number",
+        "minimum": 1024,
+        "default": 10485760,
+        "description": "Max screenshot size in bytes (10 MB). Reject larger."
+      }
+    }
+  },
+  "uiHints": {
+    "vmName": { "label": "VM Name", "group": "VM Connection" },
+    "lumeApiUrl": { "label": "Lume API URL", "group": "VM Connection" },
+    "serverPort": { "label": "Server Port", "group": "VM Connection" },
+    "connectTimeoutMs": { "label": "Connect Timeout (ms)", "group": "VM Connection" },
+    "commandTimeoutMs": { "label": "Command Timeout (ms)", "group": "Behavior" },
+    "screenshotScale": { "label": "Screenshot Scale", "group": "Behavior" },
+    "logVerbose": { "label": "Verbose Logging", "group": "Behavior" },
+    "maxScreenshotBytes": { "label": "Max Screenshot Size (bytes)", "group": "Behavior" }
+  }
+}

@@ -35,6 +35,13 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
 | `gateway` | Gateway control (restart, config, status) |
 | `nodes` | Remote node operations |
 | `generate_image` | Generate images from text prompts (image-gen plugin) |
+| `vm_screenshot` | Capture VM screen as PNG image (computer-use plugin) |
+| `vm_exec` | Run shell command inside Lume VM (computer-use plugin) |
+| `vm_click` | Click at screen coordinates in VM (computer-use plugin) |
+| `vm_type` | Type text into focused VM application (computer-use plugin) |
+| `vm_key` | Press key or key combination in VM (computer-use plugin) |
+| `vm_launch` | Launch macOS application in VM (computer-use plugin) |
+| `vm_scroll` | Scroll screen up or down in VM (computer-use plugin) |
 
 ---
 
@@ -429,10 +436,13 @@ Features below require the listed version or later. Check yours with `openclaw -
 | `channel-guard` | Inbound message injection scanning for WhatsApp/Signal/Google Chat | — (local ONNX model) |
 | `agent-guard` | Inter-agent `sessions_send` injection scanning | — (local ONNX model) |
 | `image-gen` | Generate images from text prompts via OpenRouter | `OPENROUTER_API_KEY` |
+| `computer-use` | VM computer interaction (Lume) | — (WebSocket to cua-computer-server) |
 
 The `web-guard` plugin intercepts `web_fetch` calls, pre-fetches the URL, and scans content for prompt injection before the agent sees it. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing. The `agent-guard` plugin scans inter-agent `sessions_send` messages for injection. All three use the same local DeBERTa ONNX model, are fail-closed by default (`failOpen: false`), and share the model cache. See [web-search-isolation.md](phases/phase-5-web-search.md#advanced-prompt-injection-guard) for full setup and limitations.
 
 The `image-gen` plugin registers a `generate_image` tool that agents can call to create images from text prompts. Uses OpenRouter's unified API — supports FLUX, Gemini, GPT, and Sourceful models. See [extensions/image-gen/](extensions/image-gen.md) for source.
+
+The `computer-use` plugin registers 7 `vm_*` tools for controlling a macOS Lume VM via WebSocket connection to `cua-computer-server`. Requires Apple Silicon Mac with Lume. See [extensions/computer-use/](extensions/computer-use.md) for setup and [Phase 8](phases/phase-8-computer-use.md) for deployment.
 
 ### Plugin Installation
 
