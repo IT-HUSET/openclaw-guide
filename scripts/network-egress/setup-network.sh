@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # === Setup Docker Network for Egress Allowlisting ===
-# Creates a custom Docker bridge network that the computer agent joins.
+# Creates a custom Docker bridge network that sandboxed agents join.
 # Firewall rules (applied separately by apply-rules.sh) restrict outbound
 # traffic on this network to an allowlist.
 #
@@ -87,6 +87,6 @@ else
     echo "  sudo bash $(dirname "$0")/apply-rules-linux.sh"
 fi
 echo ""
-echo "Then set in openclaw.json for the computer agent:"
+echo "Then set in openclaw.json for the sandboxed agent:"
 echo "  \"sandbox\": { \"docker\": { \"network\": \"$NETWORK_NAME\" } }"
 echo ""

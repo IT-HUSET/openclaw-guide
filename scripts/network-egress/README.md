@@ -1,11 +1,11 @@
 # Network Egress Control
 
-Restricts outbound traffic from the hardened computer agent to an allowlist of approved hosts. Part of the [Hardened Multi-Agent Architecture](../../content/docs/hardened-multi-agent.md).
+Restricts outbound traffic from sandboxed agents to an allowlist of approved hosts. Used by the main agent in the [recommended configuration](../../content/docs/examples/config.md) and by the computer agent in the [hardened variant](../../content/docs/hardened-multi-agent.md).
 
 ## How It Works
 
 1. A custom Docker bridge network (`openclaw-egress`) is created
-2. The computer agent's sandbox joins this network (`docker.network: "openclaw-egress"`)
+2. Sandboxed agents join this network (`docker.network: "openclaw-egress"`)
 3. Host firewall rules (pf on macOS, nftables on Linux) restrict outbound traffic on the bridge interface to allowlisted host:port pairs
 4. DNS is allowed (containers need name resolution)
 5. Everything else is blocked — even a fully compromised agent can only reach pre-approved hosts
@@ -36,10 +36,10 @@ sudo bash scripts/network-egress/apply-rules-linux.sh
 bash scripts/network-egress/verify-egress.sh
 ```
 
-Then configure the computer agent in `openclaw.json`:
+Then configure the agent in `openclaw.json`:
 ```json5
 {
-  "id": "computer",
+  "id": "main",  // or "computer" in the hardened variant
   "sandbox": {
     "mode": "all",
     "docker": { "network": "openclaw-egress" }

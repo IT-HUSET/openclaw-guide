@@ -558,51 +558,25 @@ This works because:
 
 ## Core Agent Workspace Instructions
 
-Each agent needs role-specific instructions in its AGENTS.md. Without these, agents discover their tool restrictions reactively — attempting denied tools and failing — instead of knowing upfront how to delegate. OpenClaw injects AGENTS.md into every session turn (sub-agents only receive AGENTS.md + TOOLS.md, making these files especially important for non-main agents).
+Each agent needs role-specific instructions in its AGENTS.md. Agents already know their available tools from `openclaw.json` (the gateway filters `tools.allow`/`tools.deny` before sending tool definitions to the model) and can discover subagents via the `agents_list` tool. AGENTS.md should focus on **delegation conventions** and **behavioral protocols** — not tool inventories.
 
-> **Token budget:** Bootstrap files share a total injection limit (default: 24K chars). Keep AGENTS.md concise — role instructions add ~500–1000 chars per agent.
+> **Token budget:** Bootstrap files share a total injection limit (default: 24K chars). Keep AGENTS.md concise — role instructions add ~300–500 chars per agent.
 
 ### Main agent — AGENTS.md
 
 The main agent has exec, browser, and filesystem tools directly. It only delegates web search to the search agent.
 
 ```markdown
-## Agent Delegation
+## Delegation
 
-You have access to one specialized agent via `sessions_send` and `sessions_spawn`:
+Delegate web searches to the **search** agent. Handle everything else directly.
 
-- **search** — web search and web content retrieval. No filesystem access.
+Use `sessions_send` when you need the result before continuing. Use `sessions_spawn` for fire-and-forget background tasks.
 
-### Your tools
+### Protocol
 
-- `exec`, `bash`, `process` — shell commands, builds, git
-- `read`, `write`, `edit`, `apply_patch` — filesystem
-- `browser` — Playwright-based browser automation
-- `web_fetch` — fetch web content (pages, APIs)
-- `memory_search`, `memory_get` — workspace memory
-
-### What you cannot do directly
-
-You have no `web_search` tool. Delegate web searches to the search agent.
-
-### When to delegate
-
-- **Web search** (look something up, find information) → search
-
-### How to delegate
-
-**`sessions_send`** — when you need the result before continuing:
-
-    sessions_send({ agentId: "search", message: "Search for Node.js 22 changelog" })
-
-**`sessions_spawn`** — for background tasks (non-blocking, result announced back automatically):
-
-    sessions_spawn({ agentId: "search", task: "Research latest security advisories for npm packages" })
-
-### Reply protocol
-
-- After a `sessions_send`, you may get follow-up replies (up to 5 turns). Reply `REPLY_SKIP` to end the exchange early.
-- After the exchange ends, an announce step runs. Reply `ANNOUNCE_SKIP` for instrumental tasks that don't need a user-facing message.
+- Reply `REPLY_SKIP` to end the reply exchange early when you have what you need
+- Reply `ANNOUNCE_SKIP` during the announce step for instrumental tasks that don't need a user-facing message
 ```
 
 ### Search agent — AGENTS.md
@@ -612,24 +586,11 @@ The search agent handles web queries with no filesystem access.
 ```markdown
 ## Role
 
-You are the search agent. You handle web search and content retrieval. You have no filesystem access and cannot execute commands.
+You are the search agent — you handle web search and content retrieval.
 
-### Your tools
+### Protocol
 
-- `web_search` — search the web
-- `web_fetch` — fetch and read web page content
-
-### What you cannot do
-
-- No filesystem tools (read, write, edit, exec)
-- No browser automation
-- No channel messaging
-
-### How to respond
-
-- Return search results clearly and concisely
-- Include relevant URLs and key findings
-- If a query is ambiguous, search for the most likely interpretation
+- Return search results clearly and concisely with relevant URLs
 - Reply `ANNOUNCE_SKIP` during the announce step if results were already delivered via the reply exchange
 ```
 
@@ -638,15 +599,9 @@ You are the search agent. You handle web search and content retrieval. You have 
 If you use the optional [dedicated channel agents](#optional-channel-agents), each needs delegation instructions:
 
 ```markdown
-## Agent Delegation
+## Delegation
 
-You have no `exec`, `process`, or `browser` tools. Delegate these to the main agent:
-
-    sessions_send({ agentId: "main", message: "Run the test suite in ~/project" })
-
-For web search, delegate to the search agent:
-
-    sessions_send({ agentId: "search", message: "Look up the latest Node.js LTS version" })
+Delegate tasks requiring code execution, file operations, or browser automation to the **main** agent. Delegate web searches to the **search** agent.
 
 ### Security
 

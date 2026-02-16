@@ -196,7 +196,7 @@ if [[ "${SKIP_PLANNING:-}" != "true" ]]; then
     if [[ "$INSTANCE_CHOICE" == "1" ]]; then
         # Single instance
         echo "# name:user:port:cdp_port:channels:agents" > "$INSTANCES_FILE"
-        echo "default:${OPENCLAW_USER}:18789:18800:whatsapp,signal,googlechat:main,whatsapp,signal,googlechat,computer,search" >> "$INSTANCES_FILE"
+        echo "default:${OPENCLAW_USER}:18789:18800:whatsapp,signal,googlechat:main,whatsapp,signal,googlechat,search" >> "$INSTANCES_FILE"
         INSTANCE_USERS=("$OPENCLAW_USER")
         echo ""
         echo -e "${GREEN}Single-instance mode — user '$OPENCLAW_USER', port 18789${NC}"
@@ -244,10 +244,10 @@ if [[ "${SKIP_PLANNING:-}" != "true" ]]; then
             read -rp "  Choice [1]: " CH_CHOICE
             CH_CHOICE="${CH_CHOICE:-1}"
             case "$CH_CHOICE" in
-                1) CHANNELS="whatsapp"; AGENTS="main,whatsapp,computer,search" ;;
-                2) CHANNELS="signal"; AGENTS="main,signal,computer,search" ;;
-                3) CHANNELS="whatsapp,signal"; AGENTS="main,whatsapp,signal,computer,search" ;;
-                4) CHANNELS="googlechat"; AGENTS="main,googlechat,computer,search" ;;
+                1) CHANNELS="whatsapp"; AGENTS="main,whatsapp,search" ;;
+                2) CHANNELS="signal"; AGENTS="main,signal,search" ;;
+                3) CHANNELS="whatsapp,signal"; AGENTS="main,whatsapp,signal,search" ;;
+                4) CHANNELS="googlechat"; AGENTS="main,googlechat,search" ;;
                 *) echo -e "${RED}Invalid choice${NC}"; exit 1 ;;
             esac
 
@@ -270,9 +270,9 @@ if [[ "${SKIP_PLANNING:-}" != "true" ]]; then
 
             CDP="$NEXT_CDP"
 
-            read -rp "  Include computer agent? (Y/n): " COMPUTER_CHOICE
-            if [[ "$COMPUTER_CHOICE" =~ ^[Nn]$ ]]; then
-                AGENTS="${AGENTS//,computer/}"
+            read -rp "  Include computer agent for exec isolation? (y/N): " COMPUTER_CHOICE
+            if [[ "$COMPUTER_CHOICE" =~ ^[Yy]$ ]]; then
+                AGENTS="${AGENTS/,search/,computer,search}"
             fi
 
             INST_USER="openclaw-${INST_NAME}"

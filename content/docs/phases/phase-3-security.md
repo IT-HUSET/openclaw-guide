@@ -384,7 +384,7 @@ macOS Host (personal use, untouched)
 
 **Key property:** If the VM is fully compromised, the attacker is inside the VM — your host is unreachable. The `read→exfiltrate` chain is open within the VM (no Docker), but only OpenClaw data is at risk.
 
-**Option:** For stricter channel separation, run one VM per channel (2 VMs, 4 agents each). See [Multi-Gateway: VM Variants](../multi-gateway.md#vm-variants).
+**Option:** For stricter channel separation, run one VM per channel (2 VMs, 3 agents each: main + channel + search). See [Multi-Gateway: VM Variants](../multi-gateway.md#vm-variants).
 
 See [Phase 6: VM Isolation — macOS VMs](phase-6-deployment.md#vm-isolation-macos-vms) for installation.
 

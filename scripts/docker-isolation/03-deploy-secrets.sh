@@ -62,7 +62,7 @@ load_instances() {
             INST_AGENTS+=("$agents")
         done < "$INSTANCES_FILE"
     else
-        # Fallback: single instance from env vars (backward compat)
+        # Fallback: single instance from env vars
         local user="${OPENCLAW_USER:-openclaw}"
         local port="${GATEWAY_PORT:-18789}"
         INST_NAMES+=("default")
@@ -70,7 +70,7 @@ load_instances() {
         INST_PORTS+=("$port")
         INST_CDPS+=("18800")
         INST_CHANNELS+=("whatsapp,signal")
-        INST_AGENTS+=("main,whatsapp,signal,computer,search")
+        INST_AGENTS+=("main,whatsapp,signal,search")
     fi
 }
 
