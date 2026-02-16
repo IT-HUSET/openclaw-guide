@@ -226,6 +226,24 @@
         }
       }
 
+      // --- OPTIONAL: Local admin agent (host management) ---
+      // Unsandboxed agent for cron jobs, service management, and host-level tasks.
+      // Only reachable via Control UI — no channel binding, no agent delegation path.
+      // Uncomment to enable. Create workspace + agentDir before starting.
+      //
+      // ,{
+      //   "id": "local-admin",
+      //   "workspace": "/Users/openclaw/.openclaw/workspaces/local-admin",
+      //   "agentDir": "/Users/openclaw/.openclaw/agents/local-admin/agent",
+      //   "tools": {
+      //     "allow": ["group:fs", "group:runtime", "group:automation", "group:memory"],
+      //     "deny": ["group:web", "browser", "message"],
+      //     "elevated": { "enabled": false }
+      //   },
+      //   "subagents": { "allowAgents": [] }
+      //   // No sandbox block — runs directly on host as openclaw user
+      // }
+
       // --- OPTIONAL: Dedicated channel agents (defense-in-depth) ---
       // Uncomment to route channels to restricted agents instead of main.
       // Each channel agent has no exec/process — delegates to main/computer/search.

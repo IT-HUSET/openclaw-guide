@@ -610,7 +610,58 @@ To close this gap, sandbox main explicitly:
 
 This roots the main agent's filesystem inside Docker — it can no longer read `openclaw.json` or `auth-profiles.json`. Workspace data (SOUL.md, memory, workspace files) remains accessible via the mount.
 
-**Trade-off:** Host-native tools (Xcode, Homebrew binaries) are unavailable inside the container. Most workflows are handled by the computer agent (Docker `network: none` by default; optionally [egress-allowlisted](../hardened-multi-agent.md) for runtime network access). If you need unsandboxed host access, you can add a `dev` agent with `sandbox.mode: "off"` and no channel binding. See the [recommended config](../examples/config.md).
+**Trade-off:** Host-native tools (Xcode, Homebrew binaries) are unavailable inside the container. Most workflows are handled by the computer agent (Docker `network: none` by default; optionally [egress-allowlisted](../hardened-multi-agent.md) for runtime network access). If you need unsandboxed host access, you can add a `dev` agent with no `sandbox` block and no channel binding. For host-level automation (cron jobs, service management), see [Local Admin Agent](#optional-local-admin-agent) below.
+
+### Optional: Local Admin Agent
+
+Sandboxed agents can't manage host-level tasks — `cron`, `gateway`, and other `group:automation` tools are denied inside Docker. A local admin agent fills this gap: an unsandboxed agent with `group:automation` access, completely isolated from channels and other agents, reachable only via the Control UI.
+
+```
+Channels → main ←→ computer ←→ search
+                      (sandboxed, no cron)
+
+Control UI → local-admin (unsandboxed, group:automation)
+                      (no channel binding, no sessions_send)
+```
+
+Agent definition (also in the [recommended config](../examples/config.md), commented out):
+
+```json5
+{
+  "id": "local-admin",
+  "workspace": "/Users/openclaw/.openclaw/workspaces/local-admin",
+  "agentDir": "/Users/openclaw/.openclaw/agents/local-admin/agent",
+  "tools": {
+    "allow": ["group:fs", "group:runtime", "group:automation", "group:memory"],
+    "deny": ["group:web", "browser", "message"],
+    "elevated": { "enabled": false }
+  },
+  "subagents": { "allowAgents": [] }
+  // No sandbox block — runs directly on host as openclaw user
+}
+```
+
+**Security properties:**
+- **No channel binding** — unreachable from WhatsApp, Signal, and Google Chat
+- **Not in any agent's `allowAgents`** — no delegation path from other agents
+- **No `sessions_send`** — can't contact other agents
+- **No `message` tool** — can't post to channels
+- **Unsandboxed** — runs as the `openclaw` OS user (host access is the point)
+
+{{< callout type="warning" >}}
+Since this agent runs unsandboxed with exec and cron access, ensure the gateway port is firewalled to localhost. See [macOS Firewall](#macos-firewall).
+{{< /callout >}}
+
+**SOUL.md:** Give `local-admin` a focused system prompt scoped to admin tasks (cron management, service restarts, log rotation). Explicitly instruct it not to interact with channels or other agents.
+
+Create the workspace and agent directory before starting the gateway:
+
+```bash
+mkdir -p /Users/openclaw/.openclaw/workspaces/local-admin
+mkdir -p /Users/openclaw/.openclaw/agents/local-admin/agent
+# Add SOUL.md with admin-focused system prompt
+nano /Users/openclaw/.openclaw/agents/local-admin/agent/SOUL.md
+```
 
 ### Multi-Gateway Options
 
