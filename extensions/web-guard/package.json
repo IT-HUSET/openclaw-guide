@@ -11,10 +11,14 @@
     "test": "tsx --test test/*.test.ts"
   },
   "devDependencies": {
+    "@types/turndown": "^5",
     "tsx": "^4.20.5"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3"
+    "@huggingface/transformers": "^3",
+    "@mozilla/readability": "^0.5",
+    "linkedom": "^0.18",
+    "turndown": "^7"
   },
   "openclaw": {
     "extensions": ["./index.ts"]

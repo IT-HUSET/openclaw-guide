@@ -19,6 +19,9 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { pipeline, env } from "@huggingface/transformers";
+import { Readability } from "@mozilla/readability";
+import { parseHTML } from "linkedom";
+import TurndownService from "turndown";
 
 const MODEL_ID = "ProtectAI/deberta-v3-base-prompt-injection-v2";
 const INJECTION_LABEL = "INJECTION";
@@ -174,6 +177,34 @@ export function chunkContent(text: string, size = CHUNK_SIZE): string[] {
   return chunks;
 }
 
+const turndown = new TurndownService({ headingStyle: "atx", codeBlockStyle: "fenced" });
+
+/**
+ * Extract readable content from HTML using Readability + Turndown.
+ * Falls back gracefully: Readability failure → Turndown on full HTML → raw text.
+ */
+export function extractContent(html: string): string {
+  // Quick check: if it doesn't look like HTML, return as-is
+  if (!/<[a-z][\s\S]*>/i.test(html)) return html;
+
+  try {
+    const { document } = parseHTML(html);
+
+    // Attempt Readability extraction (article body only)
+    const reader = new Readability(document, { charThreshold: 0 });
+    const article = reader.parse();
+    if (article?.content) {
+      return turndown.turndown(article.content).trim();
+    }
+
+    // Readability failed — convert full HTML to markdown
+    return turndown.turndown(html).trim();
+  } catch {
+    // linkedom/turndown failed — return raw text as-is
+    return html;
+  }
+}
+
 /**
  * Classify content for prompt injection using DeBERTa ONNX.
  * Chunks long content and rejects if ANY chunk exceeds the sensitivity threshold.
@@ -311,10 +342,11 @@ export default {
           return;
         }
 
+        const cleaned = extractContent(fetched.content);
         const truncated =
-          fetched.content.length > maxContentLength
-            ? fetched.content.slice(0, maxContentLength)
-            : fetched.content;
+          cleaned.length > maxContentLength
+            ? cleaned.slice(0, maxContentLength)
+            : cleaned;
 
         const verdict = await classifyContent(truncated, cfg);
 
