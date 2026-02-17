@@ -1,0 +1,23 @@
+{
+  "name": "openclaw-file-guard",
+  "version": "0.1.0",
+  "description": "OpenClaw plugin: path-based file access protection with multi-level policies (no_access, read_only, no_delete)",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "tsx --test test/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/picomatch": "^3",
+    "tsx": "^4.20.5"
+  },
+  "dependencies": {
+    "picomatch": "^4"
+  },
+  "openclaw": {
+    "extensions": ["./index.ts"]
+  }
+}

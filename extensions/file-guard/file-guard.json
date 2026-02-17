@@ -1,0 +1,30 @@
+{
+  "protection_levels": {
+    "no_access": {
+      "description": "Blocked from all access (read, write, edit, exec)",
+      "patterns": [
+        "**/.env", "**/.env.*",
+        "**/.ssh/*",
+        "**/.aws/credentials", "**/.aws/config",
+        "**/credentials.json", "**/credentials.yaml",
+        "**/*.pem", "**/*.key",
+        "**/.kube/config",
+        "**/secrets.yml", "**/secrets.yaml"
+      ]
+    },
+    "read_only": {
+      "description": "Read allowed, write/edit/patch blocked",
+      "patterns": [
+        "**/package-lock.json", "**/yarn.lock",
+        "**/pnpm-lock.yaml", "**/Cargo.lock",
+        "**/poetry.lock", "**/go.sum"
+      ]
+    },
+    "no_delete": {
+      "description": "Read/edit allowed, deletion (rm) blocked",
+      "patterns": [
+        "**/.git/*", "**/LICENSE", "**/README.md"
+      ]
+    }
+  }
+}

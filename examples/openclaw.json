@@ -364,6 +364,43 @@
           "maxContentLength": 50000
         }
       },
+      "file-guard": {
+        // Enforces path-based file protection. Blocks read/write/delete of sensitive files.
+        // Uses external config file for protection patterns.
+        "enabled": true,
+        "config": {
+          "failOpen": false,
+          "configPath": "./file-guard.json",
+          "logBlocks": true
+        }
+      },
+      "network-guard": {
+        // Application-level domain allowlisting for web_fetch and exec tool calls.
+        // Complements web-guard (content scanning) and network-egress scripts (firewall).
+        // NOTE: *.github.com matches subdomains but NOT github.com itself — add both.
+        "enabled": true,
+        "config": {
+          "allowedDomains": [
+            "github.com", "*.github.com",
+            "npmjs.org", "registry.npmjs.org",
+            "pypi.org", "*.pypi.org",
+            "api.anthropic.com"
+          ],
+          "blockDirectIp": true,
+          "failOpen": false,
+          "logBlocks": true
+        }
+      },
+      "command-guard": {
+        // Blocks dangerous shell commands (rm -rf, fork bombs, force push, etc.) via regex.
+        // Deterministic — no ML model. Patterns in blocked-commands.json.
+        "enabled": true,
+        "config": {
+          "guardedTools": ["exec", "bash"],
+          "failOpen": false,
+          "logBlocks": true
+        }
+      },
       "image-gen": {
         "enabled": true,
         "config": {

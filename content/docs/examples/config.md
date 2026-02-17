@@ -4,7 +4,7 @@ description: "Complete annotated OpenClaw config with main/search architecture, 
 weight: 121
 ---
 
-Complete annotated `openclaw.json` implementing the recommended two-agent architecture: main (sandboxed, channel-facing, full exec + browser on egress-allowlisted network) and search (web only, no filesystem). Both guard plugins enabled (channel-guard + web-guard). Uses JSON5 comments for inline documentation — OpenClaw supports JSON5 natively.
+Complete annotated `openclaw.json` implementing the recommended two-agent architecture: main (sandboxed, channel-facing, full exec + browser on egress-allowlisted network) and search (web only, no filesystem). All guard plugins enabled (channel-guard, web-guard, file-guard, network-guard, command-guard). Uses JSON5 comments for inline documentation — OpenClaw supports JSON5 natively.
 
 Main runs on `openclaw-egress` — a custom Docker network with host-level firewall rules restricting outbound to pre-approved hosts (npm, git, Playwright CDN, etc.). See [`scripts/network-egress/`](https://github.com/IT-HUSET/openclaw-guide/tree/main/scripts/network-egress/) for setup. For exec-separated architecture with a dedicated computer agent, see [Hardened Multi-Agent](../hardened-multi-agent.md). For a minimal starting point (single channel, two agents, no egress), see [Basic Configuration](basic-config.md).
 
@@ -375,6 +375,43 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
           "sensitivity": 0.5,
           "timeoutMs": 10000,
           "maxContentLength": 50000
+        }
+      },
+      "file-guard": {
+        // Enforces path-based file protection. Blocks read/write/delete of sensitive files.
+        // Uses external config file for protection patterns.
+        "enabled": true,
+        "config": {
+          "failOpen": false,
+          "configPath": "./file-guard.json",
+          "logBlocks": true
+        }
+      },
+      "network-guard": {
+        // Application-level domain allowlisting for web_fetch and exec tool calls.
+        // Complements web-guard (content scanning) and network-egress scripts (firewall).
+        // NOTE: *.github.com matches subdomains but NOT github.com itself — add both.
+        "enabled": true,
+        "config": {
+          "allowedDomains": [
+            "github.com", "*.github.com",
+            "npmjs.org", "registry.npmjs.org",
+            "pypi.org", "*.pypi.org",
+            "api.anthropic.com"
+          ],
+          "blockDirectIp": true,
+          "failOpen": false,
+          "logBlocks": true
+        }
+      },
+      "command-guard": {
+        // Blocks dangerous shell commands (rm -rf, fork bombs, force push, etc.) via regex.
+        // Deterministic — no ML model. Patterns in blocked-commands.json.
+        "enabled": true,
+        "config": {
+          "guardedTools": ["exec", "bash"],
+          "failOpen": false,
+          "logBlocks": true
         }
       },
       "image-gen": {

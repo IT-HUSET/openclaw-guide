@@ -1,7 +1,7 @@
 ---
 title: "computer-use"
 description: "OpenClaw plugin that enables VM-based macOS computer interaction via Lume and cua-computer-server."
-weight: 138
+weight: 137
 ---
 
 [View source on GitHub](https://github.com/IT-HUSET/openclaw-guide/tree/main/extensions/computer-use/)

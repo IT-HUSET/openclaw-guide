@@ -1,0 +1,33 @@
+{
+  "id": "command-guard",
+  "name": "Command Guard",
+  "description": "Blocks dangerous shell commands (rm -rf, fork bombs, pipe-to-shell, etc.) via regex pattern matching on exec/bash tool calls. Deterministic — no ML model, no external dependencies. Patterns loaded from bundled blocked-commands.json.",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "guardedTools": {
+        "type": "array",
+        "items": { "type": "string" },
+        "default": ["exec", "bash"],
+        "description": "Tool names to intercept. Default: exec and bash."
+      },
+      "failOpen": {
+        "type": "boolean",
+        "default": false,
+        "description": "If true, allow commands when config is unavailable. If false (default), block on config failure."
+      },
+      "logBlocks": {
+        "type": "boolean",
+        "default": true,
+        "description": "Log blocked commands to the gateway console."
+      }
+    }
+  },
+  "uiHints": {
+    "guardedTools": { "label": "Guarded Tools" },
+    "failOpen": { "label": "Fail Open" },
+    "logBlocks": { "label": "Log Blocks" }
+  }
+}

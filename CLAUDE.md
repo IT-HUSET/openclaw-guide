@@ -15,7 +15,7 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 - `go.mod` — Hugo module dependencies (Hextra theme)
 - `.github/workflows/hugo.yml` — GitHub Actions workflow for Hugo build + GitHub Pages deploy
 - `content/_index.md` — Landing page
-- `content/docs/_index.md`, `content/docs/phases/_index.md`, `content/docs/examples/_index.md`, `content/docs/extensions/_index.md` — Section index pages
+- `content/docs/_index.md`, `content/docs/phases/_index.md`, `content/docs/recipes/_index.md`, `content/docs/examples/_index.md`, `content/docs/extensions/_index.md` — Section index pages
 
 ### Guide (progressive, each phase builds on previous)
 - `README.md` — Project README with link to live site
@@ -32,6 +32,7 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 - `content/docs/hardened-multi-agent.md` — Hardened Multi-Agent: optional exec isolation via dedicated computer agent on top of 2-agent baseline
 - `content/docs/reference.md` — Config cheat sheet, tool groups, plugins, gotchas, useful commands
 - `content/docs/architecture.md` — System internals: core components, module dependencies, networking, diagrams
+- `content/docs/recipes/` — Optional use cases building on core phases (knowledge vault, automated research)
 
 ### Examples
 - `examples/openclaw.json` — Recommended config (main/search, all agents sandboxed, all hardening)
@@ -48,6 +49,9 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 ### Extensions
 - `extensions/web-guard/` — OpenClaw plugin (TypeScript): pre-fetch prompt injection scanning for `web_fetch` using local DeBERTa ONNX model
 - `extensions/channel-guard/` — OpenClaw plugin (TypeScript): prompt injection scanning for incoming channel messages (WhatsApp, Signal, Google Chat) using local DeBERTa ONNX model
+- `extensions/file-guard/` — OpenClaw plugin (TypeScript): path-based file access protection with three levels (no_access, read_only, no_delete) using deterministic picomatch patterns
+- `extensions/network-guard/` — OpenClaw plugin (TypeScript): application-level domain allowlisting for web_fetch and exec tool calls (deterministic regex + glob, no ML model)
+- `extensions/command-guard/` — OpenClaw plugin (TypeScript): regex-based dangerous command blocking for exec/bash tool calls (no ML model)
 - `extensions/image-gen/` — OpenClaw plugin (TypeScript): image generation via OpenRouter API (FLUX, Gemini, GPT models)
 - `extensions/computer-use/` — OpenClaw plugin (TypeScript): VM-based macOS computer interaction via Lume and cua-computer-server WebSocket protocol
 
@@ -70,6 +74,13 @@ cd extensions/channel-guard && npm install && npm test
 cd extensions/web-guard && npm install && npm test
 ```
 Guard plugin tests use real DeBERTa ONNX model (~370 MB, cached in each plugin's `node_modules/`). First run downloads the model.
+
+```bash
+cd extensions/file-guard && npm install && npm test
+cd extensions/network-guard && npm install && npm test
+cd extensions/command-guard && npm install && npm test
+```
+File-guard, network-guard, and command-guard tests are fast (<1s) — no ML model, pure deterministic matching.
 
 ```bash
 cd extensions/image-gen && npm install && npm test

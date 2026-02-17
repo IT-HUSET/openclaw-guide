@@ -1,0 +1,54 @@
+{
+  "id": "network-guard",
+  "name": "Network Access Guard",
+  "description": "Application-level domain allowlisting for web_fetch and exec tool calls. Validates URLs against configurable glob-pattern allowlist, blocks data exfiltration patterns, and prevents direct IP access. No external dependencies — deterministic regex + glob matching.",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "allowedDomains": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Glob patterns for allowed domains (case-insensitive). If omitted, hardcoded defaults apply. If empty array, all domains blocked."
+      },
+      "blockedPatterns": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Regex patterns for blocked shell commands (exfiltration detection). Custom patterns should be tested for ReDoS — keep patterns simple."
+      },
+      "blockDirectIp": {
+        "type": "boolean",
+        "default": true,
+        "description": "Block direct IP access in URLs (IPv4 dotted notation only)."
+      },
+      "failOpen": {
+        "type": "boolean",
+        "default": false,
+        "description": "If true, allow all on unexpected errors. If false (default), block on error."
+      },
+      "logBlocks": {
+        "type": "boolean",
+        "default": true,
+        "description": "Log blocked requests to console."
+      },
+      "agentOverrides": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "default": {},
+        "description": "Agent ID to additional allowed domains (additive — extends base allowlist, never replaces)."
+      }
+    }
+  },
+  "uiHints": {
+    "allowedDomains": { "label": "Allowed Domains" },
+    "blockedPatterns": { "label": "Blocked Patterns" },
+    "blockDirectIp": { "label": "Block Direct IP" },
+    "failOpen": { "label": "Fail Open" },
+    "logBlocks": { "label": "Log Blocks" },
+    "agentOverrides": { "label": "Agent Overrides" }
+  }
+}

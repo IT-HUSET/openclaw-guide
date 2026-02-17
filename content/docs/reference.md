@@ -451,10 +451,13 @@ Features below require the listed version or later. Check yours with `openclaw -
 | `googlechat` | Google Chat channel (bundled) | `GOOGLE_CHAT_SERVICE_ACCOUNT_FILE` |
 | `web-guard` | Pre-fetch prompt injection scanning for `web_fetch` | — (local ONNX model) |
 | `channel-guard` | Inbound message injection scanning for WhatsApp/Signal/Google Chat | — (local ONNX model) |
+| `file-guard` | Path-based file access protection (no_access, read_only, no_delete) | — (deterministic) |
+| `network-guard` | Application-level domain allowlisting for network tool calls | — (deterministic, no model) |
+| `command-guard` | Regex-based dangerous command blocking | — (no external deps) |
 | `image-gen` | Generate images from text prompts via OpenRouter | `OPENROUTER_API_KEY` |
 | `computer-use` | VM computer interaction (Lume) | — (WebSocket to cua-computer-server) |
 
-The `web-guard` plugin intercepts `web_fetch` calls, pre-fetches the URL, and scans content for prompt injection before the agent sees it. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing. Both use the same local DeBERTa ONNX model, are fail-closed by default (`failOpen: false`), and share the model cache. See [web-search-isolation.md](phases/phase-5-web-search.md#advanced-prompt-injection-guard) for full setup and limitations.
+The `web-guard` plugin intercepts `web_fetch` calls, pre-fetches the URL, and scans content for prompt injection before the agent sees it. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing. Both use the same local DeBERTa ONNX model, are fail-closed by default (`failOpen: false`), and share the model cache. The `file-guard` plugin enforces path-based file protection with three levels (no_access, read_only, no_delete) using deterministic pattern matching. The `network-guard` plugin enforces application-level domain allowlisting for `web_fetch` and `exec` tool calls using deterministic regex + glob matching. The `command-guard` plugin blocks dangerous shell commands (rm -rf, fork bombs, force push, etc.) via regex pattern matching. All three deterministic guards require no ML model or external dependencies. See [web-search-isolation.md](phases/phase-5-web-search.md#advanced-prompt-injection-guard) for full setup and limitations.
 
 ### Plugin Hooks
 

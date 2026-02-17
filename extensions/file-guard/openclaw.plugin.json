@@ -1,0 +1,47 @@
+{
+  "id": "file-guard",
+  "name": "File Access Guard",
+  "description": "Enforces path-based file protection with three levels (no_access, read_only, no_delete). Intercepts file tools and bash/exec commands. Deterministic pattern matching via picomatch — no ML model, <10ms latency.",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "configPath": {
+        "type": "string",
+        "default": "./file-guard.json",
+        "description": "Path to protection patterns JSON. Relative to plugin directory or absolute."
+      },
+      "failOpen": {
+        "type": "boolean",
+        "default": false,
+        "description": "If true, allow access when config is malformed. If false (default), block on config error."
+      },
+      "logBlocks": {
+        "type": "boolean",
+        "default": true,
+        "description": "Log blocked access attempts to the gateway console."
+      },
+      "agentOverrides": {
+        "type": "object",
+        "default": {},
+        "description": "Per-agent config overrides. Key = agent ID, value = { configPath }. Patterns are merged additively with the base config.",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "configPath": {
+              "type": "string",
+              "description": "Path to agent-specific protection patterns JSON."
+            }
+          }
+        }
+      }
+    }
+  },
+  "uiHints": {
+    "configPath": { "label": "Config File Path" },
+    "failOpen": { "label": "Fail Open" },
+    "logBlocks": { "label": "Log Blocks" },
+    "agentOverrides": { "label": "Agent Overrides" }
+  }
+}
