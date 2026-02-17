@@ -214,13 +214,14 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
       }
 
       // --- OPTIONAL: Local admin agent (host management) ---
-      // Unsandboxed agent for cron jobs, service management, and host-level tasks.
+      // Unsandboxed agent for cron jobs, service management, workspace file updates,
+      // and host-level tasks. Shares main's workspace for consistent personality/context.
       // Only reachable via Control UI — no channel binding, no agent delegation path.
-      // Uncomment to enable. Create workspace + agentDir before starting.
+      // Uncomment to enable. Create agentDir before starting.
       //
       // ,{
       //   "id": "local-admin",
-      //   "workspace": "/Users/openclaw/.openclaw/workspaces/local-admin",
+      //   "workspace": "/Users/openclaw/.openclaw/workspaces/main",
       //   "agentDir": "/Users/openclaw/.openclaw/agents/local-admin/agent",
       //   "tools": {
       //     "allow": ["group:fs", "group:runtime", "group:automation", "memory_search", "memory_get"],

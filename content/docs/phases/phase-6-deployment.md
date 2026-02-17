@@ -635,7 +635,7 @@ Agent definition (also in the [recommended config](../examples/config.md), comme
 ```json5
 {
   "id": "local-admin",
-  "workspace": "/Users/openclaw/.openclaw/workspaces/local-admin",
+  "workspace": "/Users/openclaw/.openclaw/workspaces/main",
   "agentDir": "/Users/openclaw/.openclaw/agents/local-admin/agent",
   "tools": {
     "allow": ["group:fs", "group:runtime", "group:automation", "memory_search", "memory_get"],
@@ -646,6 +646,20 @@ Agent definition (also in the [recommended config](../examples/config.md), comme
   // No sandbox block — runs directly on host as openclaw user
 }
 ```
+
+By pointing `workspace` at main's workspace, local-admin shares the same working directory — and importantly the same SOUL.md, CLAUDE.md, and project files. This means it behaves with the same personality and context as main, which is typically what you want when using it via the Control UI for workspace management tasks.
+
+{{< callout type="info" >}}
+The `agentDir` remains separate — local-admin gets its own conversation history and memory while sharing workspace files with main.
+{{< /callout >}}
+
+If you prefer full isolation (e.g., local-admin is purely for host automation with no need to touch workspace files), use a dedicated workspace instead:
+
+```json5
+"workspace": "/Users/openclaw/.openclaw/workspaces/local-admin"
+```
+
+With a separate workspace, give local-admin its own SOUL.md scoped to admin tasks. If it needs to modify main's files occasionally, it can still reach them via absolute paths (`/Users/openclaw/.openclaw/workspaces/main/...`) since it runs unsandboxed.
 
 **Security properties:**
 - **No channel binding** — unreachable from WhatsApp, Signal, and Google Chat
@@ -658,14 +672,16 @@ Agent definition (also in the [recommended config](../examples/config.md), comme
 Since this agent runs unsandboxed with exec and cron access, ensure the gateway port is firewalled to localhost. See [macOS Firewall](#macos-firewall).
 {{< /callout >}}
 
-**SOUL.md:** Give `local-admin` a focused system prompt scoped to admin tasks (cron management, service restarts, log rotation). Explicitly instruct it not to interact with channels or other agents.
+Create the agent directory before starting the gateway:
 
-Create the workspace and agent directory before starting the gateway:
+```bash
+mkdir -p /Users/openclaw/.openclaw/agents/local-admin/agent
+```
+
+If using a separate workspace, also create it and add a dedicated SOUL.md:
 
 ```bash
 mkdir -p /Users/openclaw/.openclaw/workspaces/local-admin
-mkdir -p /Users/openclaw/.openclaw/agents/local-admin/agent
-# Add SOUL.md with admin-focused system prompt
 nano /Users/openclaw/.openclaw/agents/local-admin/agent/SOUL.md
 ```
 

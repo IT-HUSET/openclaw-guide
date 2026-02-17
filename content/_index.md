@@ -9,6 +9,7 @@ layout: hextra-home
   imageHeight=420
   imageClass="hx:rounded-xl"
   imageTitle="OpenClaw Guide"
+  class="hx:items-center"
 >}}
 
 {{< hextra/hero-badge link="https://github.com/IT-HUSET/openclaw-guide" >}}
@@ -26,7 +27,10 @@ layout: hextra-home
 {{< hextra/hero-button text="Get Started!" link="docs/phases/phase-1-getting-started" >}}
 
 {{< callout type="warning" >}}
-**But remember:** _Only use OpenClaw in a dedicated, isolated environment and take necessary security precautions. This is a powerful tool that can cause real damage if misused or left unsecured._
+**REMEMBER:** _Only use OpenClaw in a dedicated, isolated environment and take necessary security precautions. This is a powerful tool that can cause real damage if misused or left unsecured._
+{{< /callout >}}
+{{< callout type="info" >}}
+**NOTE:** This guide is a work in progress, with the goal of keeping it up-to-date with the latest OpenClaw releases and roadmap. It will evolve as OpenClaw develops, but the core principles of security-first, progressive learning, and practical application will remain constant.
 {{< /callout >}}
 
 <div style="margin-top:1rem"></div>
