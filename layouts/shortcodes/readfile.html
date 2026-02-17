@@ -1,0 +1,7 @@
+{{- $file := .Get 0 -}}
+{{- $lang := .Get 1 | default "" -}}
+{{- with os.ReadFile $file -}}
+{{ printf "```%s\n%s\n```" $lang . | $.Page.RenderString }}
+{{- else -}}
+{{- errorf "readfile shortcode: cannot read %q" $file -}}
+{{- end -}}

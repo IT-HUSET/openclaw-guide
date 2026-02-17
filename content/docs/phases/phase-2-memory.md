@@ -144,10 +144,12 @@ By default, the agent can only see today's and yesterday's memory files. **Memor
 
 | Provider | Requires | Latency | Privacy |
 |----------|----------|---------|---------|
-| `local` (GGUF) | ~500MB disk, first-run download | ~50ms | Full — nothing leaves your machine |
+| `local` (GGUF) | ~600MB disk, first-run download | ~50ms | Full — nothing leaves your machine |
 | `openai` | `OPENAI_API_KEY` | ~200ms | Embeddings sent to OpenAI |
 | `gemini` | `GEMINI_API_KEY` | ~200ms | Embeddings sent to Google |
 | `voyage` | `VOYAGE_API_KEY` | ~200ms | Embeddings sent to Voyage AI |
+
+**Provider auto-selection:** OpenClaw does **not** default to `local`. If `provider` is omitted, it auto-selects: `local` (if `modelPath` configured) → `openai` → `gemini` → `voyage` → disabled. Set `provider: "local"` explicitly to avoid surprises — without it, OpenClaw may silently use a remote provider if an API key is found in the environment.
 
 **Recommendation:** Start with `local` for privacy and zero ongoing cost. Switch to a remote provider only if you need higher-quality embeddings for large memory corpora.
 
@@ -170,7 +172,7 @@ Add to `openclaw.json`:
 }
 ```
 
-For local, OpenClaw downloads a GGUF embedding model (~500MB) on first use. Approve the native build and rebuild (run from OpenClaw's install directory — typically `/opt/homebrew/lib/node_modules/openclaw` on macOS or `/usr/local/lib/node_modules/openclaw` on Linux):
+For local, OpenClaw downloads a GGUF embedding model (~600MB) on first use. Approve the native build and rebuild (run from OpenClaw's install directory — typically `/opt/homebrew/lib/node_modules/openclaw` on macOS or `/usr/local/lib/node_modules/openclaw` on Linux):
 
 ```bash
 npx pnpm approve-builds          # Approve node-llama-cpp native build
@@ -209,6 +211,59 @@ Hybrid search combines **vector similarity** (semantic meaning) with **BM25** (e
 
 > **Tip:** The default 70/30 vector/keyword split works well for most use cases. Increase `textWeight` if your memory contains many specific names, codes, or identifiers that benefit from exact matching. Test with `openclaw memory search "your query"` using queries with both semantic and keyword components to verify result quality — adjust weights and re-index if needed.
 
+### Search Quality Tuning
+
+Beyond the basic vector/keyword weights, OpenClaw offers several knobs for improving search result quality.
+
+#### MMR Re-ranking
+
+**Maximal Marginal Relevance** deduplicates results that are semantically similar. Without it, a search across months of daily notes can return 5 nearly identical entries about the same recurring topic. MMR diversifies the result set while keeping results relevant.
+
+```json5
+query: {
+  hybrid: {
+    enabled: true,
+    vectorWeight: 0.7,
+    textWeight: 0.3,
+    mmr: {
+      enabled: true,
+      lambda: 0.7   // 0 = max diversity, 1 = max relevance (pure similarity)
+    }
+  }
+}
+```
+
+`lambda` controls the relevance/diversity trade-off. The default `0.7` is a good starting point — lower it if you're seeing too many similar results (e.g., knowledge vault with many similarly-structured entries).
+
+#### Temporal Decay
+
+Boosts recent results over older ones. Useful for rapidly-changing topics where yesterday's context is more relevant than last month's.
+
+```json5
+memorySearch: {
+  // ...provider, query, cache...
+  temporalDecay: {
+    enabled: true,
+    halfLifeDays: 30   // Result score halves every 30 days
+  }
+}
+```
+
+Evergreen files (`MEMORY.md`) are not subject to decay — only dated memory files and `extraPaths` content are affected. A `halfLifeDays` of 30 means a 60-day-old result scores ~25% of an identical match from today.
+
+#### Candidate Multiplier
+
+Controls the size of the candidate pool before final ranking. The default (`4`) means OpenClaw fetches 4× the requested result count as candidates, then re-ranks and trims. Increase if MMR is discarding too aggressively:
+
+```json5
+query: {
+  hybrid: {
+    // ...weights...
+    candidateMultiplier: 6   // Default: 4
+  }
+}
+```
+
 ### Remote Provider Example
 
 ```json5
@@ -230,6 +285,47 @@ Hybrid search combines **vector similarity** (semantic meaning) with **BM25** (e
 ```
 
 > **Note:** Remote providers require a separate API key from your AI provider key. The embedding API key is used only for vectorizing memory — it's not the same as your `ANTHROPIC_API_KEY`.
+
+### Provider Behavior
+
+#### Fallback Provider
+
+By default, if the configured provider fails (e.g., local model crashes), OpenClaw falls back to the next available remote provider. For privacy-sensitive deployments, disable this:
+
+```json5
+memorySearch: {
+  provider: "local",
+  fallback: "none"   // Don't fall back to remote on failure
+}
+```
+
+Without `fallback: "none"`, a local provider failure could silently send memory content to a remote embedding API.
+
+#### Local Model Customization
+
+The default local model is EmbeddingGemma 300M (~600MB GGUF). You can override with a custom model:
+
+```json5
+memorySearch: {
+  provider: "local",
+  local: {
+    modelPath: "hf:user/my-embedding-model",   // Hugging Face URI or absolute path to .gguf
+    modelCacheDir: "/path/to/model/cache"       // Default: ~/.openclaw/models/
+  }
+}
+```
+
+#### Citations
+
+Control whether search results include source file citations in the agent's context. Note: this is a top-level `memory` option, not nested under `memorySearch`:
+
+```json5
+memory: {
+  citations: "auto"   // "auto" (default) | "on" | "off"
+}
+```
+
+`auto` enables citations when the result set includes `extraPaths` or QMD content — helps the agent distinguish between memory sources.
 
 ---
 
@@ -327,6 +423,8 @@ To index shared files across agents without merging workspaces, use `memorySearc
 ```
 
 Paths can be absolute or workspace-relative. Directories are scanned recursively for `.md` files. Only Markdown is indexed; symlinks are ignored.
+
+> **Scope note:** `extraPaths` content is searchable via `memory_search` but **not** directly fetchable via `memory_get`. The `memory_get` tool only reads files in the agent's `memory/` directory and `MEMORY.md`. To let the agent read `extraPaths` files directly, it needs filesystem tools (`read`) with appropriate access.
 
 ### Indexing Considerations
 
@@ -548,8 +646,8 @@ QMD is a local-first search sidecar that combines BM25 + vectors + reranking. Ma
 QMD requires a separate install:
 
 ```bash
-bun install -g https://github.com/tobi/qmd   # Or grab a release binary
-brew install sqlite                            # macOS — needs extension support
+bun install -g @tobilu/qmd  
+brew install sqlite                # macOS — needs extension support
 ```
 
 The `qmd` binary must be on the gateway's `PATH`. QMD runs fully locally via Bun + `node-llama-cpp` and auto-downloads GGUF models on first use.
@@ -565,6 +663,75 @@ The `qmd` binary must be on the gateway's `PATH`. QMD runs fully locally via Bun
 > **Limitations:** QMD is experimental — may not survive OpenClaw updates, has no official documentation, and behavior may change without notice. Test thoroughly before relying on it in production.
 
 For most users, the default built-in backend is sufficient.
+
+### QMD Configuration Reference
+
+Full config with all documented options:
+
+```json5
+{
+  memory: {
+    backend: "qmd",
+    qmd: {
+      // command: "/path/to/qmd",          // Override if not on gateway's PATH
+      includeDefaultMemory: true,
+      searchMode: "query",               // "search" (BM25) | "vsearch" (vector) | "query" (hybrid, default)
+
+      // Extra paths — QMD equivalent of memorySearch.extraPaths
+      paths: [
+        { name: "knowledge", pattern: "/path/to/knowledge/**/*.md" },
+        { name: "docs",      pattern: "/path/to/docs/**/*.md" }
+      ],
+
+      // Session transcript indexing
+      sessions: {
+        enabled: false,                  // Index .jsonl session transcripts
+        retentionDays: 90,               // Auto-prune indexed transcripts older than this
+        exportDir: ""                     // Custom export directory (default: agent's sessions dir)
+      },
+
+      // Index refresh cadence
+      update: {
+        interval: "5m",
+        debounceMs: 2000,                // Debounce rapid file changes before re-indexing
+        onBoot: true,                    // Rebuild index on gateway start
+        waitForBootSync: false           // Block agent startup until boot index completes
+      },
+
+      // Result limits
+      limits: {
+        maxResults: 6,
+        timeoutMs: 4000,
+        maxSnippetChars: 500,            // Max chars per result snippet
+        maxInjectedChars: 4000           // Max total chars injected into agent context
+      }
+    }
+  }
+}
+```
+
+**Operational notes:**
+- QMD state lives under `~/.openclaw/agents/<agentId>/qmd/`
+- Extra path results use the prefix format `qmd/<collection>/<relative-path>` in `memory_search` results
+- `memory_get` understands the `qmd/` prefix — the agent can fetch extra path content directly when using QMD (unlike `extraPaths` with the built-in backend)
+- `paths[].name` provides a stable collection name — changing the pattern without changing the name preserves the index
+
+### Advanced Options Reference
+
+Niche `memorySearch` options (built-in backend, not QMD) not covered in detail above. See [official docs](https://docs.openclaw.ai/concepts/memory) for full descriptions.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `sync.watch` | bool | `true` | File watcher for auto-reindex on changes |
+| `store.vector.enabled` | bool | `true` | SQLite-vec acceleration for local vector search |
+| `store.vector.extensionPath` | string | — | Custom sqlite-vec extension path |
+| `store.path` | string | — | Custom per-agent index path (`{agentId}` token supported) |
+| `remote.batch.enabled` | bool | `false` | Batch embedding requests for remote providers |
+| `remote.batch.concurrency` | number | `2` | Parallel batch requests to remote provider |
+| `remote.headers` | object | — | Custom HTTP headers for remote embedding endpoint |
+| `query.hybrid.candidateMultiplier` | number | `4` | Candidate pool size multiplier before final ranking |
+| `compaction.mode` | string | `"default"` | `"default"` or `"safeguard"` (chunked summarization) |
+| `plugins.slots.memory` | string | `"memory-core"` | Memory plugin slot (`"none"` to disable memory entirely) |
 
 ---
 

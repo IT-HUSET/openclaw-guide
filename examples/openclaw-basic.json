@@ -116,7 +116,7 @@
       },
 
       // Memory search — semantic + keyword hybrid search across memory files.
-      // Local provider: no API key, ~500MB disk, full privacy (nothing leaves your machine).
+      // Local provider: no API key, ~600MB disk, full privacy (nothing leaves your machine).
       // Remote alternatives: "openai", "gemini", "voyage" (require separate API keys).
       // See Phase 2 — Memory for full provider comparison.
       "memorySearch": {

@@ -157,12 +157,6 @@ The child instance launches a headless Chrome via the `chrome-devtools` MCP serv
 - If the child only needs to inspect (no edits), restrict tools: `--allowedTools "mcp__chrome-devtools__*"`
 - Falls back to `hugo` build check + manual user review if `claude` CLI is not available
 
-### Dual source-of-truth check
-When config example files are modified, verify the embedded code blocks match. Run:
-```bash
-diff <(sed -n '/^```json5$/,/^```$/p' content/docs/examples/config.md | sed '1d;$d') examples/openclaw.json
-diff <(sed -n '/^```json5$/,/^```$/p' content/docs/examples/pragmatic-config.md | sed '1d;$d') examples/openclaw-pragmatic.json
-```
 
 ## Guide Maintenance
 

@@ -125,17 +125,20 @@
       },
 
       // Memory search — semantic + keyword hybrid search across memory files.
-      // Local provider: no API key, ~500MB disk, full privacy.
+      // Local provider: no API key, ~600MB disk, full privacy.
       "memorySearch": {
         "enabled": true,
         "provider": "local",
+        // "fallback": "none",          // Don't fall back to remote on local failure
         "query": {
           "hybrid": {
             "enabled": true,
             "vectorWeight": 0.7,
             "textWeight": 0.3
+            // "mmr": { "enabled": true, "lambda": 0.7 }  // Deduplicate similar results
           }
         },
+        // "temporalDecay": { "enabled": true, "halfLifeDays": 30 },  // Boost recent results
         "cache": {
           "enabled": true,
           "maxEntries": 50000

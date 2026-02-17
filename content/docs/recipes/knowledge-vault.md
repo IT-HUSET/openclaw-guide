@@ -81,6 +81,8 @@ extraPaths: [
 
 Paths are absolute. Adjust to match your main agent's workspace path. If you're using the [recommended config]({{< relref "../examples/config" >}}), the `memorySearch` block already exists — just add the `extraPaths` array.
 
+> **Tip:** If your vault grows beyond ~50 entries, enable MMR re-ranking (`query.hybrid.mmr.enabled: true`) to deduplicate similar results. Many vault files follow the same structure, which can cause near-duplicate matches. See [Phase 2 — Search Quality Tuning]({{< relref "../phases/phase-2-memory" >}}#search-quality-tuning).
+
 ## Step 3: Add AGENTS.md instructions
 
 Paste the following into your main agent's `AGENTS.md` (`~/.openclaw/workspaces/main/AGENTS.md`). This teaches the agent the vault workflow — directory conventions, writing format, staleness tracking, and research queue processing.

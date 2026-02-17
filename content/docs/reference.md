@@ -76,7 +76,14 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
       sandbox: { mode: "off|non-main|all" },
       memorySearch: {
         enabled: true, provider: "local",
-        query: { hybrid: { enabled: true, vectorWeight: 0.7, textWeight: 0.3 } },
+        // fallback: "none",              // Don't fall back to remote on local failure
+        query: {
+          hybrid: {
+            enabled: true, vectorWeight: 0.7, textWeight: 0.3,
+            // mmr: { enabled: true, lambda: 0.7 }  // Deduplicate similar results
+          },
+        },
+        // temporalDecay: { enabled: true, halfLifeDays: 30 },
         cache: { enabled: true, maxEntries: 50000 }
       },
       compaction: { memoryFlush: { enabled: true, softThresholdTokens: 4000 } },
