@@ -733,7 +733,7 @@ Do not attempt to run git commands directly — they will fail.
 
 ### Security notes
 
-- **Token:** The `GITHUB_TOKEN` env var is available to the main agent's exec environment (set in the LaunchDaemon/systemd unit). Channel agents can't access it (no exec).
+- **Token:** The `GITHUB_TOKEN` env var is available to the main agent's exec environment (set in the LaunchAgent/systemd unit). Channel agents can't access it (no exec).
 - **Scope:** Use a fine-grained PAT scoped to only your workspace repos with **Contents: Read and write** permission. See [Deployment: GitHub token setup](phase-6-deployment.md#github-token-setup) for step-by-step instructions.
 - **Audit:** Commit history provides an audit trail of workspace changes, including self-modifications to SOUL.md/AGENTS.md.
 - **Private repos only:** Workspaces contain agent personality, user context, and memory — always use private repositories.
@@ -778,5 +778,5 @@ Three approaches: **profiles** (simplest — `--profile` flag, same user), **mul
 
 Or:
 - [Hardened Multi-Agent](../hardened-multi-agent.md) — optional: add a dedicated computer agent for exec isolation
-- [Phase 6: Deployment](phase-6-deployment.md) — VM isolation (macOS VMs, Linux VMs), LaunchDaemon/LaunchAgent/systemd, firewall, Tailscale
+- [Phase 6: Deployment](phase-6-deployment.md) — VM isolation (macOS VMs, Linux VMs), LaunchAgent/systemd (LaunchDaemon for hardened), firewall, Tailscale
 - [Reference](../reference.md) — full tool list, config keys, gotchas

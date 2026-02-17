@@ -241,7 +241,7 @@ For production, use `serviceAccountFile` or the env var — keeps secrets out of
 1. Start/restart the gateway:
    ```bash
    openclaw start                    # Foreground (development)
-   # or restart the LaunchDaemon/systemd service (production)
+   # or restart the LaunchAgent/systemd service (production)
    ```
 
 2. Check channel status:
@@ -348,7 +348,7 @@ sudo chmod 600 ~/.openclaw/credentials/googlechat/service-account.json
 
 For production, prefer the env var approach:
 ```bash
-# In LaunchDaemon plist or systemd env file:
+# In LaunchAgent plist or systemd env file:
 GOOGLE_CHAT_SERVICE_ACCOUNT_FILE=/Users/openclaw/.openclaw/credentials/googlechat/service-account.json
 ```
 
@@ -387,7 +387,7 @@ Google Cloud Logs shows `status code: 405`:
 3. **Gateway not restarted** after adding config:
    ```bash
    openclaw gateway restart          # Development
-   # or restart LaunchDaemon/systemd  # Production
+   # or restart LaunchAgent/systemd  # Production
    ```
 
 ### No messages arriving

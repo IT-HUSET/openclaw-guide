@@ -1,20 +1,20 @@
 #!/bin/bash
 set -euo pipefail
 
-# === Deploy Secrets: Inject into Plist(s) + Start Daemon(s) + Verify ===
+# === Deploy Secrets: Inject into Plist(s) + Start Service(s) + Verify ===
 # Run with sudo: sudo bash 03-deploy-secrets.sh
 #
 # What this script does:
 #   1. Prompts for shared secrets (with generation/validation)
 #   2. Generates unique OPENCLAW_GATEWAY_TOKEN per instance
-#   3. Injects into LaunchDaemon plist(s) via PlistBuddy (stdin mode)
+#   3. Injects into LaunchAgent plist(s) via PlistBuddy (stdin mode)
 #   4. Locks down plist permissions
 #   5. Tightens file permissions
 #   6. Initializes workspace git repos (.gitignore, user config, initial commit)
-#   7. Starts daemon(s)
+#   7. Starts service(s)
 #   8. Verifies health for each instance
 #
-# Re-runnable: stops existing daemons, updates secrets, restarts.
+# Re-runnable: stops existing services, updates secrets, restarts.
 # Useful for key rotation.
 #
 # Reads scripts/docker-isolation/.instances (from 01-setup-host.sh).
@@ -22,7 +22,7 @@ set -euo pipefail
 #
 # Environment variable overrides (fallback when .instances is absent):
 #   OPENCLAW_USER  — dedicated user name (default: openclaw)
-#   PLIST_PATH     — plist location (default: /Library/LaunchDaemons/ai.openclaw.gateway.plist)
+#   PLIST_PATH     — plist location (default: /Users/$OPENCLAW_USER/Library/LaunchAgents/ai.openclaw.gateway.plist)
 
 # Color output (disabled when not writing to a terminal)
 if [ -t 1 ]; then
@@ -81,12 +81,13 @@ MULTI_INSTANCE=$(( ${#INST_NAMES[@]} > 1 ? 1 : 0 ))
 PLIST_PATHS=()
 PLIST_LABELS=()
 for idx in "${!INST_NAMES[@]}"; do
+    local_home="/Users/${INST_USERS[$idx]}"
     if [[ "$MULTI_INSTANCE" -eq 1 ]]; then
         PLIST_LABELS+=("ai.openclaw.gateway.${INST_NAMES[$idx]}")
-        PLIST_PATHS+=("/Library/LaunchDaemons/ai.openclaw.gateway.${INST_NAMES[$idx]}.plist")
+        PLIST_PATHS+=("$local_home/Library/LaunchAgents/ai.openclaw.gateway.${INST_NAMES[$idx]}.plist")
     else
         PLIST_LABELS+=("ai.openclaw.gateway")
-        PLIST_PATHS+=("${PLIST_PATH:-/Library/LaunchDaemons/ai.openclaw.gateway.plist}")
+        PLIST_PATHS+=("${PLIST_PATH:-$local_home/Library/LaunchAgents/ai.openclaw.gateway.plist}")
     fi
 done
 
@@ -318,18 +319,17 @@ unset GITHUB_TOKEN
 echo -e "${GREEN}Done${NC}"
 echo ""
 
-# ── Step 7: Start daemon(s) ──────────────────────────────────────
+# ── Step 7: Start service(s) ──────────────────────────────────────
 # (GATEWAY_TOKENS still needed for health check in step 8)
 
-echo -e "${BOLD}--- Step 7: Starting daemon(s) ---${NC}"
+echo -e "${BOLD}--- Step 7: Starting service(s) ---${NC}"
 
 for idx in "${!INST_NAMES[@]}"; do
     local_label="${PLIST_LABELS[$idx]}"
-    local_plist="${PLIST_PATHS[$idx]}"
-    local_name="${INST_NAMES[$idx]}"
+    local_user="${INST_USERS[$idx]}"
 
     # Stop existing if running
-    launchctl bootout "system/${local_label}" 2>/dev/null || true
+    launchctl bootout "gui/$(id -u "$local_user")/${local_label}" 2>/dev/null || true
 done
 
 sleep 2
@@ -337,9 +337,10 @@ sleep 2
 for idx in "${!INST_NAMES[@]}"; do
     local_label="${PLIST_LABELS[$idx]}"
     local_plist="${PLIST_PATHS[$idx]}"
+    local_user="${INST_USERS[$idx]}"
     local_name="${INST_NAMES[$idx]}"
 
-    launchctl bootstrap system "$local_plist"
+    launchctl bootstrap "gui/$(id -u "$local_user")" "$local_plist"
     echo "  $local_name: started"
 done
 
@@ -362,12 +363,14 @@ for idx in "${!INST_NAMES[@]}"; do
 
     echo -e "${BOLD}  $local_name (port $local_port):${NC}"
 
-    # Daemon status
-    if launchctl print "system/${local_label}" 2>&1 | grep -q "state = running"; then
-        echo -e "    Daemon:  ${GREEN}running${NC}"
+    # Service status
+    local local_uid
+    local_uid=$(id -u "$local_user")
+    if launchctl print "gui/${local_uid}/${local_label}" 2>&1 | grep -q "state = running"; then
+        echo -e "    Service: ${GREEN}running${NC}"
     else
-        echo -e "    Daemon:  ${YELLOW}not running yet (may need more time)${NC}"
-        echo "    Check: sudo launchctl print system/${local_label}"
+        echo -e "    Service: ${YELLOW}not running yet (may need more time)${NC}"
+        echo "    Check: sudo launchctl print gui/${local_uid}/${local_label}"
     fi
 
     # Port check
@@ -397,7 +400,7 @@ unset GATEWAY_TOKENS
 
 # ── Summary ──────────────────────────────────────────────────────
 
-echo -e "${BOLD}=== Secrets deployed, daemon(s) running ===${NC}"
+echo -e "${BOLD}=== Secrets deployed, service(s) running ===${NC}"
 echo ""
 
 # Channel pairing instructions per instance
@@ -434,12 +437,15 @@ for idx in "${!INST_NAMES[@]}"; do
     echo "  sudo -u $local_user vi $local_home/.openclaw/workspaces/main/SOUL.md"
     echo ""
 
+    local local_uid
+    local_uid=$(id -u "$local_user")
+
     echo -e "${BOLD}Service management:${NC}"
     echo "  # Status"
-    echo "  sudo launchctl print system/${local_label} 2>&1 | head -10"
+    echo "  sudo launchctl print gui/${local_uid}/${local_label} 2>&1 | head -10"
     echo "  # Restart"
-    echo "  sudo launchctl bootout system/${local_label}"
-    echo "  sudo launchctl bootstrap system $local_plist"
+    echo "  sudo launchctl bootout gui/${local_uid}/${local_label}"
+    echo "  sudo launchctl bootstrap gui/${local_uid} $local_plist"
     echo "  # Logs"
     echo "  sudo tail -f $local_home/.openclaw/logs/gateway.log"
     echo ""

@@ -603,7 +603,7 @@ Set a fine-grained PAT with minimal scope:
 Make the token available to the gateway:
 
 ```bash
-# In your LaunchDaemon plist / systemd env file / shell profile:
+# In your LaunchAgent plist / systemd env file / shell profile:
 export GITHUB_TOKEN=github_pat_...
 ```
 

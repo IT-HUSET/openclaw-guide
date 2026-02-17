@@ -29,7 +29,7 @@ An OpenClaw deployment consists of these components:
 | **Extensions** | `~/.openclaw/extensions/` | Yes | Plugin source + node_modules |
 | **Memory search index** | Internal (architecture-dependent) | No | Rebuild on target: `openclaw memory index` |
 | **Secrets** | Plist env vars / `secrets.env` | Manual | Re-enter on target (never copy plists with secrets over network) |
-| **Service files** | LaunchDaemon/systemd | Recreate | Paths and users differ per host |
+| **Service files** | LaunchAgent/systemd (or LaunchDaemon for hardened) | Recreate | Paths and users differ per host |
 | **Cron jobs / scheduled tasks** | `/etc/newsyslog.d/`, `/etc/logrotate.d/`, crontab | Recreate | Log rotation, session pruning, temp cleanup |
 
 ---
@@ -39,11 +39,11 @@ An OpenClaw deployment consists of these components:
 ### Stop the gateway
 
 ```bash
-# macOS (LaunchDaemon)
-sudo launchctl bootout system/ai.openclaw.gateway
-
-# macOS (LaunchAgent)
+# macOS (LaunchAgent — default)
 sudo launchctl bootout gui/$(id -u openclaw)/ai.openclaw.gateway
+
+# macOS (LaunchDaemon — hardened alternative)
+sudo launchctl bootout system/ai.openclaw.gateway
 
 # Linux (systemd)
 sudo systemctl stop openclaw-gateway
@@ -67,8 +67,8 @@ List which secrets your deployment uses — don't copy values over insecure chan
 
 ```bash
 # macOS: list env vars from plist (keys only, not values)
-sudo /usr/libexec/PlistBuddy -c "Print :EnvironmentVariables" \
-  /Library/LaunchDaemons/ai.openclaw.gateway.plist | grep "=" | awk '{print $1}'
+sudo -u openclaw /usr/libexec/PlistBuddy -c "Print :EnvironmentVariables" \
+  /Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.plist | grep "=" | awk '{print $1}'
 
 # Linux: list env var keys from secrets file
 sudo grep -oP '^\w+' /etc/openclaw/secrets.env
@@ -333,19 +333,19 @@ sudo -u openclaw grep -rl "media_type" /Users/openclaw/.openclaw/agents/*/sessio
 
 ## Step 5 — Set Up Services
 
-### LaunchDaemon / systemd
+### LaunchAgent / systemd
 
 Create new service files on the target — **don't copy plists or unit files** from the source, as they contain secrets and host-specific paths.
 
-Follow the [LaunchDaemon](phase-6-deployment.md#macos-launchdaemon) (macOS) or [systemd](phase-6-deployment.md#linux-systemd) instructions from Phase 6.
+Follow the [LaunchAgent](phase-6-deployment.md#macos-launchagent) (macOS) or [systemd](phase-6-deployment.md#linux-systemd) instructions from Phase 6. For the hardened LaunchDaemon alternative, see [LaunchDaemon](phase-6-deployment.md#hardened-alternative-launchdaemon).
 
 ### Enter secrets
 
 **macOS:** Add secrets to the new plist via `PlistBuddy`:
 ```bash
-PLIST=/Library/LaunchDaemons/ai.openclaw.gateway.plist
-sudo /usr/libexec/PlistBuddy -c "Set :EnvironmentVariables:ANTHROPIC_API_KEY sk-ant-..." "$PLIST"
-sudo /usr/libexec/PlistBuddy -c "Set :EnvironmentVariables:OPENCLAW_GATEWAY_TOKEN $(openssl rand -hex 32)" "$PLIST"
+PLIST=/Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.plist
+sudo -u openclaw /usr/libexec/PlistBuddy -c "Set :EnvironmentVariables:ANTHROPIC_API_KEY sk-ant-..." "$PLIST"
+sudo -u openclaw /usr/libexec/PlistBuddy -c "Set :EnvironmentVariables:OPENCLAW_GATEWAY_TOKEN $(openssl rand -hex 32)" "$PLIST"
 # ... repeat for each secret
 sudo chmod 600 "$PLIST"
 ```
@@ -530,8 +530,8 @@ Re-tag the new device as `tag:openclaw` in the Tailscale admin console. If using
 # Create log directory first
 sudo -u openclaw mkdir -p /Users/openclaw/.openclaw/logs
 
-# macOS
-sudo launchctl bootstrap system /Library/LaunchDaemons/ai.openclaw.gateway.plist
+# macOS (LaunchAgent — default)
+sudo launchctl bootstrap gui/$(id -u openclaw) /Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.plist
 
 # Linux
 sudo systemctl enable --now openclaw-gateway
@@ -541,7 +541,7 @@ sudo systemctl enable --now openclaw-gateway
 
 ```bash
 # Gateway is running
-sudo launchctl print system/ai.openclaw.gateway 2>&1 | head -10  # macOS
+sudo launchctl print gui/$(id -u openclaw)/ai.openclaw.gateway 2>&1 | head -10  # macOS
 sudo systemctl status openclaw-gateway                            # Linux
 
 # Listening on correct port
@@ -588,7 +588,7 @@ After verifying everything works:
 rm /tmp/openclaw-backup-*.tar.gz
 
 # On source: keep the backup, stop and disable the old service
-sudo launchctl bootout system/ai.openclaw.gateway  # macOS
+sudo launchctl bootout gui/$(id -u openclaw)/ai.openclaw.gateway  # macOS
 sudo systemctl disable --now openclaw-gateway       # Linux
 ```
 
@@ -602,7 +602,7 @@ For [multi-gateway deployments](../multi-gateway.md), repeat the process per ins
 
 - Its own OS user (e.g., `openclaw-bob`, `openclaw-tibra`)
 - Its own `.openclaw/` directory, config, and secrets
-- Its own LaunchDaemon with a unique label and port
+- Its own LaunchAgent (or LaunchDaemon) with a unique label and port
 - Its own cron jobs for log rotation, session pruning, etc.
 
 Migrate instances independently — they share no state. The only shared components are host-level installs (Node.js, OrbStack, signal-cli).

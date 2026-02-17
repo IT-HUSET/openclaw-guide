@@ -163,7 +163,7 @@ Both scripts read `allowlist.conf`, resolve hostnames to IPs, and install rules 
 2. Allow traffic only to resolved IPs on the specified ports
 3. Allow DNS (UDP 53) so containers can resolve hostnames internally
 
-> **macOS:** pf rules don't survive reboot. Add `apply-rules.sh` to a LaunchDaemon that runs before the OpenClaw gateway starts. See [Phase 6: LaunchDaemon](phases/phase-6-deployment.md#macos-launchdaemon) for the pattern.
+> **macOS:** pf rules don't survive reboot. Add `apply-rules.sh` to a LaunchDaemon that runs before the OpenClaw gateway starts. See [Phase 6: LaunchDaemon](phases/phase-6-deployment.md#hardened-alternative-launchdaemon) for the pattern.
 
 > **Linux:** nftables rules don't survive reboot either. Use `nft list ruleset > /etc/nftables.conf` to persist, or add `apply-rules-linux.sh` to a systemd unit that runs before the gateway.
 
@@ -717,6 +717,6 @@ Starting from the [recommended configuration](examples/config.md), follow these 
 ## Next Steps
 
 - [Recommended Configuration](examples/config.md) — the 2-agent baseline this page builds on
-- [Phase 6: Deployment](phases/phase-6-deployment.md) — run as a system service, persist firewall rules via LaunchDaemon/systemd
+- [Phase 6: Deployment](phases/phase-6-deployment.md) — run as a system service (LaunchAgent/systemd), persist firewall rules via LaunchDaemon/systemd
 - [Reference](reference.md) — full config cheat sheet, plugin table, egress allowlisting notes
 - [Architecture](architecture.md) — system internals, hardened variant diagram

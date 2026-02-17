@@ -52,10 +52,10 @@ Multi-gateway provides stronger isolation: each channel runs under a separate OS
 # 1. Install prerequisites, plan instances, create dedicated user(s), enable firewall
 bash scripts/docker-isolation/01-setup-host.sh
 
-# 2. Configure gateway(s), directories, workspaces, LaunchDaemon plist(s)
+# 2. Configure gateway(s), directories, workspaces, LaunchAgent plist(s)
 sudo bash scripts/docker-isolation/02-setup-gateway.sh
 
-# 3. Inject secrets, start daemon(s), verify
+# 3. Inject secrets, start service(s), verify
 sudo bash scripts/docker-isolation/03-deploy-secrets.sh
 ```
 
@@ -100,7 +100,7 @@ Override defaults by exporting before running (single-instance fallback only —
 |----------|---------|---------|
 | `OPENCLAW_USER` | `openclaw` | All scripts |
 | `GATEWAY_PORT` | `18789` | 02, 03 |
-| `PLIST_PATH` | `/Library/LaunchDaemons/ai.openclaw.gateway.plist` | 03 |
+| `PLIST_PATH` | `/Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.plist` | 03 |
 
 ## What Gets Created
 
@@ -118,7 +118,7 @@ Override defaults by exporting before running (single-instance fallback only —
        ├── identity/
        └── devices/
 
-/Library/LaunchDaemons/ai.openclaw.gateway.plist
+/Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.plist
 ```
 
 ### Multi-instance (example: wa + sig)
@@ -127,8 +127,8 @@ Override defaults by exporting before running (single-instance fallback only —
 /Users/openclaw-wa/.openclaw/             # Only whatsapp channel + agents
 /Users/openclaw-sig/.openclaw/            # Only signal channel + agents
 
-/Library/LaunchDaemons/ai.openclaw.gateway.wa.plist
-/Library/LaunchDaemons/ai.openclaw.gateway.sig.plist
+/Users/openclaw-wa/Library/LaunchAgents/ai.openclaw.gateway.wa.plist
+/Users/openclaw-sig/Library/LaunchAgents/ai.openclaw.gateway.sig.plist
 
 scripts/docker-isolation/.instances       # Instance definitions
 ```
@@ -233,15 +233,15 @@ Add to `/etc/newsyslog.d/openclaw.conf`:
 
 ## Troubleshooting
 
-**Daemon not starting:**
+**Service not starting:**
 ```bash
 # Single instance
-sudo launchctl print system/ai.openclaw.gateway 2>&1 | head -20
+sudo launchctl print gui/$(id -u openclaw)/ai.openclaw.gateway 2>&1 | head -20
 sudo tail -50 /Users/openclaw/.openclaw/logs/gateway.err.log
 sudo -u openclaw openclaw doctor
 
-# Multi-instance (replace {name} with instance name)
-sudo launchctl print system/ai.openclaw.gateway.{name} 2>&1 | head -20
+# Multi-instance (replace {name} and user accordingly)
+sudo launchctl print gui/$(id -u openclaw-{name})/ai.openclaw.gateway.{name} 2>&1 | head -20
 sudo tail -50 /Users/openclaw-{name}/.openclaw/logs/gateway.err.log
 sudo -u openclaw-{name} openclaw doctor
 ```
@@ -249,10 +249,7 @@ sudo -u openclaw-{name} openclaw doctor
 **Docker sandbox not working:**
 ```bash
 docker info
-# Re-bootstrap OrbStack helper per user
-sudo launchctl bootstrap gui/$(id -u openclaw) /Library/LaunchAgents/com.orbstack.helper.plist
-# Multi-instance
-sudo launchctl bootstrap gui/$(id -u openclaw-wa) /Library/LaunchAgents/com.orbstack.helper.plist
+sudo -u openclaw docker info
 ```
 
 **Port already in use:**
@@ -265,7 +262,7 @@ sudo lsof -i :18789 -i :18790
 **Key rotation (re-run script 03):**
 ```bash
 sudo bash scripts/docker-isolation/03-deploy-secrets.sh
-# Stops all daemons, prompts for new secrets, generates new tokens, restarts
+# Stops all services, prompts for new secrets, generates new tokens, restarts
 ```
 
 **Verify multi-instance setup:**
@@ -274,11 +271,12 @@ sudo bash scripts/docker-isolation/03-deploy-secrets.sh
 id openclaw-wa && id openclaw-sig
 
 # Check plists exist
-ls /Library/LaunchDaemons/ai.openclaw.gateway.*.plist
+ls /Users/openclaw-wa/Library/LaunchAgents/ai.openclaw.gateway.wa.plist
+ls /Users/openclaw-sig/Library/LaunchAgents/ai.openclaw.gateway.sig.plist
 
-# Check daemons running
-sudo launchctl print system/ai.openclaw.gateway.wa
-sudo launchctl print system/ai.openclaw.gateway.sig
+# Check services running
+sudo launchctl print gui/$(id -u openclaw-wa)/ai.openclaw.gateway.wa
+sudo launchctl print gui/$(id -u openclaw-sig)/ai.openclaw.gateway.sig
 
 # Check ports listening
 sudo lsof -i :18789 -i :18790

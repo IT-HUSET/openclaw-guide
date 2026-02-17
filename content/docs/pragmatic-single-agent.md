@@ -352,5 +352,5 @@ openclaw plugin list
 
 - [Guard extension docs]({{< relref "extensions" >}}) — full configuration reference for each plugin
 - [Phase 3 — Security]({{< relref "phases/phase-3-security" >}}) — threat model and security baseline
-- [Phase 6 — Deployment]({{< relref "phases/phase-6-deployment" >}}) — run as a system service (LaunchDaemon/systemd)
+- [Phase 6 — Deployment]({{< relref "phases/phase-6-deployment" >}}) — run as a system service (LaunchAgent/systemd)
 - [Recommended Configuration]({{< relref "examples/config" >}}) — the 2-agent Docker baseline if you want stronger isolation

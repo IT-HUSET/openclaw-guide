@@ -24,7 +24,7 @@ Primarily documentation (Markdown + annotated JSON config examples), plus TypeSc
 - `content/docs/phases/phase-3-security.md` — Phase 3: Threat model, security baseline, SOUL.md, file permissions
 - `content/docs/phases/phase-4-multi-agent.md` — Phase 4: Channel connections (WhatsApp/Signal), multiple agents, routing, workspace isolation
 - `content/docs/phases/phase-5-web-search.md` — Phase 5: Isolated search agent, browser on main, web-guard plugin
-- `content/docs/phases/phase-6-deployment.md` — Phase 6: VM isolation, LaunchDaemon/LaunchAgent/systemd, secrets management, firewall, Tailscale, Signal setup
+- `content/docs/phases/phase-6-deployment.md` — Phase 6: VM isolation, LaunchAgent/systemd, LaunchDaemon (hardened alternative), secrets management, firewall, Tailscale, Signal setup
 - `content/docs/phases/phase-7-migration.md` — Phase 7: Moving a deployment to a new machine — config, credentials, memory, channels, services, cron jobs
 - `content/docs/google-chat.md` — Google Chat: GCP setup, webhook exposure, multi-agent, multi-org, known issues
 - `content/docs/multi-gateway.md` — Multi-Gateway: profiles, multi-user, VM variants for running multiple gateway instances

@@ -392,7 +392,7 @@ macOS Host (personal use, untouched)
             └── Gateway: main + search + channel agents as configured
 ```
 
-**Isolation:** Kernel-level VM boundary + standard user (no sudo) + LaunchDaemon (no GUI session) + tool policy + SOUL.md. No Docker inside the VM (macOS doesn't support nested virtualization).
+**Isolation:** Kernel-level VM boundary + standard user (no sudo) + LaunchAgent or LaunchDaemon (hardened alternative) + tool policy + SOUL.md. No Docker inside the VM (macOS doesn't support nested virtualization).
 
 **Key property:** If the VM is fully compromised, the attacker is inside the VM — your host is unreachable. The `read→exfiltrate` chain is open within the VM (no Docker), but only OpenClaw data is at risk.
 

@@ -392,5 +392,5 @@ Reduce screen resolution inside the VM, or increase `maxScreenshotBytes` in conf
 ## Next steps
 
 - **[computer-use extension reference](../extensions/computer-use.md)** — full tool and config documentation
-- **[Phase 6 — Deployment](phase-6-deployment.md)** — production service setup (LaunchDaemon, secrets, firewall)
+- **[Phase 6 — Deployment](phase-6-deployment.md)** — production service setup (LaunchAgent/LaunchDaemon, secrets, firewall)
 - **[Reference](../reference.md)** — config cheat sheet, tool groups, gotchas

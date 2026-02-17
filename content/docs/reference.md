@@ -401,7 +401,7 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 
 24. **Environment variable substitution only matches `[A-Z_][A-Z0-9_]*`** — lowercase vars won't resolve. Missing vars throw errors at config load.
 
-25. **`openclaw gateway stop/restart` targets user-level services only** — OpenClaw's built-in gateway commands (`openclaw gateway stop`, `openclaw gateway restart`, `openclaw onboard --install-daemon`) manage LaunchAgents (`gui/<uid>` domain) and systemd user services. If you run the gateway as a **LaunchDaemon** (`system` domain) or systemd **system** service, these commands won't find it. Always use `launchctl bootout`/`bootstrap` or `systemctl restart` directly. Additionally, `KeepAlive: true` (launchd) or `Restart=always` (systemd) causes the service manager to immediately respawn a killed process, which can race with OpenClaw's own restart logic.
+25. **`openclaw gateway stop/restart` works with LaunchAgent but not LaunchDaemon** — OpenClaw's built-in gateway commands (`openclaw gateway stop`, `openclaw gateway restart`) manage LaunchAgents (`gui/<uid>` domain) and systemd user services. The default LaunchAgent setup works with these commands. If you use the hardened **LaunchDaemon** alternative (`system` domain) or systemd **system** service, these commands won't find it — use `launchctl bootout`/`bootstrap` or `systemctl restart` directly. Additionally, `KeepAlive: true` (launchd) or `Restart=always` (systemd) causes the service manager to immediately respawn a killed process, which can race with OpenClaw's own restart logic.
 
 ### Plugins
 

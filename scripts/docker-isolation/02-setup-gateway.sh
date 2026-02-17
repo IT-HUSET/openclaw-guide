@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# === Gateway Setup: Config + Directories + Workspaces + LaunchDaemon ===
+# === Gateway Setup: Config + Directories + Workspaces + LaunchAgent ===
 # Run with sudo: sudo bash 02-setup-gateway.sh
 #
 # What this script does (per instance):
@@ -13,9 +13,8 @@ set -euo pipefail
 #   6. Installs plugins (web-guard, channel-guard, image-gen, computer-use)
 #   7. Bootstraps workspace files (SOUL.md, AGENTS.md, etc.)
 #   8. Creates disable-launchagent marker
-#   9. Creates LaunchDaemon plist (secrets as placeholders)
-#  10. Bootstraps OrbStack for Docker socket access
-#  11. Sets ownership + permissions
+#   9. Creates LaunchAgent plist (secrets as placeholders)
+#  10. Sets ownership + permissions
 #
 # Reads scripts/docker-isolation/.instances (from 01-setup-host.sh).
 # Falls back to OPENCLAW_USER/GATEWAY_PORT env vars if .instances is missing.
@@ -327,10 +326,10 @@ setup_instance() {
 
     # Plist label and path
     local plist_label="ai.openclaw.gateway"
-    local plist_path="/Library/LaunchDaemons/ai.openclaw.gateway.plist"
+    local plist_path="$home_dir/Library/LaunchAgents/ai.openclaw.gateway.plist"
     if [[ "$MULTI_INSTANCE" -eq 1 ]]; then
         plist_label="ai.openclaw.gateway.${inst_name}"
-        plist_path="/Library/LaunchDaemons/ai.openclaw.gateway.${inst_name}.plist"
+        plist_path="$home_dir/Library/LaunchAgents/ai.openclaw.gateway.${inst_name}.plist"
     fi
 
     echo -e "${BOLD}━━━ Instance: ${inst_name} (user: ${inst_user}, port: ${inst_port}) ━━━${NC}"
@@ -344,17 +343,17 @@ setup_instance() {
         [[ $REPLY =~ ^[Yy]$ ]] || { echo "Skipping instance '$inst_name'."; echo ""; return; }
     fi
 
-    # -- Stop existing daemon --
+    # -- Stop existing service --
     if [[ -f "$plist_path" ]]; then
-        echo -e "${YELLOW}LaunchDaemon plist already exists — stopping daemon${NC}"
-        launchctl bootout "system/${plist_label}" 2>/dev/null || true
+        echo -e "${YELLOW}LaunchAgent plist already exists — stopping service${NC}"
+        launchctl bootout "gui/$(id -u "$inst_user")/${plist_label}" 2>/dev/null || true
     fi
 
     # -- Check for conflicting built-in LaunchAgent --
     local builtin_agent="$home_dir/Library/LaunchAgents/bot.molt.gateway.plist"
     if [[ -f "$builtin_agent" ]]; then
-        echo -e "${YELLOW}WARNING: Built-in LaunchAgent found at $builtin_agent${NC}"
-        echo "  This conflicts with our system-level LaunchDaemon."
+        echo -e "${YELLOW}WARNING: Built-in LaunchAgent (bot.molt.gateway) found at $builtin_agent${NC}"
+        echo "  This conflicts with our LaunchAgent (${plist_label})."
         echo "  Remove it: rm '$builtin_agent'"
     fi
 
@@ -627,8 +626,10 @@ MEMEOF
     # -- Create disable-launchagent marker --
     touch "$target/disable-launchagent"
 
-    # -- Create LaunchDaemon plist --
-    echo "  Creating LaunchDaemon plist..."
+    # -- Create LaunchAgent plist --
+    mkdir -p "$home_dir/Library/LaunchAgents"
+    chown "$inst_user:$group" "$home_dir/Library" "$home_dir/Library/LaunchAgents"
+    echo "  Creating LaunchAgent plist..."
     cat > "$plist_path" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -636,10 +637,6 @@ MEMEOF
   <dict>
     <key>Label</key>
     <string>${plist_label}</string>
-    <key>UserName</key>
-    <string>${inst_user}</string>
-    <key>GroupName</key>
-    <string>${group}</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
@@ -684,15 +681,8 @@ MEMEOF
   </dict>
 </plist>
 PLIST
+    chown "$inst_user:$group" "$plist_path"
     chmod 600 "$plist_path"
-
-    # -- Bootstrap OrbStack --
-    local orbstack_helper="/Library/LaunchAgents/com.orbstack.helper.plist"
-    if [[ -f "$orbstack_helper" ]]; then
-        local uid
-        uid=$(id -u "$inst_user")
-        launchctl bootstrap "gui/$uid" "$orbstack_helper" 2>/dev/null || true
-    fi
 
     # -- Set ownership + permissions --
     chmod 700 "$home_dir"
@@ -727,7 +717,7 @@ for idx in "${!INST_NAMES[@]}"; do
     local_user="${INST_USERS[$idx]}"
     local_port="${INST_PORTS[$idx]}"
     local_home="/Users/$local_user"
-    local_plist="/Library/LaunchDaemons/ai.openclaw.gateway"
+    local_plist="$local_home/Library/LaunchAgents/ai.openclaw.gateway"
     if [[ "$MULTI_INSTANCE" -eq 1 ]]; then
         local_plist="${local_plist}.${local_name}"
     fi
@@ -738,7 +728,7 @@ for idx in "${!INST_NAMES[@]}"; do
 done
 echo ""
 echo -e "${YELLOW}IMPORTANT: Secrets are placeholders in the plist(s).${NC}"
-echo -e "${YELLOW}Run 03-deploy-secrets.sh to inject real secrets and start the daemon(s).${NC}"
+echo -e "${YELLOW}Run 03-deploy-secrets.sh to inject real secrets and start the service(s).${NC}"
 echo ""
 echo -e "${BOLD}Next:${NC}"
 echo "  sudo bash scripts/docker-isolation/03-deploy-secrets.sh"

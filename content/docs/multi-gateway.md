@@ -90,22 +90,18 @@ Each gateway needs a unique port. Leave a gap of >= 20 between ports to accommod
 
 **4. Service files:**
 
-Create one LaunchDaemon (macOS) or systemd unit (Linux) per profile. Use the same templates from [Phase 6](phases/phase-6-deployment.md#macos-launchdaemon), adding `--profile` to the program arguments.
+Create one LaunchAgent (macOS) or systemd unit (Linux) per profile. Use the same templates from [Phase 6](phases/phase-6-deployment.md#macos-launchagent), adding `--profile` to the program arguments. For the hardened LaunchDaemon alternative, see [Phase 6: LaunchDaemon](phases/phase-6-deployment.md#hardened-alternative-launchdaemon).
 
-**macOS LaunchDaemon** (`/Library/LaunchDaemons/ai.openclaw.gateway.wa.plist`):
+**macOS LaunchAgent** (`~/Library/LaunchAgents/ai.openclaw.gateway.wa.plist`):
 
 ```bash
-sudo tee /Library/LaunchDaemons/ai.openclaw.gateway.wa.plist > /dev/null << 'PLIST'
+tee ~/Library/LaunchAgents/ai.openclaw.gateway.wa.plist > /dev/null << 'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
     <key>Label</key>
     <string>ai.openclaw.gateway.wa</string>
-    <key>UserName</key>
-    <string>openclaw</string>
-    <key>GroupName</key>
-    <string>staff</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
@@ -173,20 +169,20 @@ Profile state directories don't inherit the user's global `~/.gitconfig`. Set `G
 
 Or create per-profile git configs if profiles need different identities.
 
-**6. Manage daemons:**
+**6. Manage services:**
 
 ```bash
 # Start profiles
-sudo launchctl bootstrap system /Library/LaunchDaemons/ai.openclaw.gateway.wa.plist
-sudo launchctl bootstrap system /Library/LaunchDaemons/ai.openclaw.gateway.sig.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.openclaw.gateway.wa.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.openclaw.gateway.sig.plist
 
 # Stop
-sudo launchctl bootout system/ai.openclaw.gateway.wa
-sudo launchctl bootout system/ai.openclaw.gateway.sig
+launchctl bootout gui/$(id -u)/ai.openclaw.gateway.wa
+launchctl bootout gui/$(id -u)/ai.openclaw.gateway.sig
 
 # Status
-sudo launchctl print system/ai.openclaw.gateway.wa 2>&1 | head -10
-sudo launchctl print system/ai.openclaw.gateway.sig 2>&1 | head -10
+launchctl print gui/$(id -u)/ai.openclaw.gateway.wa 2>&1 | head -10
+launchctl print gui/$(id -u)/ai.openclaw.gateway.sig 2>&1 | head -10
 ```
 
 ### Shared vs per-profile resources
@@ -276,9 +272,9 @@ Each gateway needs a unique port:
 
 ### Service files
 
-Create one LaunchDaemon (macOS) or systemd unit (Linux) per user. Use the same templates from the [LaunchDaemon](phases/phase-6-deployment.md#macos-launchdaemon) / [systemd](phases/phase-6-deployment.md#linux-systemd) sections, changing per instance:
+Create one LaunchAgent (macOS) or systemd unit (Linux) per user. Use the same templates from the [LaunchAgent](phases/phase-6-deployment.md#macos-launchagent) / [systemd](phases/phase-6-deployment.md#linux-systemd) sections, changing per instance:
 
-- `UserName` / `User` → channel-specific user (`openclaw-wa` or `openclaw-sig`)
+- `User` (systemd) or `UserName` (LaunchDaemon only) → channel-specific user (`openclaw-wa` or `openclaw-sig`). LaunchAgent doesn't need this — it runs in the user's own domain.
 - `--port` and `OPENCLAW_GATEWAY_PORT` → assigned port
 - `Label` / service name → channel-specific (see table above)
 - `HOME`, `OPENCLAW_HOME`, log paths → user's home directory
@@ -327,7 +323,7 @@ prlctl create openclaw-sig --ostype macos
 prlctl set openclaw-sig --cpus 4 --memsize 8192
 ```
 
-Follow the same [dedicated user + LaunchDaemon](phases/phase-6-deployment.md#dedicated-user-inside-vm) setup inside each VM. Use [`examples/openclaw.json`](examples/config.md) as a starting point — remove the signal agent/channel/binding from the WhatsApp VM and vice versa.
+Follow the same [dedicated user + LaunchAgent](phases/phase-6-deployment.md#launchagent-inside-vm) setup inside each VM. Use [`examples/openclaw.json`](examples/config.md) as a starting point — remove the signal agent/channel/binding from the WhatsApp VM and vice versa.
 
 > **Trade-off:** Two separate gateways, two configs, double the resource usage, uses both VM slots. Main benefit: a compromise of one VM doesn't affect the other channel.
 
@@ -358,18 +354,19 @@ SECRETS=(
 )
 
 SSH_CMD="lume ssh"   # Or: prlctl exec
-PLIST=/Library/LaunchDaemons/ai.openclaw.gateway.plist
+PLIST=/Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.plist
 
 for VM in openclaw-wa openclaw-sig; do
+  OC_UID=$($SSH_CMD "$VM" -- id -u openclaw)
   for SECRET in "${SECRETS[@]}"; do
     KEY="${SECRET%%=*}"
     VALUE="${SECRET#*=}"
-    $SSH_CMD "$VM" -- sudo /usr/libexec/PlistBuddy \
+    $SSH_CMD "$VM" -- sudo -u openclaw /usr/libexec/PlistBuddy \
       -c "Set :EnvironmentVariables:$KEY $VALUE" "$PLIST"
   done
-  $SSH_CMD "$VM" -- sudo launchctl bootout system/ai.openclaw.gateway 2>/dev/null
-  $SSH_CMD "$VM" -- sudo launchctl bootstrap system "$PLIST"
-  $SSH_CMD "$VM" -- sudo chmod 600 "$PLIST"
+  $SSH_CMD "$VM" -- sudo launchctl bootout "gui/$OC_UID/ai.openclaw.gateway" 2>/dev/null
+  $SSH_CMD "$VM" -- sudo launchctl bootstrap "gui/$OC_UID" "$PLIST"
+  $SSH_CMD "$VM" -- chmod 600 "$PLIST"
 done
 ```
 
@@ -425,7 +422,7 @@ Leave a gap of >= 20 between gateway ports to accommodate CDP port ranges:
 Per gateway instance, regardless of approach:
 
 - [ ] Separate state directory (profile), OS user, or VM
-- [ ] Separate LaunchDaemon/systemd unit with unique label/name and port
+- [ ] Separate LaunchAgent/systemd unit (or LaunchDaemon for hardened/VM) with unique label/name and port
 - [ ] Separate `openclaw.json` with only the relevant channels and agents
 - [ ] Separate secrets (unique `OPENCLAW_GATEWAY_TOKEN` per instance)
 - [ ] File permissions locked down (`chmod 700` home directory, `chmod 600` sensitive files)
