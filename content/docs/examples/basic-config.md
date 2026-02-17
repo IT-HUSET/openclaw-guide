@@ -179,8 +179,8 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
         // Only reachable via sessions_send from main agent.
         // No channel binding = can't be messaged directly.
         // No filesystem tools — nothing to read or exfiltrate.
-        // Docker isolation / Linux VMs: Sandboxed — can't read auth-profiles.json (on host, outside container).
-        // macOS VM isolation: No sandbox — tool policy provides isolation (only API keys at risk within VM).
+        // Tool policy provides isolation — no filesystem tools to abuse.
+        // Unsandboxed — workaround for #9857 (sessions_spawn broken when both agents sandboxed + per-agent tools).
         "id": "search",
         "workspace": "/Users/openclaw/.openclaw/workspaces/search",
         "agentDir": "/Users/openclaw/.openclaw/agents/search/agent",
@@ -191,9 +191,7 @@ Three deployment postures are covered: Docker isolation (this config), macOS VM 
         },
         "subagents": { "allowAgents": [] },
         "sandbox": {
-          "mode": "all",
-          "scope": "agent",
-          "workspaceAccess": "none"
+          "mode": "off"
         }
       }
     ]

@@ -48,7 +48,6 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 ### Extensions
 - `extensions/web-guard/` — OpenClaw plugin (TypeScript): pre-fetch prompt injection scanning for `web_fetch` using local DeBERTa ONNX model
 - `extensions/channel-guard/` — OpenClaw plugin (TypeScript): prompt injection scanning for incoming channel messages (WhatsApp, Signal, Google Chat) using local DeBERTa ONNX model
-- `extensions/agent-guard/` — OpenClaw plugin (TypeScript): prompt injection scanning for inter-agent sessions_send messages using local DeBERTa ONNX model
 - `extensions/image-gen/` — OpenClaw plugin (TypeScript): image generation via OpenRouter API (FLUX, Gemini, GPT models)
 - `extensions/computer-use/` — OpenClaw plugin (TypeScript): VM-based macOS computer interaction via Lume and cua-computer-server WebSocket protocol
 
@@ -68,7 +67,6 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 ### Unit tests (per plugin, no OpenClaw needed)
 ```bash
 cd extensions/channel-guard && npm install && npm test
-cd extensions/agent-guard && npm install && npm test
 cd extensions/web-guard && npm install && npm test
 ```
 Guard plugin tests use real DeBERTa ONNX model (~370 MB, cached in each plugin's `node_modules/`). First run downloads the model.
@@ -181,3 +179,4 @@ When updating the guide for a new OpenClaw version:
 Version-specific content that should be removed when the referenced fix lands:
 
 - **openclaw#15176** (channel bindings regression): Simplified references remain in `content/docs/phases/phase-4-multi-agent.md` and `content/docs/reference.md`. Not relevant for the recommended 2-agent config (all channels route to main). Check with `openclaw --version` after updating.
+- **openclaw#9857** (sessions_spawn sandbox bug): Search agent runs unsandboxed as workaround. When fixed, re-enable sandbox on search agent (`"sandbox": { "mode": "all", "scope": "agent", "workspaceAccess": "none" }`) in both config examples and update all docs that note the workaround. Grep for `#9857` to find all references.

@@ -159,7 +159,7 @@ The guide covers three architecture tiers:
 
 | Tier | Agents | Main agent config | When to use |
 |------|--------|-------------------|-------------|
-| **Basic** | main + search | Unsandboxed, full tools | Dev / getting started ([basic config](../examples/basic-config.md)) |
+| **Basic** | main + search | Unsandboxed, no browser/web on main | Dev / getting started ([basic config](../examples/basic-config.md)) |
 | **Recommended** | main + search | Sandboxed, exec + browser, egress-allowlisted network | Production ([recommended config](../examples/config.md)) |
 | **Hardened** | main + computer + search | No exec/browser, `network: none`; computer has exec + browser on egress | High-security ([hardened multi-agent](../hardened-multi-agent.md)) |
 
@@ -176,8 +176,6 @@ Every gateway has two **core agents** (always present in recommended and basic t
 | **Route to main** (simpler) | No channel agent definitions needed. Unbound channels automatically route to the default agent (main). | Fewer moving parts. Relies on channel-guard + Docker/VM sandboxing as primary defenses. Main agent has full tool access including exec. |
 
 > **Important:** `sessions_send` messages are intra-process and bypass per-agent tool restrictions. A compromised channel agent can delegate privileged operations to the main agent regardless of its own tool deny list. This is an [accepted risk](phase-3-security.md#accepted-risks) — the main agent's AGENTS.md instructions are the last line of defense. See [Privileged Operation Delegation](#privileged-operation-delegation) below.
-
-> **Mitigation:** The `agent-guard` plugin provides prompt injection scanning for `sessions_send` messages. See [Hardened Multi-Agent](../hardened-multi-agent.md#plugin-configuration) or `extensions/agent-guard/` for setup.
 
 Both are valid — choose based on your threat model and operational preferences. The rest of this section shows dedicated channel agents; to use the simpler approach, skip the channel agent definitions and bindings.
 
@@ -401,7 +399,7 @@ Example — a read-only agent:
 {
   "id": "readonly",
   "tools": {
-    "allow": ["group:fs", "group:memory", "group:sessions"],
+    "allow": ["group:fs", "memory_search", "memory_get", "group:sessions"],
     "deny": ["write", "edit", "apply_patch", "exec", "process", "browser", "gateway"]
   }
 }
@@ -415,7 +413,7 @@ Example — a read-only agent:
 
 Each agent requires its own `agentDir` — sharing causes session corruption. The gateway reads each agent's `auth-profiles.json` to make API calls on its behalf.
 
-Sandboxed agents (channel agents, search) cannot read their own `auth-profiles.json` — the file is on the host, outside the Docker container. This is the primary protection against credential exfiltration.
+Sandboxed agents (channel agents) cannot read their own `auth-profiles.json` — the file is on the host, outside the Docker container. This is the primary protection against credential exfiltration. The search agent currently runs unsandboxed (workaround for [#9857](https://github.com/openclaw/openclaw/issues/9857)) but has no filesystem tools to read or exfiltrate credentials.
 
 All agents need valid model credentials to function — including the search agent, which uses the LLM to process search results.
 
@@ -426,7 +424,7 @@ All agents need valid model credentials to function — including the search age
 ├── main/agent/auth-profiles.json       # Main agent (sandboxed in production — can't read this)
 ├── whatsapp/agent/auth-profiles.json   # Same credentials (sandboxed — can't read)
 ├── signal/agent/auth-profiles.json     # Same credentials (sandboxed — can't read)
-└── search/agent/auth-profiles.json     # Same credentials (sandboxed — can't read)
+└── search/agent/auth-profiles.json     # Same credentials (unsandboxed — but no filesystem tools)
 ```
 
 Channel and search agents can share the same credential content — copy from main:

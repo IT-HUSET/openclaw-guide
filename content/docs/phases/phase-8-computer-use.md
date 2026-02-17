@@ -1,6 +1,6 @@
 ---
 title: "Phase 8: Computer Use (Experimental)"
-description: "VM-based computer-use deployment with Lume macOS VMs, agent-guard, and computer-use plugin."
+description: "Add macOS-native tooling (Xcode, iOS Simulator, macOS apps) to your deployment via Lume VMs."
 weight: 80
 ---
 
@@ -10,13 +10,29 @@ weight: 80
 
 ## When to use
 
-Use this deployment when agents need to interact with macOS GUI applications — Xcode, iOS Simulator, design tools, or any app that requires screen, keyboard, and mouse interaction. The worker agent operates inside a Lume VM while the main agent remains Docker-sandboxed on the host.
+Use this phase when your agents need macOS-native tooling that can't run inside Docker — Xcode builds, iOS Simulator testing, Homebrew package management, design tools, or any macOS app. A dedicated **worker agent** operates inside a Lume VM while your existing agents remain on the host.
+
+This phase adds a worker agent to your existing deployment. If you followed the [recommended config](../examples/config.md), you already have main + search — the worker slots in alongside them.
 
 **Typical use cases:**
 - Xcode builds + iOS Simulator testing
-- GUI-based workflows (Figma, design tools, system preferences)
+- macOS-native app interaction (design tools, system preferences, Homebrew)
 - Browser automation with full GUI context
-- Any macOS-native app interaction
+- Any workflow requiring macOS APIs unavailable in Docker/Linux containers
+
+### Deployment posture compatibility
+
+| Posture | Compatible? | Notes |
+|--|--|--|
+| **Docker isolation** (recommended) | Yes | Main in Docker, worker via Lume VM on host |
+| **VM: macOS VMs** (Lume/Parallels) | No | Can't nest Lume VMs inside a Lume VM |
+| **VM: Linux VMs** (Multipass/KVM) | No | Lume is macOS-only |
+
+Apple Silicon Mac required — Lume uses Apple Virtualization.framework.
+
+### Relationship to the hardened tier
+
+The [hardened multi-agent](../hardened-multi-agent.md) tier adds a **computer** agent for exec isolation (separating code execution from the main agent's conversation context). Phase 8's **worker** agent serves a different purpose — macOS-native tooling via a Lume VM. They can coexist: a 4-agent config (main + computer + search + worker) is possible if you need both exec isolation and macOS-native tooling.
 
 ## Architecture
 
@@ -24,23 +40,22 @@ Use this deployment when agents need to interact with macOS GUI applications —
 macOS Host (Apple Silicon)
 ├── Docker (OrbStack)
 │   └── Main Agent (sandbox: all, network: none)
-│        └── sessions_send ──> agent-guard scan ──> Worker Agent
+│        └── sessions_send ──> Worker Agent
 │
 ├── OpenClaw Gateway (port 18789)
-│   ├── agent-guard plugin (scans sessions_send)
 │   └── computer-use plugin (vm_* tools via WebSocket)
 │
 └── Lume VM — "openclaw-vm"
     ├── cua-computer-server (WebSocket :5000)
     ├── macOS GUI + Xcode + toolchain
-    └── /Volumes/My Shared Files/ ←→ workspace/vm-shared/ (host)
+    └── /Volumes/My Shared Files/ ←→ ~/.openclaw/workspaces/main/vm-shared/ (host)
 ```
 
-**Two agents, two isolation boundaries:**
-- **Main agent** — Docker-sandboxed, workspace read/write, network disabled. Handles conversation, memory, filesystem tasks. Delegates GUI work to the worker via `sessions_send`.
-- **Worker agent** — runs `vm_*` tools only, no `exec` access on host, no subagents. Controls the Lume VM through WebSocket. `agent-guard` scans all messages at the `sessions_send` boundary.
+**Two isolation boundaries:**
+- **Main agent** — Docker-sandboxed, workspace read/write, network disabled. Handles conversation, memory, filesystem tasks. Delegates macOS-native work to the worker via `sessions_send`.
+- **Worker agent** — runs `vm_*` tools only, no `exec` access on host, no subagents. Controls the Lume VM through WebSocket.
 
-The **shared directory** (`workspace/vm-shared/` on host, `/Volumes/My Shared Files/` in VM) enables file exchange between agents and the VM.
+The **shared directory** (`~/.openclaw/workspaces/main/vm-shared/` on host, `/Volumes/My Shared Files/` in VM) enables file exchange. Because it lives inside main's workspace, the main agent can read/write shared files directly — no extra mounts needed.
 
 ## Prerequisites
 
@@ -101,17 +116,7 @@ curl -s http://localhost:7777/lume/vms | jq .
 
 If not running, check Lume's documentation for enabling the HTTP server (default port 7777).
 
-### Step 4: Install agent-guard plugin
-
-```bash
-cd /Users/openclaw/openclaw-guide  # Ensure project root
-npm install --prefix extensions/agent-guard
-openclaw plugins install -l ./extensions/agent-guard
-```
-
-See [agent-guard](../extensions/agent-guard.md) for configuration details.
-
-### Step 5: Install computer-use plugin
+### Step 4: Install computer-use plugin
 
 ```bash
 cd /Users/openclaw/openclaw-guide  # Ensure project root
@@ -119,9 +124,69 @@ npm install --prefix extensions/computer-use
 openclaw plugins install -l ./extensions/computer-use
 ```
 
-### Step 6: Configure the 2-agent gateway
+### Step 5: Add the worker agent to your config
 
-Add the following to your `openclaw.json`:
+#### Adding to recommended config
+
+If you're running the [recommended config](../examples/config.md) (main + search), add the worker agent and computer-use plugin. Your existing hardening (guard plugins, egress allowlisting, search delegation) stays intact.
+
+Add a `worker` entry to `agents.list`:
+
+```json5
+{
+  "id": "worker",
+  "name": "Computer Worker",
+  "model": "claude-sonnet-4-20250514",
+  "tools": {
+    "allow": ["vm_*", "sessions_send", "session_status"],
+    "deny": ["exec"]
+  },
+  "subagents": { "allowAgents": [] }
+}
+```
+
+Update main agent's subagent allowlist to include `worker`:
+
+```json5
+// In your main agent config:
+"subagents": { "allowAgents": ["search", "worker"] }
+```
+
+Add the computer-use plugin to your `plugins` section:
+
+```json5
+// In plugins.load.paths (create this block if absent):
+"load": {
+  "paths": ["./extensions/computer-use"]
+},
+
+// In plugins.entries:
+"computer-use": {
+  "enabled": true,
+  "config": {
+    "vmName": "openclaw-vm",
+    "lumeApiUrl": "http://localhost:7777",
+    "serverPort": 5000,
+    "connectTimeoutMs": 30000,
+    "commandTimeoutMs": 60000,
+    "screenshotScale": 0.5,
+    "logVerbose": false,
+    "maxScreenshotBytes": 10485760
+  }
+}
+```
+
+{{< callout type="info" >}}
+The worker agent inherits `agents.defaults.sandbox` (Docker-sandboxed). However, `vm_*` tools execute via the plugin's WebSocket connection in the gateway process, bypassing Docker. Docker sandboxing of the worker agent does not restrict VM access.
+{{< /callout >}}
+
+#### Minimal config (dev/test)
+
+{{< callout type="warning" >}}
+This config skips all hardening (no guard plugins, no search agent, no egress allowlisting). Use only for experimentation — not for production or channel-connected deployments.
+{{< /callout >}}
+
+For quick experimentation with just main + worker:
 
 ```json5
 {
@@ -146,7 +211,7 @@ Add the following to your `openclaw.json`:
           "network": "none"
         },
         "tools": {
-          "allow": ["group:fs", "group:memory", "group:sessions", "message"],
+          "allow": ["group:fs", "memory_search", "memory_get", "group:sessions", "message"],
           "deny": ["group:runtime", "group:web", "vm_*"]
         },
         "subagents": {
@@ -171,20 +236,10 @@ Add the following to your `openclaw.json`:
   "plugins": {
     "load": {
       "paths": [
-        "./extensions/agent-guard",
         "./extensions/computer-use"
       ]
     },
     "entries": {
-      "agent-guard": {
-        "enabled": true,
-        "config": {
-          "sensitivity": 0.5,
-          "warnThreshold": 0.4,
-          "blockThreshold": 0.8,
-          "failOpen": false
-        }
-      },
       "computer-use": {
         "enabled": true,
         "config": {
@@ -203,29 +258,23 @@ Add the following to your `openclaw.json`:
 }
 ```
 
-{{< callout type="info" >}}
-The worker agent inherits `agents.defaults.sandbox` (Docker-sandboxed). However, `vm_*` tools execute via the plugin's WebSocket connection in the gateway process, bypassing Docker. Docker sandboxing of the worker agent does not restrict VM access.
-{{< /callout >}}
-
 **Key config decisions:**
 - Main agent: Docker sandbox, `network: none`, denies `vm_*` tools (can only delegate to worker)
 - Worker agent: only `vm_*` + `sessions_send` + `session_status`, no `exec` on host, no subagents (prevents delegation chains)
-- agent-guard: fail-closed (`failOpen: false`) — blocks all inter-agent messages if the model fails to load
 
-### Step 7: Start the gateway and smoke test
+### Step 6: Start the gateway and smoke test
 
 ```bash
 openclaw start --port 18789
 ```
 
-Verify by sending a message that triggers GUI interaction:
+Verify by sending a message that triggers macOS-native interaction:
 1. Main agent receives the message
 2. Main delegates to worker via `sessions_send`
-3. agent-guard scans the message
-4. Worker calls `vm_launch` (e.g., TextEdit)
-5. Worker calls `vm_type` to enter text
-6. Worker calls `vm_screenshot` to verify
-7. Worker returns result to main via `sessions_send`
+3. Worker calls `vm_launch` (e.g., TextEdit)
+4. Worker calls `vm_type` to enter text
+5. Worker calls `vm_screenshot` to verify
+6. Worker returns result to main via `sessions_send`
 
 **Example test:** "Open TextEdit, type 'Hello from worker agent', take a screenshot, and show me the result."
 
@@ -237,9 +286,9 @@ The Lume VM provides kernel-level isolation (Apple Virtualization.framework). Si
 
 ### Shared directory trust boundary
 
-The shared directory is bidirectional write:
-- **Host** → VM: `workspace/vm-shared/` mounted at `/Volumes/My Shared Files/`
-- **VM** → Host: files written in the VM appear on the host
+The shared directory sits inside the main agent's workspace (`~/.openclaw/workspaces/main/vm-shared/` on host, `/Volumes/My Shared Files/` in VM). Bidirectional write:
+- **Host → VM**: main agent writes to `vm-shared/` in its workspace; files appear at `/Volumes/My Shared Files/` in the VM
+- **VM → Host**: files written in the VM appear in `~/.openclaw/workspaces/main/vm-shared/` on the host
 
 Treat all files from either side as **untrusted input**. A compromised VM could write malicious files that the main agent reads. A compromised main agent could write files that `vm_exec` processes.
 
@@ -248,10 +297,6 @@ Treat all files from either side as **untrusted input**. A compromised VM could 
 `vm_exec` intentionally provides shell access inside the VM — this is required for file operations (`cat`, `ls`, `echo`), build commands, and system tasks. The VM isolation boundary contains command injection: a malicious command runs inside the VM, not on the host.
 
 Do NOT pass unsanitized external input (user messages, web content) directly as `vm_exec` commands. The worker agent should construct commands from trusted logic, not relay arbitrary strings.
-
-### agent-guard
-
-All `sessions_send` messages between main and worker are scanned by [agent-guard](../extensions/agent-guard.md) for prompt injection. Three-tier response: pass, warn (message delivered with advisory), or block (message rejected).
 
 ### VM network egress
 
@@ -273,7 +318,6 @@ All limitations verified as of 2026-02-15.
 - **2 macOS VM limit** — Lume free tier supports max 2 concurrent macOS VMs (Apple Virtualization.framework limit). Plan agent topology accordingly.
 - **iOS Simulator unverified** — iOS Simulator inside Lume VMs has not been tested. Xcode builds work, but Simulator rendering and interaction may have issues.
 - **No rate limiting** — no sustained rate limit between `vm_*` calls. Runaway tool loops are possible if the agent enters a retry cycle.
-- **Scanning latency** — agent-guard classification (~100-500ms) plus WebSocket round-trip adds latency to interactive workflows. For rapid GUI sequences, this may be noticeable.
 - **DNS resolution** — Lume networking quirks may prevent hostname resolution inside the VM. See setup step for workaround.
 - **One tool at a time** — WebSocket commands are serialized per worker agent. No concurrent `vm_*` tool calls.
 - **VM state edge cases** — VM suspend/resume, snapshots, and multiple gateways connecting to the same VM produce undefined behavior. Restart the gateway after VM lifecycle changes.
@@ -290,7 +334,7 @@ All limitations verified as of 2026-02-15.
 | **VM limit** | None | 2 macOS VMs (Lume) |
 | **Network isolation** | Docker `network: none` | VM firewall rules |
 
-Docker isolation is lighter and sufficient for most workflows. Use computer-use only when agents need macOS GUI interaction.
+Docker isolation is lighter and sufficient for most workflows. Add the worker agent only when you need macOS-native tooling.
 
 ## Troubleshooting
 
@@ -348,6 +392,5 @@ Reduce screen resolution inside the VM, or increase `maxScreenshotBytes` in conf
 ## Next steps
 
 - **[computer-use extension reference](../extensions/computer-use.md)** — full tool and config documentation
-- **[agent-guard](../extensions/agent-guard.md)** — inter-agent prompt injection scanning
 - **[Phase 6 — Deployment](phase-6-deployment.md)** — production service setup (LaunchDaemon, secrets, firewall)
 - **[Reference](../reference.md)** — config cheat sheet, tool groups, gotchas

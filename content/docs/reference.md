@@ -60,6 +60,8 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
 | `group:nodes` | `nodes` |
 | `group:openclaw` | All built-in tools |
 
+> **Version note:** `group:memory` is not recognized by the gateway in v2026.2.15. Use individual tools (`memory_search`, `memory_get`) in tool allow/deny lists until this is fixed upstream.
+
 ---
 
 ## Config Quick Reference
@@ -164,7 +166,7 @@ Group messages are evaluated in three layers:
 
 Keys are group IDs (or `"*"` for all groups). Values configure per-group behavior. **Keys double as an allowlist** — a group ID present as a key is implicitly allowed.
 
-`requireMention` **must** be inside the `groups` object — see [gotcha #13](#channels) for details and per-channel notes.
+`requireMention` **must** be inside the `groups` object — see [gotcha #14](#channels) for details and per-channel notes.
 
 ```json5
 {
@@ -240,7 +242,7 @@ Different agents need different sandbox configurations. Here's when to use each 
 | Use Case | `scope` | `workspaceAccess` | `mode` | Rationale |
 |----------|---------|-------------------|--------|-----------|
 | Channel agents (whatsapp, signal) | `agent` | `rw` | `non-main` | Need workspace for memory writes; sandbox provides network isolation |
-| Search agent | `agent` | `none` | `all` | No filesystem needed; always sandboxed for maximum isolation |
+| Search agent | — | — | `off` | No filesystem tools; tool policy provides isolation. Unsandboxed to avoid [#9857](https://github.com/openclaw/openclaw/issues/9857) |
 | Main agent ([recommended](examples/config.md)) | `agent` | `rw` | `all` | Full exec + browser + web_fetch, `network: "openclaw-egress"` with [egress allowlisting](hardened-multi-agent.md) |
 | Main agent (unsandboxed) | — | — | `off` | Operator interface; full host access (no Docker isolation) |
 | Computer (optional [hardened variant](hardened-multi-agent.md)) | `agent` | `rw` | `all` | Separate exec + browser agent, `network: "openclaw-egress"` |
@@ -344,59 +346,61 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 
 4. **Global `deny` overrides agent-level `allow`** — a tool in `tools.deny` cannot be re-enabled at the agent level. For tools needed by some agents (e.g., `web_search`), deny per-agent instead of globally.
 
-5. **`exec` allowlists don't catch shell builtins** — allowlists match resolved binary paths only. Shell builtins (`cd`, `export`, `source`) bypass the check entirely. `echo` is both a shell builtin and a standalone binary (`/bin/echo`) — behavior differs between them, and the builtin version varies by shell. If this matters, deny `exec` at the agent level.
+5. **`group:ui` deny includes `browser`** — if an agent allows `browser` but denies `group:ui`, browser is silently disabled. Deny `canvas` individually instead when browser should remain available.
+
+6. **`exec` allowlists don't catch shell builtins** — allowlists match resolved binary paths only. Shell builtins (`cd`, `export`, `source`) bypass the check entirely. `echo` is both a shell builtin and a standalone binary (`/bin/echo`) — behavior differs between them, and the builtin version varies by shell. If this matters, deny `exec` at the agent level.
 
 ### Agents & Sessions
 
-6. **Never share `agentDir` between agents** — causes auth collisions and session corruption.
+7. **Never share `agentDir` between agents** — causes auth collisions and session corruption.
 
-7. **`MEMORY.md` loads in main sessions only** (not groups or shared contexts) — don't put security-critical instructions there.
+8. **`MEMORY.md` loads in main sessions only** (not groups or shared contexts) — don't put security-critical instructions there.
 
-8. **Binding precedence is most-specific wins** — a peer-level binding beats a channel-level one.
+9. **Binding precedence is most-specific wins** — a peer-level binding beats a channel-level one.
 
-9. **`elevated` mode is per-session, not permanent** — but `tools.elevated.enabled: false` blocks it globally.
+10. **`elevated` mode is per-session, not permanent** — but `tools.elevated.enabled: false` blocks it globally.
 
-10. **Session transcripts contain full message history and tool output** — treat them as sensitive. Prune regularly if retention isn't needed.
+11. **Session transcripts contain full message history and tool output** — treat them as sensitive. Prune regularly if retention isn't needed.
 
 ### Channels
 
-11. **Signal linked devices see everything** — the primary phone gets all bot messages. No filtering possible.
+12. **Signal linked devices see everything** — the primary phone gets all bot messages. No filtering possible.
 
-12. **`pairing` codes expire after 1 hour** with max 3 pending per channel.
+13. **`pairing` codes expire after 1 hour** with max 3 pending per channel.
 
-13. **`requireMention` must be inside the `groups` object, not at channel root** — placing it at `channels.whatsapp.requireMention` causes a Zod validation error. Correct: `channels.whatsapp.groups: { "*": { requireMention: true } }`. On Signal, also configure `mentionPatterns` in `agents.list[].groupChat.mentionPatterns` (no native @mention support). On Google Chat, set `botUser` in the channel config for reliable mention detection in spaces.
+14. **`requireMention` must be inside the `groups` object, not at channel root** — placing it at `channels.whatsapp.requireMention` causes a Zod validation error. Correct: `channels.whatsapp.groups: { "*": { requireMention: true } }`. On Signal, also configure `mentionPatterns` in `agents.list[].groupChat.mentionPatterns` (no native @mention support). On Google Chat, set `botUser` in the channel config for reliable mention detection in spaces.
 
-14. **Google Chat DMs ignore agent bindings** ([#9198](https://github.com/openclaw/openclaw/issues/9198)) — DMs always route to the default agent regardless of `bindings` config. Space (group) routing works correctly. Critical for multi-agent setups.
+15. **Google Chat DMs ignore agent bindings** ([#9198](https://github.com/openclaw/openclaw/issues/9198)) — DMs always route to the default agent regardless of `bindings` config. Space (group) routing works correctly. Critical for multi-agent setups.
 
-15. **Google Chat requires both channel config and plugin** — missing either `channels.googlechat` or `plugins.entries.googlechat.enabled: true` causes a 405 error on the webhook endpoint.
+16. **Google Chat requires both channel config and plugin** — missing either `channels.googlechat` or `plugins.entries.googlechat.enabled: true` causes a 405 error on the webhook endpoint.
 
-16. **Google Chat per-space rate limit is 60/min** (1 write/sec) — the 600/min figure in some documentation applies only to data import operations, not normal messaging.
+17. **Google Chat per-space rate limit is 60/min** (1 write/sec) — the 600/min figure in some documentation applies only to data import operations, not normal messaging.
 
-17. **Placeholder `allowFrom` values cause silent message drops** — `allowFrom: ["+46XXXXXXXXX"]` or any non-matching number silently drops all incoming messages with no error or log warning. Always replace placeholders with real phone numbers.
+18. **Placeholder `allowFrom` values cause silent message drops** — `allowFrom: ["+46XXXXXXXXX"]` or any non-matching number silently drops all incoming messages with no error or log warning. Always replace placeholders with real phone numbers.
 
-18. **Empty env vars cause config validation failure** — `${BRAVE_API_KEY}` as an empty string triggers `EX_CONFIG` (exit 78). Use a non-empty placeholder like `"not-configured"` for optional keys not yet provisioned.
+19. **Empty env vars cause config validation failure** — `${BRAVE_API_KEY}` as an empty string triggers `EX_CONFIG` (exit 78). Use a non-empty placeholder like `"not-configured"` for optional keys not yet provisioned.
 
 ### Sandbox & Docker
 
-19. **Sandbox `network: "none"` blocks package installs** — `setupCommand` requires `network: "bridge"` and `readOnlyRoot: false`, which weakens sandbox isolation. Prefer [custom images](custom-sandbox-images.md) for production — tools are pre-installed, so secure defaults are preserved.
+20. **Sandbox `network: "none"` blocks package installs** — `setupCommand` requires `network: "bridge"` and `readOnlyRoot: false`, which weakens sandbox isolation. Prefer [custom images](custom-sandbox-images.md) for production — tools are pre-installed, so secure defaults are preserved.
 
-20. **Bind mounts pierce sandbox filesystem** — always use `:ro` suffix. Never bind `docker.sock`.
+21. **Bind mounts pierce sandbox filesystem** — always use `:ro` suffix. Never bind `docker.sock`.
 
 ### Config & Gateway
 
-21. **`gateway.mode` is required** — the gateway refuses to start unless `gateway.mode: "local"` is set in config. Use `--allow-unconfigured` for ad-hoc/dev runs.
+22. **`gateway.mode` is required** — the gateway refuses to start unless `gateway.mode: "local"` is set in config. Use `--allow-unconfigured` for ad-hoc/dev runs.
 
-22. **Config validation is strict** — unknown keys, malformed types, or invalid values cause the gateway to refuse to start. Run `openclaw doctor` to diagnose.
+23. **Config validation is strict** — unknown keys, malformed types, or invalid values cause the gateway to refuse to start. Run `openclaw doctor` to diagnose.
 
-23. **Environment variable substitution only matches `[A-Z_][A-Z0-9_]*`** — lowercase vars won't resolve. Missing vars throw errors at config load.
+24. **Environment variable substitution only matches `[A-Z_][A-Z0-9_]*`** — lowercase vars won't resolve. Missing vars throw errors at config load.
 
-24. **`openclaw gateway stop/restart` targets user-level services only** — OpenClaw's built-in gateway commands (`openclaw gateway stop`, `openclaw gateway restart`, `openclaw onboard --install-daemon`) manage LaunchAgents (`gui/<uid>` domain) and systemd user services. If you run the gateway as a **LaunchDaemon** (`system` domain) or systemd **system** service, these commands won't find it. Always use `launchctl bootout`/`bootstrap` or `systemctl restart` directly. Additionally, `KeepAlive: true` (launchd) or `Restart=always` (systemd) causes the service manager to immediately respawn a killed process, which can race with OpenClaw's own restart logic.
+25. **`openclaw gateway stop/restart` targets user-level services only** — OpenClaw's built-in gateway commands (`openclaw gateway stop`, `openclaw gateway restart`, `openclaw onboard --install-daemon`) manage LaunchAgents (`gui/<uid>` domain) and systemd user services. If you run the gateway as a **LaunchDaemon** (`system` domain) or systemd **system** service, these commands won't find it. Always use `launchctl bootout`/`bootstrap` or `systemctl restart` directly. Additionally, `KeepAlive: true` (launchd) or `Restart=always` (systemd) causes the service manager to immediately respawn a killed process, which can race with OpenClaw's own restart logic.
 
 ### Plugins
 
-25. **Plugin changes require a gateway restart** — plugin source files (`.ts`) are loaded at startup. Config hot-reload does NOT reload plugins. After updating a plugin in `~/.openclaw/extensions/`, restart the gateway.
+26. **Plugin changes require a gateway restart** — plugin source files (`.ts`) are loaded at startup. Config hot-reload does NOT reload plugins. After updating a plugin in `~/.openclaw/extensions/`, restart the gateway.
 
-26. **Broken tool results poison session history** — if a plugin returns malformed content blocks (wrong format, missing fields), the broken entry persists in the session `.jsonl` file. Every subsequent message replays it, causing the same error even after the plugin is fixed. **Fix:** delete the affected session file. Identify it by grepping for the error pattern, then remove:
+27. **Broken tool results poison session history** — if a plugin returns malformed content blocks (wrong format, missing fields), the broken entry persists in the session `.jsonl` file. Every subsequent message replays it, causing the same error even after the plugin is fixed. **Fix:** delete the affected session file. Identify it by grepping for the error pattern, then remove:
 
     ```bash
     # Find sessions with broken image blocks (example)
@@ -404,21 +408,21 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
     # Delete the affected session file — next message creates a fresh one
     ```
 
-27. **Image content blocks are model-visible only** — tool result image blocks let the LLM see the image but are NOT forwarded as media to channels. To deliver images via WhatsApp/Signal/Google Chat, include a `MEDIA:<path>` directive in a text content block. OpenClaw's `splitMediaFromOutput()` scans text for these directives and attaches matching files as media.
+28. **Image content blocks are model-visible only** — tool result image blocks let the LLM see the image but are NOT forwarded as media to channels. To deliver images via WhatsApp/Signal/Google Chat, include a `MEDIA:<path>` directive in a text content block. OpenClaw's `splitMediaFromOutput()` scans text for these directives and attaches matching files as media.
 
-28. **OpenClaw uses a flat image content block format** — `{type: "image", data: "<base64>", mimeType: "image/png"}`. This differs from the Anthropic API format (`{type: "image", source: {type: "base64", media_type, data}}`). Plugins must use the flat format; OpenClaw converts to API format before sending to the LLM.
+29. **OpenClaw uses a flat image content block format** — `{type: "image", data: "<base64>", mimeType: "image/png"}`. This differs from the Anthropic API format (`{type: "image", source: {type: "base64", media_type, data}}`). Plugins must use the flat format; OpenClaw converts to API format before sending to the LLM.
 
-29. **Plugin-generated temp files accumulate** — plugins that save images via `MEDIA:` pattern write to `$TMPDIR`. macOS clears `/tmp` on reboot, but long-running servers accumulate files. Consider a cron job: `find /tmp/openclaw-image-gen -mtime +1 -delete`.
+30. **Plugin-generated temp files accumulate** — plugins that save images via `MEDIA:` pattern write to `$TMPDIR`. macOS clears `/tmp` on reboot, but long-running servers accumulate files. Consider a cron job: `find /tmp/openclaw-image-gen -mtime +1 -delete`.
 
 ### Memory
 
-30. **Remote memory search providers need a separate API key** — the embedding key (e.g., `OPENAI_API_KEY` for OpenAI embeddings) is not the same as your AI provider key (`ANTHROPIC_API_KEY`). Both must be set.
+31. **Remote memory search providers need a separate API key** — the embedding key (e.g., `OPENAI_API_KEY` for OpenAI embeddings) is not the same as your AI provider key (`ANTHROPIC_API_KEY`). Both must be set.
 
-31. **Local memory search requires native build approval** — run `npx pnpm approve-builds` then `npx pnpm rebuild node-llama-cpp` (from the OpenClaw install directory). Without this, `memory_search` falls back to a remote provider (if configured) or returns no results.
+32. **Local memory search requires native build approval** — run `npx pnpm approve-builds` then `npx pnpm rebuild node-llama-cpp` (from the OpenClaw install directory). Without this, `memory_search` falls back to a remote provider (if configured) or returns no results.
 
-32. **Memory search auto-reindexes on provider/model change** — OpenClaw tracks the embedding provider, model, and chunking params in the index. Changing any of these triggers an automatic reindex. Run `openclaw memory index` to force an immediate rebuild.
+33. **Memory search auto-reindexes on provider/model change** — OpenClaw tracks the embedding provider, model, and chunking params in the index. Changing any of these triggers an automatic reindex. Run `openclaw memory index` to force an immediate rebuild.
 
-33. **Daily memory files are auto-loaded for today + yesterday only** — older files are only accessible via `memory_search`. If search isn't configured, the agent can't recall anything beyond yesterday.
+34. **Daily memory files are auto-loaded for today + yesterday only** — older files are only accessible via `memory_search`. If search isn't configured, the agent can't recall anything beyond yesterday.
 
 ---
 
@@ -433,7 +437,8 @@ Features below require the listed version or later. Check yours with `openclaw -
 | 2026.2.3-1 | Security audit baseline | Version used in the [worked audit example](examples/security-audit.md) |
 | 2026.2.9 | xAI (Grok) provider | New [search provider option](phases/phase-5-web-search.md#search-providers) |
 | 2026.2.12 | Channel bindings regression | [#15176](https://github.com/openclaw/openclaw/pull/15176) — bindings to non-default agents broken. Not relevant for recommended 2-agent config (all channels route to main) |
-| 2026.2.16 | Security hardening + plugin hooks + subagent limits | CSP enforcement, workspace path sanitization, `web_fetch` response size cap, dangerous Docker config rejection, `llm_input`/`llm_output` plugin hooks, `maxSpawnDepth`/`maxChildrenPerAgent` for nested subagents, Unicode-aware FTS, timezone-aware memory dates, per-agent QMD scoping, Telegram token auto-redaction |
+| 2026.2.15 | `sessions_spawn` sandbox bug | [#9857](https://github.com/openclaw/openclaw/issues/9857) — `sessions_spawn` breaks when both agents are sandboxed with per-agent tools. Workaround: run search agent unsandboxed |
+| 2026.2.16 | Security hardening + plugin hooks + subagent limits | CSP enforcement, workspace path sanitization, `web_fetch` response size cap (`tools.web.fetch.maxResponseBytes`, default 5 MB), dangerous Docker config rejection, `llm_input`/`llm_output` plugin hooks, `maxSpawnDepth`/`maxChildrenPerAgent` for nested subagents, Unicode-aware FTS, timezone-aware memory dates, per-agent QMD scoping, Telegram token auto-redaction |
 
 ---
 
@@ -446,11 +451,10 @@ Features below require the listed version or later. Check yours with `openclaw -
 | `googlechat` | Google Chat channel (bundled) | `GOOGLE_CHAT_SERVICE_ACCOUNT_FILE` |
 | `web-guard` | Pre-fetch prompt injection scanning for `web_fetch` | — (local ONNX model) |
 | `channel-guard` | Inbound message injection scanning for WhatsApp/Signal/Google Chat | — (local ONNX model) |
-| `agent-guard` | Inter-agent `sessions_send` injection scanning | — (local ONNX model) |
 | `image-gen` | Generate images from text prompts via OpenRouter | `OPENROUTER_API_KEY` |
 | `computer-use` | VM computer interaction (Lume) | — (WebSocket to cua-computer-server) |
 
-The `web-guard` plugin intercepts `web_fetch` calls, pre-fetches the URL, and scans content for prompt injection before the agent sees it. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing. The `agent-guard` plugin scans inter-agent `sessions_send` messages for injection. All three use the same local DeBERTa ONNX model, are fail-closed by default (`failOpen: false`), and share the model cache. See [web-search-isolation.md](phases/phase-5-web-search.md#advanced-prompt-injection-guard) for full setup and limitations.
+The `web-guard` plugin intercepts `web_fetch` calls, pre-fetches the URL, and scans content for prompt injection before the agent sees it. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing. Both use the same local DeBERTa ONNX model, are fail-closed by default (`failOpen: false`), and share the model cache. See [web-search-isolation.md](phases/phase-5-web-search.md#advanced-prompt-injection-guard) for full setup and limitations.
 
 ### Plugin Hooks
 
@@ -477,7 +481,6 @@ Plugin directories must be named to match the **manifest ID** in `openclaw.plugi
 ```bash
 cp -r extensions/web-guard ~/.openclaw/extensions/web-guard
 cp -r extensions/channel-guard ~/.openclaw/extensions/channel-guard
-cp -r extensions/agent-guard ~/.openclaw/extensions/agent-guard
 ```
 
 The gateway discovers plugins from `~/.openclaw/extensions/` at startup. Each plugin directory must contain `openclaw.plugin.json`. **Plugin code is loaded once at startup** — changes to deployed plugins require a gateway restart (config hot-reload does NOT reload plugins).

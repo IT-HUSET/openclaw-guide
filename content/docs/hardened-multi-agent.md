@@ -13,11 +13,10 @@ This page covers an optional hardened variant: **separating exec into a dedicate
 |---|---|---|
 | **Main agent** | Exec + browser + web_fetch, egress-allowlisted | No exec, no browser, no web — delegates to computer |
 | **Computer agent** | _(does not exist)_ | Exec + browser, egress-allowlisted network |
-| **Search agent** | Unchanged | Unchanged |
+| **Search agent** | Unchanged | Unchanged (unsandboxed in both) |
 
 **Prerequisites:**
 - [Recommended configuration](examples/config.md) deployed and working (2-agent baseline)
-- [agent-guard plugin](extensions/agent-guard.md) installed
 - Docker running
 - OpenClaw 2026.2.14+ recommended (guide baseline version)
 
@@ -39,7 +38,7 @@ This page covers an optional hardened variant: **separating exec into a dedicate
 The recommended 2-agent config gives main full exec + browser on an egress-allowlisted network. This is sufficient for most deployments — main handles everything directly, search handles web queries.
 
 **Add a dedicated computer agent when:**
-- Channel-facing agent should have **zero exec capability** — all execution delegated across an agent boundary with agent-guard scanning
+- Channel-facing agent should have **zero exec capability** — all execution delegated across an agent boundary
 - You want defense-in-depth: even if main is compromised via prompt injection, it cannot execute code or browse
 - Compliance or policy requires the channel-facing agent to be strictly non-exec
 
@@ -47,7 +46,7 @@ The recommended 2-agent config gives main full exec + browser on an egress-allow
 
 ## How It Works
 
-The hardened variant strips exec, browser, and web tools from main and moves them to a dedicated computer agent. Main delegates via `sessions_send`, with agent-guard scanning the boundary. The computer agent reuses the same egress-allowlisted Docker network (`openclaw-egress`) that main uses in the recommended config.
+The hardened variant strips exec, browser, and web tools from main and moves them to a dedicated computer agent. Main delegates via `sessions_send`. The computer agent reuses the same egress-allowlisted Docker network (`openclaw-egress`) that main uses in the recommended config.
 
 ```
 Channel (WhatsApp / Signal / Google Chat)
@@ -57,7 +56,7 @@ Main Agent (Docker, network:none, no exec/web/browser)
     |  channel-guard scans inbound messages
     |
     |-- sessions_send("computer", "<task>")
-    |       |  agent-guard scans at boundary
+    |       |
     |       v
     |  Computer Agent (Docker, egress-allowlisted network, full exec + browser)
     |       |
@@ -72,7 +71,7 @@ Main Agent (Docker, network:none, no exec/web/browser)
        Search Agent (Docker, network:none, web_search/web_fetch only)
 ```
 
-The **main agent** receives all channel input but has no exec, no web access, no browser, and no outbound network. It delegates work to the **computer agent** via `sessions_send`. The [agent-guard plugin](extensions/agent-guard.md) scans payloads crossing the agent boundary.
+The **main agent** receives all channel input but has no exec, no web access, no browser, and no outbound network. It delegates work to the **computer agent** via `sessions_send`.
 
 The **computer agent** does the actual work — full runtime access + browser automation inside a Docker sandbox on the egress-allowlisted network (same `openclaw-egress` network and firewall rules from the recommended config).
 
@@ -83,14 +82,13 @@ The **computer agent** does the actual work — full runtime access + browser au
 | Layer | What it stops | Enforcement |
 |-------|--------------|-------------|
 | channel-guard | Prompt injection from channels | Plugin hook (`message_received`) |
-| agent-guard | Injected payloads crossing agent boundary | Plugin hook (`before_tool_call` on `sessions_send`) |
 | Tool policy (main) | Direct exec/web/browser from main | `tools.deny` — hard enforcement |
 | Tool policy (computer) | Web search on computer agent | `tools.deny` — hard enforcement |
 | Docker `network:none` (main) | All outbound from main (downgraded from egress-allowlisted in recommended config) | Docker runtime |
 | Network egress allowlist (computer) | Exfiltration to arbitrary hosts from computer agent | nftables/pf + Docker custom network (reuses `openclaw-egress` from recommended config) |
 | Workspace isolation | Cross-agent file access | Separate workspace paths |
 
-> **Dominant residual risk:** `sessions_send` remains the primary attack vector. A compromised main agent can send arbitrary payloads to the computer agent. The agent-guard plugin is the mitigation. Network egress allowlisting ensures that even if the computer agent is fully compromised, it can only reach pre-approved hosts.
+> **Dominant residual risk:** `sessions_send` remains the primary attack vector. A compromised main agent can send arbitrary payloads to the computer agent. Tool policy restrictions + SOUL.md behavioral guidance + network egress allowlisting provide defense in depth. Network egress allowlisting ensures that even if the computer agent is fully compromised, it can only reach pre-approved hosts.
 
 ---
 
@@ -214,7 +212,7 @@ Starting from the [recommended 2-agent config](examples/config.md), you need to:
         "workspace": "~/.openclaw/workspaces/main",
         "agentDir": "~/.openclaw/agents/main/agent",
         "tools": {
-          "allow": ["group:fs", "group:sessions", "group:memory", "message"],
+          "allow": ["group:fs", "group:sessions", "memory_search", "memory_get", "message"],
           "deny": ["group:runtime", "group:web", "browser", "group:ui", "group:automation"],
           "elevated": { "enabled": false }
         },
@@ -232,8 +230,8 @@ Starting from the [recommended 2-agent config](examples/config.md), you need to:
         "workspace": "~/.openclaw/workspaces/computer",
         "agentDir": "~/.openclaw/agents/computer/agent",
         "tools": {
-          "allow": ["group:runtime", "group:fs", "group:memory", "group:sessions", "browser"],
-          "deny": ["web_search", "web_fetch", "group:ui", "message"],
+          "allow": ["group:runtime", "group:fs", "memory_search", "memory_get", "group:sessions", "browser"],
+          "deny": ["web_search", "web_fetch", "canvas", "message"],
           "elevated": { "enabled": false }
         },
         "subagents": { "allowAgents": ["search"] },
@@ -255,12 +253,7 @@ Starting from the [recommended 2-agent config](examples/config.md), you need to:
           "allow": ["web_search", "web_fetch", "sessions_send", "session_status"],
           "deny": ["exec", "read", "write", "edit", "apply_patch", "process", "browser", "gateway", "cron"]
         },
-        "subagents": { "allowAgents": [] },
-        "sandbox": {
-          "mode": "all",
-          "scope": "agent",
-          "workspaceAccess": "none"
-        }
+        "subagents": { "allowAgents": [] }
       }
     ]
   }
@@ -327,7 +320,7 @@ Route all channels to main. The computer and search agents have no binding — u
 
 ### Plugin Configuration
 
-Enable all three guard plugins:
+Enable the guard plugins:
 
 ```json5
 {
@@ -340,26 +333,11 @@ Enable all three guard plugins:
       "web-guard": {
         "enabled": true,
         "config": { "failOpen": false, "sensitivity": 0.5, "timeoutMs": 10000, "maxContentLength": 50000 }
-      },
-      "agent-guard": {
-        "enabled": true,
-        "config": {
-          "failOpen": false,
-          "sensitivity": 0.5,
-          "warnThreshold": 0.4,
-          "blockThreshold": 0.8,
-          // Only scan outbound from main — computer→search is trusted
-          "guardAgents": ["main"],
-          // Skip scanning to low-privilege targets (search only — no browser agent)
-          "skipTargetAgents": ["search"]
-        }
       }
     }
   }
 }
 ```
-
-The `agent-guard` config: `guardAgents: ["main"]` scans `sessions_send` calls originating from main (the only agent that receives untrusted channel input). `skipTargetAgents: ["search"]` skips scanning to the low-privilege search agent. This focuses scanning on the high-risk main-to-computer boundary — the key addition over the recommended 2-agent config.
 
 ---
 
@@ -456,13 +434,12 @@ from the main agent and execute them using your full set of development tools.
 |--------|----------------------|-------------------|
 | Channel-facing agent | Main (exec + browser, egress-allowlisted) | Main (no exec/web/browser, `network: none`) |
 | Exec agent | Main (same agent) | Computer (dedicated, egress-allowlisted) |
-| Exec access from channel | Direct on main | Indirect via `sessions_send` + agent-guard scanning |
+| Exec access from channel | Direct on main | Indirect via `sessions_send` delegation |
 | Browser | On main (egress-allowlisted) | On computer (egress-allowlisted) |
-| Search agent | Unchanged | Unchanged |
+| Search agent | Unsandboxed (both) | Unsandboxed (both) |
 | If main compromised | Attacker has exec + egress-allowlisted network | Attacker has no exec, no network — must cross agent boundary |
-| `sessions_send` scanning | Not needed (main does its own exec) | agent-guard scans main-to-computer boundary |
 | Core agents | 2 (main, search) | 3 (main, computer, search) |
-| Complexity | Medium | Higher — extra agent, agent-guard config, SOUL.md for computer |
+| Complexity | Medium | Higher — extra agent, SOUL.md for computer |
 
 ---
 
@@ -490,7 +467,7 @@ Add a fourth agent (on top of this 3-agent hardened variant) for unsandboxed ope
 **Architecture:**
 ```
 main (sandboxed, channels) → computer (sandboxed, egress-allowlisted)
-                           → search (sandboxed, no network)
+                           → search (unsandboxed — no filesystem/exec tools)
 
 dev (unsandboxed, no channels) — operator access via Control UI
 ```
@@ -514,7 +491,7 @@ Run the computer agent with `sandbox.mode: "off"`:
   "workspace": "~/.openclaw/workspaces/computer",
   "agentDir": "~/.openclaw/agents/computer/agent",
   "tools": {
-    "allow": ["group:runtime", "group:fs", "group:memory", "group:sessions", "browser"],
+    "allow": ["group:runtime", "group:fs", "memory_search", "memory_get", "group:sessions", "browser"],
     "deny": ["web_search", "web_fetch", "message"]
   },
   "sandbox": { "mode": "off" },  // No Docker, runs on host
@@ -525,7 +502,7 @@ Run the computer agent with `sandbox.mode: "off"`:
 **Architecture:**
 ```
 main (sandboxed, network:none, channels) → computer (unsandboxed, host network)
-                                         → search (sandboxed, no network)
+                                         → search (unsandboxed — no filesystem/exec tools)
 ```
 
 **What you lose:**
@@ -537,15 +514,15 @@ main (sandboxed, network:none, channels) → computer (unsandboxed, host network
 - ✅ Access to Xcode, Homebrew, host Python/Node, mounted drives
 - ✅ Simpler architecture (no Docker required)
 - ✅ **Works in macOS VMs** (no Docker required)
-- ✅ Still have main → computer delegation barrier with agent-guard scanning
+- ✅ Still have main → computer delegation barrier with tool policy + SOUL.md
 
 **When to use:**
 - macOS VM deployments (where Docker isn't available)
 - Workflows that frequently need host-native tools
 - Simplicity matters more than network isolation
-- You trust the agent-guard plugin as the primary defense (network is secondary)
+- You trust tool policy restrictions + SOUL.md behavioral guidance as the primary defenses (network is secondary)
 
-**Trade-off:** You're relying on the main agent (sandboxed, no exec/network) + agent-guard scanning to prevent prompt injection from reaching the computer agent. If both fail, a compromised computer agent has full host access + unrestricted network. The egress allowlist provided defense-in-depth; without it, the agent-guard boundary becomes more critical.
+**Trade-off:** You're relying on the main agent (sandboxed, no exec/network) + tool policy restrictions + SOUL.md behavioral guidance to prevent prompt injection from reaching the computer agent. If those defenses fail, a compromised computer agent has full host access + unrestricted network. The egress allowlist provided defense-in-depth; without it, the structural defenses become more critical.
 
 ---
 
@@ -567,7 +544,7 @@ In the recommended 2-agent config, main has both exec and browser on the egress-
 
 **Add the computer agent when:**
 - Channel-facing agent must have zero exec capability (compliance, policy, or defense-in-depth)
-- You want agent-guard scanning on the exec boundary as an additional defense layer
+- You want structural separation via tool policy + SOUL.md as the primary defenses on the exec boundary
 - The trade-off of an extra agent + configuration complexity is acceptable
 
 **Stay with the recommended 2-agent config when:**
@@ -581,9 +558,10 @@ In the recommended 2-agent config, main has both exec and browser on the egress-
 
 - **DNS resolution is point-in-time.** IP changes (CDN rotation) can break allowed hosts. Re-run `apply-rules.sh` on a schedule or after DNS changes.
 - **pf/nftables rules don't survive reboot.** Persist via LaunchDaemon (macOS) or systemd unit (Linux).
-- **`sessions_send` remains the dominant residual risk.** A compromised main agent can send arbitrary payloads to the computer agent. The agent-guard plugin mitigates but doesn't eliminate this — detection is probabilistic.
+- **`sessions_send` remains the dominant residual risk.** A compromised main agent can send arbitrary payloads to the computer agent. Tool policy restrictions and SOUL.md behavioral guidance mitigate this by limiting what the computer agent will do, but they rely on LLM compliance rather than hard enforcement. Network egress allowlisting provides defense-in-depth — even if the computer agent is fully compromised, exfiltration is limited to pre-approved hosts.
 - **Allowlist maintenance is ongoing.** Adding new package registries, APIs, or services requires updating `allowlist.conf` and re-applying rules.
-- **DNS tunneling is possible.** Firewall rules allow DNS (port 53) to any destination. A compromised agent could encode data in DNS queries to an attacker-controlled server. Restrict DNS to specific resolvers (e.g., Docker's internal DNS at `127.0.0.11`) if this is a concern.
+- **DNS tunneling is possible.** Firewall rules allow DNS (port 53) to any destination. A compromised agent could encode data in DNS queries. To restrict DNS to Docker's internal resolver only, replace the DNS allow rules in the apply scripts with destination-specific rules (e.g., `pass out quick on $IFACE proto udp to 127.0.0.11 port 53` for pf, or `udp dport 53 ip daddr 127.0.0.11 accept` for nftables). Trade-off: may break container name resolution that uses external DNS.
+- **UDP is blocked by default.** The default-deny rule covers all protocols. Only DNS (UDP 53) is explicitly allowed.
 - **Browser automation increases attack surface.** The computer agent can navigate arbitrary URLs via the `browser` tool. Malicious web pages could exploit browser vulnerabilities or attempt prompt injection. The egress allowlist still applies — exfiltration is limited to allowlisted hosts — but the browser itself becomes a potential compromise vector.
 
 ---
@@ -596,7 +574,7 @@ Starting from the [recommended configuration](examples/config.md), follow these 
 
 **Before (2 agents — recommended config):**
 - Main — channel-facing, exec + browser, `network: openclaw-egress`
-- Search — web_search/web_fetch, `network: none`
+- Search — web_search/web_fetch, unsandboxed
 
 **After (3 agents — hardened variant):**
 - Main — channel-facing, no exec/web/browser, `network: none`
@@ -622,7 +600,7 @@ Starting from the [recommended configuration](examples/config.md), follow these 
    {
      "id": "main",
      "tools": {
-       "allow": ["group:fs", "group:sessions", "group:memory", "message"],  // removed: group:runtime, browser, web_fetch
+       "allow": ["group:fs", "group:sessions", "memory_search", "memory_get", "message"],  // removed: group:runtime, browser, web_fetch
        "deny": ["group:runtime", "group:web", "browser", "group:ui", "group:automation"],
        "elevated": { "enabled": false }
      },
@@ -638,20 +616,7 @@ Starting from the [recommended configuration](examples/config.md), follow these 
 
    b. Add computer agent definition (see [Agent Definitions](#agent-definitions) above for full config)
 
-   c. Add agent-guard plugin config:
-   ```json5
-   "agent-guard": {
-     "enabled": true,
-     "config": {
-       "failOpen": false,
-       "sensitivity": 0.5,
-       "guardAgents": ["main"],
-       "skipTargetAgents": ["search"]
-     }
-   }
-   ```
-
-4. **Create computer agent directories**
+3. **Create computer agent directories**
    ```bash
    mkdir -p ~/.openclaw/workspaces/computer/memory
    mkdir -p ~/.openclaw/agents/computer/agent
@@ -663,25 +628,24 @@ Starting from the [recommended configuration](examples/config.md), follow these 
    chmod 600 ~/.openclaw/agents/computer/agent/auth-profiles.json
    ```
 
-5. **Create SOUL.md files**
+4. **Create SOUL.md files**
 
    Create `~/.openclaw/workspaces/main/SOUL.md` with the hardened template (see [Main Agent SOUL.md](#main-agent-soulmd) above) — this replaces the recommended config's SOUL.md since main no longer has exec.
 
    Create `~/.openclaw/workspaces/computer/SOUL.md` with the computer template (see [Computer Agent SOUL.md](#computer-agent-soulmd) above).
 
-6. **Restart gateway**
+5. **Restart gateway**
    ```bash
    openclaw start
    ```
 
-7. **Verify migration**
+6. **Verify migration**
 
    Run through the [verification checklist](#verification-checklist) below. Key items:
    - Main agent responds to channel messages
    - Main agent refuses `exec` and `browser` (tool denied)
    - Computer agent can use `browser` tool
    - Computer agent can `npm install` (egress allowlist working)
-   - agent-guard fires on `sessions_send` from main (check gateway logs)
 
 ### Troubleshooting
 
@@ -706,7 +670,6 @@ Starting from the [recommended configuration](examples/config.md), follow these 
 - [ ] Computer agent can `npm install` (registry.npmjs.org in allowlist)
 - [ ] Computer agent can use `browser` tool (Playwright CDN in allowlist)
 - [ ] Computer agent cannot `curl https://evil.com` (blocked by egress rules)
-- [ ] agent-guard fires on `sessions_send` from main (check gateway logs)
 - [ ] `openclaw security audit` reports no critical findings
 
 ---

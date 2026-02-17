@@ -56,6 +56,7 @@ Then configure the agent in `openclaw.json`:
 | `apply-rules.sh` | Applies pf rules (macOS) | Yes |
 | `apply-rules-linux.sh` | Applies nftables rules (Linux) | Yes |
 | `verify-egress.sh` | Tests allowed/blocked connectivity | No |
+| `allow-domain.sh` | Adds host:port to allowlist and applies rules | Yes |
 
 ## Allowlist Format
 
@@ -87,10 +88,39 @@ sudo nft list ruleset > /etc/nftables.conf
 sudo systemctl enable nftables
 ```
 
+### macOS LaunchDaemon for Persistence
+
+```xml
+<!-- /Library/LaunchDaemons/ai.openclaw.egress-rules.plist -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ai.openclaw.egress-rules</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/path/to/scripts/network-egress/apply-rules.sh</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+```
+
+Load: `sudo launchctl bootstrap system /Library/LaunchDaemons/ai.openclaw.egress-rules.plist`
+
 ## Updating the Allowlist
 
 When the agent needs access to a new host:
 
+**Quick method** (recommended):
+```bash
+sudo bash scripts/network-egress/allow-domain.sh api.example.com:443 "Example API"
+```
+
+**Manual method:**
 1. Add the entry to `allowlist.conf`
 2. Re-run the apply script (it replaces existing rules atomically)
 3. Re-run `verify-egress.sh` to confirm
@@ -132,5 +162,6 @@ docker network inspect openclaw-egress --format '{{.Id}}'
 
 - **DNS is point-in-time:** IP changes (CDN rotation) can break allowed hosts or allow new IPs. Re-run `apply-rules.sh` periodically or on a schedule
 - **DNS poisoning:** An attacker controlling DNS could point an allowed hostname at a malicious IP. Use IP addresses for critical entries where possible
-- **UDP not filtered:** Only TCP is allowlisted. UDP egress (except DNS) is not explicitly blocked in the current rules. Add UDP rules if your threat model requires it
+- **UDP is blocked by default.** The default-deny rules (pf: `block out on $IFACE all`; nftables: final `drop`) block all protocols including UDP. Only DNS (UDP 53) is explicitly allowed. To restrict DNS to a specific resolver, see the DNS tunneling mitigation in [Hardened Multi-Agent](../../content/docs/hardened-multi-agent.md#accepted-risks)
+- **IPv6 disabled by design.** The Docker network is created with `--ipv6=false` to prevent IPv6 traffic from bypassing IPv4-only firewall rules. Do not re-create the network with IPv6 enabled unless you also add IPv6 firewall rules
 - **Not a substitute for tool policy:** Network egress is defense-in-depth alongside `tools.deny` — both layers are needed

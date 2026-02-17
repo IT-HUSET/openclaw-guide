@@ -8,7 +8,7 @@ This is the key security pattern in this guide: give your agents internet access
 
 **Prerequisite:** [Phase 4 (Channels & Multi-Agent)](phase-4-multi-agent.md) — this phase adds a search agent to your existing gateway for isolated web search delegation.
 
-> **VM isolation:** macOS VMs — skip the `sandbox` config blocks (no Docker). Linux VMs — keep the `sandbox` blocks (Docker works inside the VM). Both run the same search delegation pattern.
+> **VM isolation:** macOS VMs — skip the main agent `sandbox` config block (no Docker). Linux VMs — keep the main agent `sandbox` block (Docker works inside the VM). The search agent runs unsandboxed in all postures (workaround for [#9857](https://github.com/openclaw/openclaw/issues/9857)). Both run the same search delegation pattern.
 
 ---
 
@@ -51,11 +51,12 @@ The search agent:
 - Has `web_search` and `web_fetch` only — no filesystem tools at all
 - Has no code execution (`exec`, `process` denied)
 - Has no browser control (`browser` denied)
-- Docker isolation / Linux VMs: Sandboxed — can't read its own `auth-profiles.json` (file is on host, outside container)
-- macOS VM isolation: No sandbox — tool policy provides isolation (no filesystem tools to abuse)
+- Unsandboxed — tool policy provides isolation (no filesystem tools to abuse). Workaround for [#9857](https://github.com/openclaw/openclaw/issues/9857) (`sessions_spawn` broken when both agents sandboxed + per-agent tools)
 - Has no channel binding (unreachable from outside — only via `sessions_send`)
 
 Even if the search agent is manipulated via a poisoned web page, the blast radius is minimal — it has no filesystem tools and nothing worth stealing.
+
+> **Why not sandbox the search agent?** In the recommended config, the search agent runs unsandboxed as a workaround for [#9857](https://github.com/openclaw/openclaw/issues/9857) — `sessions_spawn` breaks when both agents are sandboxed with per-agent tools. Tool policy (not sandbox) provides the real isolation: the search agent has no filesystem tools (`read`, `write`, `exec` all denied), so there's nothing to read or exfiltrate. The main agent's Docker sandbox + egress allowlist is where container isolation matters — it has exec, browser, and filesystem access.
 
 > **Version note (2026.2.16):** `web_fetch` now enforces an upstream response body size cap (default 5 MB), preventing denial-of-service via unbounded downloads. Configurable via `tools.web.fetch.maxResponseBytes`.
 
@@ -148,7 +149,7 @@ cp ~/.openclaw/agents/main/agent/auth-profiles.json \
 chmod 600 ~/.openclaw/agents/search/agent/auth-profiles.json
 ```
 
-The search agent can't read this file at runtime — it's on the host, outside the Docker sandbox. The gateway reads it on the agent's behalf. (Docker sandboxing only — macOS VM deployments read files from the VM filesystem directly.)
+The gateway reads auth profiles on the agent's behalf at startup, regardless of sandbox status.
 
 ### 5. Configure the search agent
 
@@ -163,8 +164,8 @@ Add to `openclaw.json`:
         // web_search denied — delegated to search agent.
         "id": "main",
         "tools": {
-          "allow": ["group:runtime", "group:fs", "group:sessions", "group:memory", "message", "browser", "web_fetch"],
-          "deny": ["web_search", "group:ui", "group:automation"]
+          "allow": ["group:runtime", "group:fs", "group:sessions", "memory_search", "memory_get", "message", "browser", "web_fetch"],
+          "deny": ["web_search", "canvas", "group:automation"]
         },
         "subagents": { "allowAgents": ["search"] }
       },
@@ -176,11 +177,6 @@ Add to `openclaw.json`:
           "allow": ["web_search", "web_fetch", "sessions_send", "session_status"],
           "deny": ["exec", "read", "write", "edit", "apply_patch", "process", "browser", "gateway", "cron"]
         },
-        "sandbox": {
-          "mode": "all",
-          "scope": "agent",
-          "workspaceAccess": "none"
-        }
       }
     ]
   }
@@ -193,9 +189,9 @@ Key points:
 - `search` agent has `web_search` and `web_fetch` via its `allow` list. No filesystem tools — eliminates any data exfiltration risk
 - `search` agent has `sessions_send` and `session_status` — to respond and check status
 - `search` agent denies all dangerous tools explicitly
-- `sandbox.workspaceAccess: "none"` — no filesystem access even within sandbox
+- Search agent runs unsandboxed — workaround for [#9857](https://github.com/openclaw/openclaw/issues/9857). Sandboxing is desired for defense-in-depth but not required since the search agent has no filesystem or exec tools
 
-> **No Docker?** If Docker sandboxing is unavailable, omit the `sandbox` block. The tool deny/allow lists provide the primary isolation. The sandbox is defense-in-depth, not the only layer. See [Phase 6: Docker Sandboxing](phase-6-deployment.md#docker-sandboxing) for setup.
+> **No Docker?** The search agent runs unsandboxed by default — tool deny/allow lists provide the primary isolation. The main agent's sandbox and egress allowlist are where Docker matters. See [Phase 6: Docker Sandboxing](phase-6-deployment.md#docker-sandboxing) for setup.
 
 > **Why per-agent deny, not global?** Global `tools.deny` overrides agent-level `tools.allow` — a tool denied globally cannot be re-enabled on any agent. Web tools must be denied per-agent so the search agent's `allow` list works. `deny` always wins over `allow` at the *same* level — so adding `web_search` to both `allow` and `deny` on the search agent would deny it. See [Reference: Tool Policy Precedence](../reference.md#tool-policy-precedence) for details.
 

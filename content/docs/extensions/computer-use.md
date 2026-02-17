@@ -12,11 +12,9 @@ OpenClaw plugin that registers 7 `vm_*` tools for VM-based macOS computer intera
 
 ```
 Main Agent (Docker) --sessions_send--> Worker Agent --vm_*--> WebSocket --> Lume VM (cua-computer-server)
-                                        |
-                                  agent-guard scans
 ```
 
-The main agent stays Docker-sandboxed while delegating GUI tasks to a worker agent via `sessions_send`. The worker agent controls the Lume VM through WebSocket-connected `vm_*` tools. [agent-guard](agent-guard.md) scans inter-agent messages at the `sessions_send` boundary.
+The main agent stays Docker-sandboxed while delegating GUI tasks to a worker agent via `sessions_send`. The worker agent controls the Lume VM through WebSocket-connected `vm_*` tools.
 
 ## Prerequisites
 
@@ -130,6 +128,8 @@ Restart the gateway. The plugin connects to the VM lazily on the first `vm_*` to
 - **WebSocket unencrypted** — the connection uses `ws://` (not `wss://`). Acceptable for localhost/VM-local network. Consider TLS if the VM is on a different network segment.
 
 - **Plugin runs in gateway process** — the plugin makes HTTP/WebSocket calls from the gateway process, bypassing agent-level network restrictions. This is by design: sandboxed agents can't make network calls, but plugin tools can.
+
+- **`sessions_send` delegation risk** — inter-agent messages bypass per-agent tool restrictions. A compromised worker agent can delegate arbitrary operations to the main agent. The main agent's AGENTS.md is the last line of defense.
 
 ## Testing
 

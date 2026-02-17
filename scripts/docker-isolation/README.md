@@ -15,7 +15,7 @@ Host (macOS, dedicated machine)
             ├── main (Docker sandbox, exec + browser, egress-allowlisted)
             ├── whatsapp (Docker sandbox, no network)
             ├── signal (Docker sandbox, no network)
-            └── search (Docker sandbox, web_search only, no network)
+            └── search (unsandboxed†, web_search only)
 ```
 
 ### Multi-gateway (channel separation)
@@ -26,14 +26,16 @@ Host (macOS, dedicated machine)
   │    └── Gateway instance "wa" (port 18789)
   │         ├── main (Docker sandbox, exec + browser, egress-allowlisted)
   │         ├── whatsapp (Docker sandbox, no network)
-  │         └── search (Docker sandbox, no network)
+  │         └── search (unsandboxed†, web_search only)
   │
   └── Dedicated `openclaw-sig` user (non-admin, chmod 700 home)
        └── Gateway instance "sig" (port 18790)
             ├── main (Docker sandbox, exec + browser, egress-allowlisted)
             ├── signal (Docker sandbox, no network)
-            └── search (Docker sandbox, no network)
+            └── search (unsandboxed†, web_search only)
 ```
+
+†Search agent runs unsandboxed as a workaround for [#9857](https://github.com/openclaw/openclaw/issues/9857). Sandboxing is desired for defense-in-depth but not required — the search agent has no filesystem or exec tools.
 
 Multi-gateway provides stronger isolation: each channel runs under a separate OS user with its own gateway, config, credentials, and API tokens. A compromised WhatsApp agent cannot access Signal credentials (or vice versa).
 
@@ -135,15 +137,14 @@ Multi-instance configs are generated from `examples/openclaw.json` — filtered 
 
 ## Plugins
 
-Scripts install five plugins from `extensions/` per instance:
+Scripts install four plugins from `extensions/` per instance:
 
 - **web-guard** — pre-fetch prompt injection scanning for `web_fetch`
 - **channel-guard** — prompt injection scanning for incoming channel messages
-- **agent-guard** — prompt injection scanning for inter-agent `sessions_send` messages
 - **image-gen** — image generation via OpenRouter (needs `OPENROUTER_API_KEY`)
 - **computer-use** — VM-based macOS computer interaction via Lume
 
-The ONNX model (~370MB, shared by web-guard, channel-guard, and agent-guard) downloads on first gateway start.
+The ONNX model (~370MB, shared by web-guard and channel-guard) downloads on first gateway start.
 
 ## After Setup
 
@@ -182,7 +183,7 @@ The main agent's AGENTS.md includes delegation instructions for the search agent
 
 ### Workspace Git Sync
 
-Initialize git repos in workspaces that hold persistent state (typically `main` — search agents are sandboxed with no persistent workspace worth tracking):
+Initialize git repos in workspaces that hold persistent state (typically `main` — search agents have no persistent workspace worth tracking):
 
 ```bash
 # Single instance

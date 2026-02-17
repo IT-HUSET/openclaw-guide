@@ -614,6 +614,8 @@ This roots the main agent's filesystem inside Docker — it can no longer read `
 1. Docker network created: `docker network create openclaw-egress`
 2. Egress allowlist configured — see [`scripts/network-egress/`](https://github.com/IT-HUSET/openclaw-guide/tree/main/scripts/network-egress/) for setup
 
+> **macOS with Docker Desktop or OrbStack:** Egress allowlisting via pf rules does not work — these tools run containers inside a Linux VM where the bridge interface is inaccessible to host-level pf. Options: (1) use a Linux VM deployment with `apply-rules-linux.sh` inside the VM, (2) use colima with bridged networking, or (3) accept no egress filtering and rely on tool policy as the primary defense.
+
 **Trade-off:** Host-native tools (Xcode, Homebrew binaries) are unavailable inside the container. For host-level automation (cron jobs, service management), see [Local Admin Agent](#optional-local-admin-agent) below. For an even more isolated architecture with a dedicated computer agent, see [Hardened Multi-Agent](../hardened-multi-agent.md).
 
 ### Optional: Local Admin Agent
@@ -636,7 +638,7 @@ Agent definition (also in the [recommended config](../examples/config.md), comme
   "workspace": "/Users/openclaw/.openclaw/workspaces/local-admin",
   "agentDir": "/Users/openclaw/.openclaw/agents/local-admin/agent",
   "tools": {
-    "allow": ["group:fs", "group:runtime", "group:automation", "group:memory"],
+    "allow": ["group:fs", "group:runtime", "group:automation", "memory_search", "memory_get"],
     "deny": ["group:web", "browser", "message"],
     "elevated": { "enabled": false }
   },
@@ -690,7 +692,7 @@ macOS Host (personal use, untouched)
             └── Gateway (port 18789): main + search (+ optional channel agents)
 ```
 
-Same multi-agent architecture as Docker isolation (main + search, plus optional channel agents, `sessions_send` delegation), but with a VM boundary instead of an OS user boundary. No Docker inside the VM (macOS doesn't support nested virtualization). For computer-use agents that need macOS GUI interaction inside VMs, see [Phase 8: Computer Use](phase-8-computer-use.md).
+Same multi-agent architecture as Docker isolation (main + search, plus optional channel agents, `sessions_send` delegation), but with a VM boundary instead of an OS user boundary. No Docker inside the VM (macOS doesn't support nested virtualization). For adding macOS-native tooling (Xcode, iOS Simulator, macOS apps) via Lume VMs, see [Phase 8: Computer Use](phase-8-computer-use.md).
 
 Two hypervisor options:
 
@@ -1011,7 +1013,7 @@ Host (macOS or Linux, untouched)
        └── openclaw user (no sudo, docker group)
             └── Gateway (port 18789): main + search (+ optional channel agents)
                  ├── main (Docker sandbox, egress-allowlisted network)
-                 └── search (Docker sandbox, no filesystem)
+                 └── search (unsandboxed — no filesystem/exec tools)
 ```
 
 Same multi-agent architecture as Docker isolation, but running inside a VM. Docker closes the `read→exfiltrate` chain; the VM boundary protects the host. No macOS 2-VM limit — run as many Linux VMs as resources allow.
@@ -1182,6 +1184,12 @@ Group=openclaw
 ExecStart=/usr/bin/node /usr/lib/node_modules/openclaw/dist/index.js gateway --port 18789
 Restart=always
 RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/home/openclaw/.openclaw
 
 Environment=HOME=/home/openclaw
 Environment=OPENCLAW_HOME=/home/openclaw
@@ -1366,6 +1374,55 @@ The key: `tag:openclaw` has **no outbound grant** — it can't reach other tailn
 
 > **Important:** Test SSH/screen sharing still works after applying ACLs. If locked out, use physical access (or out-of-band management) to fix.
 
+## If You Need LAN Access
+
+Prefer Tailscale Serve or an SSH tunnel over binding to `0.0.0.0`. If LAN binding is unavoidable:
+
+1. **Set auth** — `gateway.auth.mode: "token"` or `"password"` (required for non-loopback; gateway enforces this)
+2. **Firewall to source IPs** — restrict port 18789 to specific trusted IPs:
+
+   **macOS (pf):**
+   ```
+   # /etc/pf.conf — allow only your admin machine
+   block in on en0 proto tcp to any port 18789
+   pass in on en0 proto tcp from 192.168.1.100 to any port 18789
+   ```
+
+   **Linux (ufw):**
+   ```bash
+   sudo ufw deny in on eth0 to any port 18789
+   sudo ufw allow in on eth0 from 192.168.1.100 to any port 18789
+   ```
+
+3. **Never port-forward broadly** — don't expose 18789 on your router
+
+> **What's exposed on port 18789:** Control UI, WebSocket protocol, HTTP API (`/v1/chat/completions`), and all webhook endpoints. Binding to `0.0.0.0` without a source-IP firewall exposes all of these to every device on your network.
+
+## Reverse Proxy Configuration
+
+If terminating TLS with a reverse proxy (Caddy, nginx, Cloudflare Tunnel):
+
+1. **Set `trustedProxies`** in `openclaw.json`:
+   ```json
+   { "gateway": { "trustedProxies": ["127.0.0.1"] } }
+   ```
+
+2. **Proxy must OVERWRITE `X-Forwarded-For`** — not append. Appending allows clients to spoof their IP.
+
+   **Caddy** (overwrites by default — no action needed).
+
+   **nginx:**
+   ```nginx
+   proxy_set_header X-Forwarded-For $remote_addr;  # overwrites, not appends
+   ```
+
+3. **Strip Tailscale identity headers** if `gateway.auth.allowTailscale` is enabled:
+   ```nginx
+   proxy_set_header Tailscale-User-Login "";
+   proxy_set_header Tailscale-User-Name "";
+   ```
+   Forwarding these headers from your proxy allows authentication bypass.
+
 ---
 
 ## macOS Companion App
@@ -1380,7 +1437,7 @@ The app will attach to the existing gateway in read-only mode.
 
 Alternative (per-launch): `open -a OpenClaw --args --attach-only`
 
-> **VM isolation:** The companion app runs on your host macOS. Point it at the VM's gateway via `--gateway-url http://<vm-ip>:18789` (requires the gateway to bind to the VM's interface, not just loopback).
+> **VM isolation:** The companion app runs on your host macOS. Recommended: use Tailscale Serve inside the VM (`tailscale serve --bg --https 8443 http://127.0.0.1:18789`) and connect via `--gateway-url https://<tailscale-ip>:8443`. Alternative: SSH tunnel (`ssh -N -L 18789:127.0.0.1:18789 user@<vm-ip>`). Avoid binding the gateway to `0.0.0.0` — see [If You Need LAN Access](#if-you-need-lan-access).
 
 ---
 
@@ -1496,6 +1553,7 @@ tail -20 /home/openclaw/.openclaw/logs/gateway.log     # Linux
 - [ ] File permissions are 600/700 on sensitive files
 - [ ] Gateway only listens on loopback
 - [ ] Tailscale ACLs block outbound from openclaw machine (if applicable)
+- [ ] Security audit passes: `openclaw security audit --deep`
 
 ---
 

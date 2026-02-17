@@ -358,6 +358,7 @@ GOOGLE_CHAT_SERVICE_ACCOUNT_FILE=/Users/openclaw/.openclaw/credentials/googlecha
 - **Tailscale Funnel** keeps the rest of your gateway private
 - **Caddy/Cloudflare** can add rate limiting at the reverse proxy layer
 - Google Chat's own bearer token authentication prevents unauthorized POSTs
+- If using a custom reverse proxy (not Tailscale Funnel), strip `Tailscale-User-Login` and `Tailscale-User-Name` headers — see [Reverse Proxy Configuration](phases/phase-6-deployment.md#reverse-proxy-configuration)
 
 ### Channel-guard compatibility
 

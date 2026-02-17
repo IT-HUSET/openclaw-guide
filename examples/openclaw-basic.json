@@ -12,7 +12,7 @@
   // - Web search delegation (Phase 5)
   //
   // NOT included (see recommended example for these):
-  // - Computer agent with browser (see recommended example)
+  // - Docker sandboxing with egress allowlisting (see recommended example)
   // - Dedicated channel agents (defense-in-depth — channels route to main here)
   // - Signal / Google Chat channels
   // - Image generation plugin
@@ -166,8 +166,8 @@
         // Only reachable via sessions_send from main agent.
         // No channel binding = can't be messaged directly.
         // No filesystem tools — nothing to read or exfiltrate.
-        // Docker isolation / Linux VMs: Sandboxed — can't read auth-profiles.json (on host, outside container).
-        // macOS VM isolation: No sandbox — tool policy provides isolation (only API keys at risk within VM).
+        // Tool policy provides isolation — no filesystem tools to abuse.
+        // Unsandboxed — workaround for #9857 (sessions_spawn broken when both agents sandboxed + per-agent tools).
         "id": "search",
         "workspace": "/Users/openclaw/.openclaw/workspaces/search",
         "agentDir": "/Users/openclaw/.openclaw/agents/search/agent",
@@ -178,9 +178,7 @@
         },
         "subagents": { "allowAgents": [] },
         "sandbox": {
-          "mode": "all",
-          "scope": "agent",
-          "workspaceAccess": "none"
+          "mode": "off"
         }
       }
     ]

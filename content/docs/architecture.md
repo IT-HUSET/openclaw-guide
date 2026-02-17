@@ -347,6 +347,8 @@ graph TB
 | `custom` | Explicit interface/IP | **Yes** | Advanced/network-specific binds |
 | `auto` | Prefers `127.0.0.1` | Depends | Auto-detect |
 
+> **Avoid `lan` (`0.0.0.0`) unless necessary.** It exposes the Control UI, HTTP API, WebSocket, and webhooks to every device on the network. Prefer Tailscale Serve (keeps gateway on loopback). If you must use `lan`, firewall the port to a tight source-IP allowlist — see [Phase 6: If You Need LAN Access](phases/phase-6-deployment.md#if-you-need-lan-access).
+
 ### Remote Access Patterns
 
 ```mermaid
@@ -384,6 +386,8 @@ graph LR
 ```
 
 **Tailscale Serve** (recommended for remote access): gateway binds to loopback, Tailscale proxies HTTPS to your tailnet. Tailscale Serve automatically adds identity headers (`Tailscale-User-Login`, `Tailscale-User-Name`) to proxied requests when the connecting client is authenticated via Tailscale — no additional configuration required. OpenClaw uses these for passwordless auth.
+
+> **Security: identity header trust.** When `gateway.auth.allowTailscale` is enabled, the gateway trusts `Tailscale-User-Login` and `Tailscale-User-Name` headers from loopback. If you place a custom reverse proxy in front of the gateway, it **must strip** these headers from client requests — forwarding them allows authentication bypass. See [Phase 6: Reverse Proxy Configuration](phases/phase-6-deployment.md#reverse-proxy-configuration).
 
 **Tailscale Funnel**: public HTTPS endpoint (ports 443, 8443, 10000). Requires `gateway.auth.mode: "password"`.
 
@@ -804,6 +808,8 @@ graph TD
 | `group:messaging` | `message` |
 | `group:nodes` | `nodes` |
 | `group:openclaw` | All built-in tools |
+
+> **Version note:** `group:memory` is not recognized by the gateway in v2026.2.15. Use individual tools (`memory_search`, `memory_get`) in tool allow/deny lists until this is fixed upstream.
 
 ### Tool Profiles
 

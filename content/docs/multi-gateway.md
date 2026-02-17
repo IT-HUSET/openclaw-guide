@@ -36,6 +36,8 @@ The `--profile <name>` CLI flag creates a fully scoped gateway instance with its
 
 Each profile gets an auto-scoped state directory at `~/.openclaw-<name>/`, completely separate from the default `~/.openclaw/`. The profile flag applies to all CLI commands:
 
+> **Shared UID risk:** All profiles run as the same OS user. A compromised agent in one profile can read another profile's config and credentials (`~/.openclaw-<name>/`). For UID-level isolation, use [multi-user](#multi-user) instead.
+
 ```bash
 # Setup a new profile
 openclaw --profile wa setup

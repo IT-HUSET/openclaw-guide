@@ -91,9 +91,9 @@ Add these settings to `~/.openclaw/openclaw.json`. Each one is explained below.
 | `elevated.enabled: false` | Agent escaping sandbox to run on host |
 | `skills.allowBundled` | Unauthorized skill installation (only listed skills available) |
 | `session.dmScope: "per-channel-peer"` | Cross-sender session leakage — without this, Alice and Bob's DMs share a session (Alice could see Bob's messages). See [Session Management](../sessions.md#direct-messages) for all scope options |
-| `mdns.mode: "minimal"` | Broadcasting filesystem paths and SSH availability on LAN |
+| `mdns.mode: "minimal"` | Broadcasting filesystem paths and SSH availability on LAN. For cloud/VPS or sensitive environments, use `"off"` instead of `"minimal"` to disable mDNS entirely |
 | `logging.redactSensitive: "tools"` | Sensitive data appearing in log files |
-| `gateway.bind: "loopback"` | Network access to gateway from other machines |
+| `gateway.bind: "loopback"` | Network access to gateway from other machines. **Never use `lan` (`0.0.0.0`) without also firewalling the port to specific source IPs** — see [Phase 6](phase-6-deployment.md#if-you-need-lan-access) |
 | `gateway.auth.mode: "token"` | Unauthorized gateway API access |
 
 Generate a gateway token:
@@ -102,6 +102,8 @@ openclaw doctor --generate-gateway-token
 ```
 
 For now, export it in your shell (`export OPENCLAW_GATEWAY_TOKEN=<token>`). For production, store it in the service plist or environment file — see [Phase 6](phase-6-deployment.md#secrets-management). Don't put it in `openclaw.json` directly.
+
+> **Auth is fail-closed by default.** If no token or password is configured, the gateway refuses WebSocket connections. Even on loopback, auth is recommended.
 
 > **Access logging:** Enable gateway access logging (`gateway.logging.level: "info"`) and review logs regularly for unexpected activity. See [Phase 6 — Log Rotation](phase-6-deployment.md#log-rotation) for production log management.
 
@@ -358,13 +360,12 @@ Host (macOS or Linux)
   └── Dedicated `openclaw` user (non-admin, chmod 700 home)
        └── Single OpenClaw gateway
             ├── main (Docker sandbox, workspace rw, egress-allowlisted network)
-            ├── whatsapp (Docker sandbox, no network)
-            ├── signal (Docker sandbox, no network)
-            ├── googlechat (Docker sandbox, no network)
-            └── search (isolated — web_search only, no filesystem)
+            ├── search (isolated — web_search only, no filesystem)
+            └── (optional) channel agents: whatsapp, signal, googlechat
+                 (Docker sandbox, no network — defense-in-depth)
 ```
 
-**Isolation:** OS user boundary + Docker sandbox (all agents filesystem-rooted; channel agents with no network) + tool policy + SOUL.md. The search agent exists as a separate agent within the gateway, reachable only via `sessions_send`.
+**Isolation:** OS user boundary + Docker sandbox (main + channel agents filesystem-rooted; channel agents with no network) + tool policy + SOUL.md. The search agent runs unsandboxed ([#9857](https://github.com/openclaw/openclaw/issues/9857) workaround) but has no filesystem or exec tools — tool policy provides isolation. Reachable only via `sessions_send`.
 
 **Key property:** Docker closes the `read→exfiltrate` chain for all agents — no agent can access `~/.openclaw/openclaw.json` or `auth-profiles.json` (filesystem rooted to workspace inside container). Main runs on an egress-allowlisted Docker network (exec + browser + web_fetch sandboxed). All agents share one gateway, one config, one process — with `sessions_send` for delegation.
 
@@ -403,14 +404,14 @@ Works on both macOS and Linux hosts. Docker runs inside the VM, enabling the str
 Host (macOS or Linux, untouched)
   └── Linux VM — "openclaw-vm"
        └── openclaw user (no sudo, docker group)
-            └── Gateway: main + search + channel agents as configured
-                 ├── whatsapp (Docker sandbox, no network)
-                 ├── signal (Docker sandbox, no network)
-                 ├── googlechat (Docker sandbox, no network)
-                 └── search (Docker sandbox, no filesystem)
+            └── Gateway: main + search (+ optional channel agents)
+                 ├── main (Docker sandbox, egress-allowlisted network)
+                 ├── search (unsandboxed — no filesystem/exec tools)
+                 └── (optional) channel agents: whatsapp, signal, googlechat
+                      (Docker sandbox, no network — defense-in-depth)
 ```
 
-**Isolation:** Kernel-level VM boundary + Docker sandbox (same as Docker isolation) + tool policy + SOUL.md. The `openclaw` user has docker group access but no sudo.
+**Isolation:** Kernel-level VM boundary + Docker sandbox (main + channel agents) + tool policy + SOUL.md. The search agent runs unsandboxed ([#9857](https://github.com/openclaw/openclaw/issues/9857) workaround) — sandboxing is desired for defense-in-depth but not required since it has no filesystem or exec tools. The `openclaw` user has docker group access but no sudo.
 
 **Key property:** Both isolation chains are closed — Docker roots the filesystem (closing `read→exfiltrate`) while the VM boundary protects the host (closing platform escape). No macOS 2-VM limit applies; run as many VMs as resources allow.
 
@@ -441,7 +442,7 @@ See [Phase 6: VM Isolation — Linux VMs](phase-6-deployment.md#vm-isolation-lin
 
 **In plain terms:** Docker isolation gives you Docker-level internal isolation with a single gateway — the recommended approach for most deployments. macOS VM isolation gives the strongest host boundary at the cost of running a macOS VM, but with no Docker inside. Linux VM isolation combines both — VM host boundary *and* Docker sandbox inside — giving the strongest overall posture, at the cost of more moving parts and no native macOS tooling (Xcode, etc.) inside the VM.
 
-For VM-based computer-use (macOS GUI/Xcode workflows), see [Phase 8: Computer Use](phase-8-computer-use.md).
+For adding macOS-native tooling (Xcode, iOS Simulator, macOS apps) via Lume VMs, see [Phase 8: Computer Use](phase-8-computer-use.md).
 
 ### Accepted Risks
 
@@ -460,15 +461,15 @@ For VM-based computer-use (macOS GUI/Xcode workflows), see [Phase 8: Computer Us
 - **No macOS tooling** — Xcode, Homebrew-native tools, and macOS-specific coding workflows aren't available inside the VM. Use if your agents don't need macOS-specific capabilities.
 
 **All models:**
-- **`sessions_send` trust chain (dominant residual risk)** — channel agents delegate to search and main via `sessions_send`. A prompt-injected channel agent can:
+- **`sessions_send` trust chain (dominant residual risk)** — agents delegate to each other via `sessions_send`. In the recommended 2-agent config, main delegates web search to search. If using [optional dedicated channel agents](phase-4-multi-agent.md#optional-channel-agents), those also delegate to main and search. A prompt-injected agent can:
   - **Send malicious queries to the search agent** — limited impact (no filesystem tools, no exec). The search agent can only return web results.
-  - **Send arbitrary requests to the main agent** — highest impact. Attack flow: incoming WhatsApp message → channel agent (prompt-injected) → `sessions_send("main", "<attacker payload>")` → main agent executes inside Docker with workspace-only access. With sandbox hardening (`mode: "all"`), main can no longer read host files outside its workspace — the blast radius is reduced from "full host access" to "exec inside container + workspace data".
-  - **Partial defenses:** (1) two-hop architecture — the attacker's payload must survive two model contexts (channel agent's and main agent's), (2) the main agent evaluates requests against its own AGENTS.md independently, (3) `subagents.allowAgents` restricts which agents can be reached, (4) workspace scoping limits what data is accessible. These reduce but don't eliminate the risk.
-  - **No deployment topology addresses this** — `sessions_send` is intra-process communication within the gateway. Docker, VMs, and OS user boundaries don't apply. The main agent's AGENTS.md instructions are the last line of defense.
-  - See [Privileged Operation Delegation](phase-4-multi-agent.md#privileged-operation-delegation) for the delegation architecture.
+  - **Send arbitrary requests to the main agent** — highest impact (applies when using dedicated channel agents, or if main itself is prompt-injected via a channel message). Attack flow: incoming message → agent (prompt-injected) → `sessions_send("main", "<attacker payload>")` → main agent executes inside Docker with workspace-only access. With sandbox hardening (`mode: "all"`), main can no longer read host files outside its workspace — the blast radius is reduced from "full host access" to "exec inside container + workspace data".
+  - **Partial defenses:** (1) when using channel agents, the attacker's payload must survive two model contexts (channel agent's and main agent's), (2) the target agent evaluates requests against its own AGENTS.md independently, (3) `subagents.allowAgents` restricts which agents can be reached, (4) workspace scoping limits what data is accessible. These reduce but don't eliminate the risk.
+  - **No deployment topology addresses this** — `sessions_send` is intra-process communication within the gateway. Docker, VMs, and OS user boundaries don't apply. The target agent's AGENTS.md instructions are the last line of defense.
+  - See [Privileged Operation Delegation](phase-4-multi-agent.md#privileged-operation-delegation) for the delegation architecture (applicable when using dedicated channel agents).
 - **SOUL.md is soft** — model-level guardrails can be bypassed by sophisticated prompt injection. Tool policy (`deny`/`allow`) is the hard enforcement layer.
 - **Web content injection** — poisoned web pages can inject instructions into search results or browser content. The [web-guard plugin](phase-5-web-search.md#advanced-prompt-injection-guard) provides optional pre-fetch content scanning, but detection is probabilistic — tool policy remains the hard enforcement layer.
-- **Channel message injection** — adversarial messages from WhatsApp/Signal can attempt to hijack channel agents. Three defense layers apply:
+- **Channel message injection** — adversarial messages from WhatsApp/Signal can attempt to hijack the receiving agent (main, or a dedicated channel agent if configured). Three defense layers apply:
   1. **channel-guard plugin** ([setup](phase-5-web-search.md#inbound-message-guard-channel-guard)) — primary defense, scans incoming messages with DeBERTa ONNX model. Probabilistic — false negatives are possible.
   2. **Dedicated channel agents (optional)** — secondary defense. If channels route to agents that deny `exec`/`process`, a successful injection can't execute commands directly. However, `sessions_send` to main bypasses this restriction (see dominant risk above). A real but narrow defense — blocks the direct attack path while the delegation path remains open.
   3. **Docker/VM sandboxing** — tertiary, limits blast radius of any successful attack to the container/VM.

@@ -162,8 +162,8 @@
         "workspace": "/Users/openclaw/.openclaw/workspaces/main",
         "agentDir": "/Users/openclaw/.openclaw/agents/main/agent",
         "tools": {
-          "allow": ["group:runtime", "group:fs", "group:sessions", "group:memory", "message", "browser", "web_fetch"],
-          "deny": ["web_search", "group:ui", "group:automation"],
+          "allow": ["group:runtime", "group:fs", "group:sessions", "memory_search", "memory_get", "message", "browser", "web_fetch"],
+          "deny": ["web_search", "canvas", "group:automation"],
           "elevated": { "enabled": false }
         },
         "subagents": { "allowAgents": ["search"] },
@@ -182,7 +182,8 @@
         // SEARCH AGENT — isolated web search + content processing
         // Only reachable via sessions_send from main.
         // No channel binding = can't be messaged directly.
-        // No filesystem tools — nothing to read or exfiltrate.
+        // No filesystem tools — tool policy provides isolation.
+        // Unsandboxed — workaround for #9857 (sessions_spawn broken when both agents sandboxed + per-agent tools).
         // Cheaper model — search queries don't need Opus.
         "id": "search",
         "workspace": "/Users/openclaw/.openclaw/workspaces/search",
@@ -192,12 +193,7 @@
           "allow": ["web_search", "web_fetch", "sessions_send", "session_status"],
           "deny": ["exec", "read", "write", "edit", "apply_patch", "process", "browser", "gateway", "cron"]
         },
-        "subagents": { "allowAgents": [] },
-        "sandbox": {
-          "mode": "all",
-          "scope": "agent",
-          "workspaceAccess": "none"
-        }
+        "subagents": { "allowAgents": [] }
       }
 
       // --- OPTIONAL: Local admin agent (host management) ---
@@ -210,7 +206,7 @@
       //   "workspace": "/Users/openclaw/.openclaw/workspaces/local-admin",
       //   "agentDir": "/Users/openclaw/.openclaw/agents/local-admin/agent",
       //   "tools": {
-      //     "allow": ["group:fs", "group:runtime", "group:automation", "group:memory"],
+      //     "allow": ["group:fs", "group:runtime", "group:automation", "memory_search", "memory_get"],
       //     "deny": ["group:web", "browser", "message"],
       //     "elevated": { "enabled": false }
       //   },
@@ -368,9 +364,6 @@
           "maxContentLength": 50000
         }
       },
-      // agent-guard: Not needed for 2-agent config (no inter-agent exec boundary).
-      // Add it when using the hardened variant with a computer agent —
-      // see hardened-multi-agent.md for config.
       "image-gen": {
         "enabled": true,
         "config": {
