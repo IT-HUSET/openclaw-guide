@@ -82,6 +82,10 @@ The **computer agent** does the actual work — full runtime access + browser au
 | Layer | What it stops | Enforcement |
 |-------|--------------|-------------|
 | channel-guard | Prompt injection from channels | Plugin hook (`message_received`) |
+| web-guard | Prompt injection from fetched web content | Plugin hook (`before_tool_call`) |
+| file-guard | Read/write/delete of sensitive file paths | Plugin hook (`before_tool_call`) — deterministic |
+| network-guard | Network requests to non-allowlisted domains | Plugin hook (`before_tool_call`) — deterministic |
+| command-guard | Dangerous shell commands (rm -rf, fork bombs, etc.) | Plugin hook (`before_tool_call`) — deterministic |
 | Tool policy (main) | Direct exec/web/browser from main | `tools.deny` — hard enforcement |
 | Tool policy (computer) | Web search on computer agent | `tools.deny` — hard enforcement |
 | Docker `network:none` (main) | All outbound from main (downgraded from egress-allowlisted in recommended config) | Docker runtime |
@@ -320,7 +324,7 @@ Route all channels to main. The computer and search agents have no binding — u
 
 ### Plugin Configuration
 
-Enable the guard plugins:
+Enable all guard plugins — the hardened variant adds the three deterministic guards (file-guard, network-guard, command-guard) on top of the ML-based guards from the recommended config:
 
 ```json5
 {
@@ -333,11 +337,47 @@ Enable the guard plugins:
       "web-guard": {
         "enabled": true,
         "config": { "failOpen": false, "sensitivity": 0.5, "timeoutMs": 10000, "maxContentLength": 50000 }
+      },
+      "file-guard": {
+        // Path-based file protection — blocks read/write/delete of sensitive files.
+        "enabled": true,
+        "config": {
+          "failOpen": false,
+          "configPath": "./file-guard.json",
+          "logBlocks": true
+        }
+      },
+      "network-guard": {
+        // Application-level domain allowlisting for web_fetch and exec tool calls.
+        // Complements network-egress firewall rules with application-layer enforcement.
+        "enabled": true,
+        "config": {
+          "allowedDomains": [
+            "github.com", "*.github.com",
+            "npmjs.org", "registry.npmjs.org",
+            "pypi.org", "*.pypi.org",
+            "api.anthropic.com"
+          ],
+          "blockDirectIp": true,
+          "failOpen": false,
+          "logBlocks": true
+        }
+      },
+      "command-guard": {
+        // Blocks dangerous shell commands (rm -rf, fork bombs, force push, etc.) via regex.
+        "enabled": true,
+        "config": {
+          "guardedTools": ["exec", "bash"],
+          "failOpen": false,
+          "logBlocks": true
+        }
       }
     }
   }
 }
 ```
+
+> **Why add deterministic guards here?** The three deterministic guards complement the ML-based guards with hard, predictable enforcement. `file-guard` protects sensitive paths even if an agent has filesystem tools. `network-guard` provides application-level domain allowlisting that works alongside the firewall-level egress rules. `command-guard` blocks dangerous shell commands before they execute. All three are fast (<1ms), have zero false negatives for their configured patterns, and require no ML model. See the [extension docs](extensions/) for full configuration.
 
 ---
 

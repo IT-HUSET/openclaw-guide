@@ -144,6 +144,8 @@ Scripts install four plugins from `extensions/` per instance:
 - **image-gen** — image generation via OpenRouter (needs `OPENROUTER_API_KEY`)
 - **computer-use** — VM-based macOS computer interaction via Lume
 
+For hardened deployments, also install the deterministic guard plugins: **file-guard**, **network-guard**, **command-guard**. See [hardened-multi-agent.md](../../content/docs/hardened-multi-agent.md) for configuration.
+
 The ONNX model (~370MB, shared by web-guard and channel-guard) downloads on first gateway start.
 
 ## After Setup

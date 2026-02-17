@@ -295,8 +295,9 @@ sudo -u openclaw ls /Users/openclaw/.openclaw/extensions/
 If `node_modules` weren't included in the backup (they're large), reinstall per plugin:
 
 ```bash
-for plugin in channel-guard web-guard image-gen; do
-  sudo -u openclaw bash -c "cd /Users/openclaw/.openclaw/extensions/$plugin && npm install"
+for plugin in channel-guard web-guard file-guard network-guard command-guard image-gen; do
+  [ -d "/Users/openclaw/.openclaw/extensions/$plugin" ] && \
+    sudo -u openclaw bash -c "cd /Users/openclaw/.openclaw/extensions/$plugin && npm install"
 done
 ```
 

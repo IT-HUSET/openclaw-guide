@@ -23,7 +23,7 @@ What can go wrong with an AI agent that has tools?
 | **Node-pairing / remote execution** | Paired nodes expose `system.run` for remote code execution on macOS | Attacker runs arbitrary commands on paired machines |
 | **Platform escape** | Compromised agent breaks out of sandbox/VM | Access to host filesystem, other users' data, lateral movement |
 
-The fix isn't one setting — it's layered defense. Each setting below blocks a specific attack path. Mitigations fire at different points in the pipeline: **channel-guard** scans on message ingestion, **web-guard** on `web_fetch` calls, **tool policy** (`deny`/`allow`) on every tool call, and **SOUL.md/AGENTS.md** instructions influence every model turn.
+The fix isn't one setting — it's layered defense. Each setting below blocks a specific attack path. Mitigations fire at different points in the pipeline: **channel-guard** scans on message ingestion, **web-guard** on `web_fetch` calls, **tool policy** (`deny`/`allow`) on every tool call, and **SOUL.md/AGENTS.md** instructions influence every model turn. For maximum hardening, three additional deterministic guards are available: **file-guard** (path-based file protection), **network-guard** (application-level domain allowlisting), and **command-guard** (dangerous command blocking) — see [Hardened Multi-Agent](../hardened-multi-agent.md) for configuration.
 
 > **Version note:** A token exfiltration vulnerability via Control UI (CVSS 8.8) was patched in 2026.1.29. Ensure you're on that version or later. See the [official security advisories](https://github.com/openclaw/openclaw/security/advisories) for the latest vulnerability information.
 >
@@ -104,6 +104,8 @@ openclaw doctor --generate-gateway-token
 For now, export it in your shell (`export OPENCLAW_GATEWAY_TOKEN=<token>`). For production, store it in the service plist or environment file — see [Phase 6](phase-6-deployment.md#secrets-management). Don't put it in `openclaw.json` directly.
 
 > **Auth is fail-closed by default.** If no token or password is configured, the gateway refuses WebSocket connections. Even on loopback, auth is recommended.
+
+> **Fail-closed channels:** Some channel bridges (e.g., LINE as of 2026.2.16) are fail-closed — if webhook signature verification fails, the message is silently dropped rather than passed to the agent. This is the preferred security posture for any channel integration. WhatsApp and Signal use their own transport-level encryption; Google Chat relies on GCP service account verification.
 
 > **Access logging:** Enable gateway access logging (`gateway.logging.level: "info"`) and review logs regularly for unexpected activity. See [Phase 6 — Log Rotation](phase-6-deployment.md#log-rotation) for production log management.
 
@@ -237,7 +239,7 @@ See [OpenClaw browser docs](https://docs.openclaw.ai/tools/browser) for full con
 
 ### Sandbox Security Hardening
 
-> **Version note (2026.2.16):** OpenClaw now blocks dangerous Docker sandbox configurations at startup: bind mounts to sensitive host paths, `--network host`, and unconfined seccomp/AppArmor profiles are rejected. This prevents misconfigured `sandbox.docker` blocks from silently weakening isolation. The gateway logs a clear error and refuses to start if a blocked config is detected.
+> **Version note (2026.2.16):** OpenClaw now blocks dangerous Docker sandbox configurations at startup: bind mounts to sensitive host paths, `--network host`, and unconfined seccomp/AppArmor profiles are rejected. This prevents misconfigured `sandbox.docker` blocks from silently weakening isolation. The gateway logs a clear error and refuses to start if a blocked config is detected. Additionally, sandbox image hashing was upgraded from SHA-1 to SHA-256 for integrity verification.
 
 ---
 

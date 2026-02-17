@@ -542,10 +542,22 @@ openclaw plugins install -l ./extensions/channel-guard
 
 ---
 
+## Additional Hardening Guards
+
+The ML-based guards above (web-guard, channel-guard) provide probabilistic defense-in-depth. For deployments that need deterministic enforcement, three additional plugins are available:
+
+- [**file-guard**](../extensions/file-guard.md) — path-based file protection (no_access, read_only, no_delete)
+- [**network-guard**](../extensions/network-guard.md) — application-level domain allowlisting for `web_fetch` and `exec`
+- [**command-guard**](../extensions/command-guard.md) — regex-based dangerous command blocking
+
+These are included in the [Hardened Multi-Agent](../hardened-multi-agent.md) configuration. All three are deterministic (no ML model), fast (<1ms), and have zero false negatives for configured patterns.
+
+---
+
 ## Next Steps
 
 → **[Phase 6: Deployment](phase-6-deployment.md)** — run as a system service with full network isolation
 
 Or:
-- [Hardened Multi-Agent](../hardened-multi-agent.md) — optional: add a dedicated computer agent for exec isolation
+- [Hardened Multi-Agent](../hardened-multi-agent.md) — optional: add a dedicated computer agent for exec isolation + deterministic guards
 - [Reference](../reference.md) — full tool list, config keys, gotchas

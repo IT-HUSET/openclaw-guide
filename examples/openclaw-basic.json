@@ -16,6 +16,8 @@
   // - Dedicated channel agents (defense-in-depth — channels route to main here)
   // - Signal / Google Chat channels
   // - Image generation plugin
+  // - Deterministic guard plugins (file-guard, network-guard, command-guard)
+  //   — see hardened-multi-agent.md for the maximum-security configuration
   //
   // DEPLOYMENT OPTIONS:
   //   Docker isolation — Dedicated OS user + Docker (this config): stronger

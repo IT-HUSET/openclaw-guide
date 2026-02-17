@@ -23,7 +23,15 @@ layout: hextra-home
   A progressive, security-first guide to deploying and hardening&nbsp;<br class="sm:block hidden" />OpenClaw — from single agent to production multi-agent setup.
 {{< /hextra/hero-subtitle >}}
 
-{{< hextra/hero-button text="Get Started" link="docs/phases/phase-1-getting-started" >}}
+{{< hextra/hero-button text="Get Started!" link="docs/phases/phase-1-getting-started" >}}
+
+{{< callout type="warning" >}}
+**But remember:** _Only use OpenClaw in a dedicated, isolated environment and take necessary security precautions. This is a powerful tool that can cause real damage if misused or left unsecured._
+{{< /callout >}}
+
+<div style="margin-top:1rem"></div>
+
+
 
 {{< /hextra/hero-container >}}
 

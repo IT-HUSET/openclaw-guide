@@ -22,5 +22,5 @@ Start with [Phase 1]({{< relref "phases/phase-1-getting-started" >}}) and work t
   {{< card link="hardened-multi-agent" title="Hardened Multi-Agent" subtitle="Optional: add a dedicated computer agent for exec isolation" icon="shield-check" >}}
   {{< card link="recipes" title="Recipes" subtitle="Optional use cases: knowledge vault, automated research" icon="light-bulb" >}}
   {{< card link="examples" title="Examples" subtitle="Annotated config and security audit walkthrough" icon="code" >}}
-  {{< card link="extensions" title="Extensions" subtitle="channel-guard, web-guard, image-gen, computer-use plugins" icon="puzzle" >}}
+  {{< card link="extensions" title="Extensions" subtitle="Guard plugins, image-gen, computer-use" icon="puzzle" >}}
 {{< /cards >}}
