@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Documentation-only repository — a progressive, security-first guide for deploying and hardening **OpenClaw** (AI agent platform). Covers single-agent through multi-agent setups with WhatsApp, Signal, and Google Chat channels, web search isolation, and production deployment.
 
-Primarily documentation (Markdown + one annotated JSON example), plus TypeScript plugins in `extensions/`. No build system; plugins have their own `npm test`. Integration tests run against a local OpenClaw gateway.
+Primarily documentation (Markdown + annotated JSON config examples), plus TypeScript plugins in `extensions/`. No build system; plugins have their own `npm test`. Integration tests run against a local OpenClaw gateway.
 
 ## Structure
 
@@ -29,6 +29,7 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 - `content/docs/google-chat.md` — Google Chat: GCP setup, webhook exposure, multi-agent, multi-org, known issues
 - `content/docs/multi-gateway.md` — Multi-Gateway: profiles, multi-user, VM variants for running multiple gateway instances
 - `content/docs/custom-sandbox-images.md` — Custom Sandbox Images: building, deploying, and using custom Docker images for production sandboxes
+- `content/docs/pragmatic-single-agent.md` — Pragmatic Single Agent: single unsandboxed agent with full OS access, hardened by all five guard plugins + OS-level isolation (non-admin user or VM)
 - `content/docs/hardened-multi-agent.md` — Hardened Multi-Agent: optional exec isolation via dedicated computer agent on top of 2-agent baseline
 - `content/docs/reference.md` — Config cheat sheet, tool groups, plugins, gotchas, useful commands
 - `content/docs/architecture.md` — System internals: core components, module dependencies, networking, diagrams
@@ -37,6 +38,7 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 ### Examples
 - `examples/openclaw.json` — Recommended config (main/search, all agents sandboxed, all hardening)
 - `examples/openclaw-basic.json` — Minimal config (main + search, single channel)
+- `examples/openclaw-pragmatic.json` — Pragmatic single agent config (one unsandboxed agent, all five guard plugins)
 - `content/docs/examples/security-audit.md` — Worked example of `openclaw security audit` output
 
 ### Scripts
@@ -58,7 +60,7 @@ Primarily documentation (Markdown + one annotated JSON example), plus TypeScript
 ## Key Context
 
 - Target deployment: macOS (Apple Silicon) or Linux
-- Three deployment postures: **Docker isolation** (recommended — dedicated OS user + Docker), **VM: macOS VMs** (Lume / Parallels, stronger host isolation, no Docker inside), **VM: Linux VMs** (Multipass / KVM, strongest combined — VM boundary + Docker inside)
+- Four deployment postures: **Pragmatic single agent** (single unsandboxed agent, guard plugins + non-admin user or VM), **Docker isolation** (recommended — dedicated OS user + Docker), **VM: macOS VMs** (Lume / Parallels, stronger host isolation, no Docker inside), **VM: Linux VMs** (Multipass / KVM, strongest combined — VM boundary + Docker inside)
 - **Docker isolation:** single gateway on host, core agents (main + search) plus optional channel agents, Docker sandboxing
 - **VM: macOS VMs:** single macOS VM, dedicated standard user, multi-agent gateway, no Docker. macOS hosts only. Optional: 2 VMs for channel separation
 - **VM: Linux VMs:** single Linux VM with Docker inside, dedicated user (docker group, no sudo), multi-agent gateway. macOS or Linux hosts. No VM count limit
@@ -156,9 +158,10 @@ The child instance launches a headless Chrome via the `chrome-devtools` MCP serv
 - Falls back to `hugo` build check + manual user review if `claude` CLI is not available
 
 ### Dual source-of-truth check
-When `examples/openclaw.json` is modified, always verify `content/docs/examples/config.md` matches. Run:
+When config example files are modified, verify the embedded code blocks match. Run:
 ```bash
 diff <(sed -n '/^```json5$/,/^```$/p' content/docs/examples/config.md | sed '1d;$d') examples/openclaw.json
+diff <(sed -n '/^```json5$/,/^```$/p' content/docs/examples/pragmatic-config.md | sed '1d;$d') examples/openclaw-pragmatic.json
 ```
 
 ## Guide Maintenance

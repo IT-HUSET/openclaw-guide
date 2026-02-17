@@ -29,7 +29,7 @@ Prompt injection detection using a local DeBERTa ONNX model (~370 MB, downloaded
 
 ### Deterministic Guards (hardened deployments)
 
-Fast, zero-false-negative enforcement via pattern matching — no ML model, no external dependencies. Included in the [hardened multi-agent](https://IT-HUSET.github.io/openclaw-guide/docs/hardened-multi-agent/) configuration.
+Fast, zero-false-negative enforcement via pattern matching — no ML model, no external dependencies. Included in both the [hardened multi-agent](https://IT-HUSET.github.io/openclaw-guide/docs/hardened-multi-agent/) and [pragmatic single-agent](https://IT-HUSET.github.io/openclaw-guide/docs/pragmatic-single-agent/) configurations.
 
 - [`extensions/file-guard/`](extensions/file-guard/) — Path-based file access protection with three levels (no_access, read_only, no_delete) using picomatch patterns. See [file-guard docs](https://IT-HUSET.github.io/openclaw-guide/docs/extensions/file-guard/).
 - [`extensions/network-guard/`](extensions/network-guard/) — Application-level domain allowlisting for `web_fetch` and `exec` tool calls. Complements firewall-level egress rules. See [network-guard docs](https://IT-HUSET.github.io/openclaw-guide/docs/extensions/network-guard/).

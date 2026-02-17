@@ -1,0 +1,279 @@
+{
+  // ============================================================
+  // OpenClaw Configuration — Pragmatic Single Agent
+  // ============================================================
+  // NOTE: This file uses JSON5 comments (//) for documentation.
+  // OpenClaw supports JSON5 natively — no need to strip comments.
+  //
+  // Single-agent architecture:
+  //   Main agent — unsandboxed, full OS access (exec, browser, web, filesystem).
+  //                Security via guard plugins + OS-level isolation (non-admin user or VM).
+  //
+  // No Docker, no multi-agent delegation, no sessions_send choreography.
+  // All five guard plugins provide the primary defense layer.
+  //
+  // Prerequisites:
+  //   1. All five guard plugins installed (channel-guard, web-guard, file-guard,
+  //      network-guard, command-guard)
+  //   2. Non-admin OS user or VM boundary (Lume/Multipass)
+  //
+  // See pragmatic-single-agent.md for full deployment guide and security analysis.
+  //
+  // DEPLOYMENT OPTIONS:
+  //   Dedicated machine — non-admin OS user, chmod 700 home directory.
+  //   Lume VM (macOS)   — macOS VM on macOS host, non-admin user inside VM.
+  //   Multipass VM (Linux) — Linux VM on any host, non-admin user inside VM.
+  //   See pragmatic-single-agent.md for setup instructions.
+  //
+  // Replace placeholder values:
+  //   +46XXXXXXXXX  → your phone number
+  //   /Users/openclaw → your actual home directory path
+  //
+  // Environment variables (set in LaunchDaemon/LaunchAgent plist or systemd EnvironmentFile):
+  //   OPENCLAW_GATEWAY_TOKEN
+  //   ANTHROPIC_API_KEY
+  //   BRAVE_API_KEY (or OPENROUTER_API_KEY for Perplexity)
+  // See Phase 6 — Deployment > Secrets Management for details.
+  // ============================================================
+
+  // --- Chat Commands ---
+  // Disable dangerous chat commands. These allow users to
+  // run shell commands, edit config, or restart the gateway
+  // from within a chat message.
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "bash": false,       // Blocks !command shell access
+    "config": false,     // Blocks /config writes
+    "debug": false,      // Blocks /debug runtime overrides
+    "restart": false     // Blocks /restart
+  },
+
+  // --- Global Tool Restrictions ---
+  "tools": {
+    // Only deny tools globally that the agent should never have.
+    // Unlike multi-agent configs, web_search and web_fetch are NOT denied here —
+    // the single agent handles everything, including web searches.
+    "deny": ["canvas", "gateway"],
+
+    // Disable elevated mode — prevents sandbox escape
+    "elevated": { "enabled": false },
+
+    // Web search provider config
+    "web": {
+      "search": {
+        "enabled": true,
+        "provider": "brave",
+        "apiKey": "${BRAVE_API_KEY}"
+
+        // Alternative: Perplexity via OpenRouter
+        // "provider": "perplexity",
+        // "perplexity": {
+        //   "apiKey": "${OPENROUTER_API_KEY}",
+        //   "baseUrl": "https://openrouter.ai/api/v1",
+        //   "model": "perplexity/sonar-pro"
+        // }
+      }
+    }
+  },
+
+  // --- Skills ---
+  // Only allow known-good bundled skills. No skill installer configured
+  // means no new skills can be added from ClawHub.
+  "skills": {
+    "allowBundled": ["coding-agent", "github", "healthcheck", "weather", "video-frames"]
+  },
+
+  // --- Session Isolation ---
+  "session": {
+    // Each sender on each channel gets their own isolated session
+    "dmScope": "per-channel-peer",
+
+    // Inter-agent communication settings (unused with single agent,
+    // but harmless to include for forward-compatibility)
+    "agentToAgent": {
+      "maxPingPongTurns": 5
+    }
+  },
+
+  // --- Agent ---
+  "agents": {
+    "defaults": {
+      // Pre-compaction memory flush — saves important context to memory before compacting.
+      // Without this, the agent forgets everything from the compacted conversation portion.
+      "compaction": {
+        "mode": "safeguard",
+        "reserveTokensFloor": 20000,
+        "memoryFlush": {
+          "enabled": true,
+          "softThresholdTokens": 4000,
+          "systemPrompt": "Session nearing compaction. Store durable memories now.",
+          "prompt": "Write any lasting notes to memory/YYYY-MM-DD.md; reply with NO_REPLY if nothing to store."
+        }
+      },
+
+      // Memory search — semantic + keyword hybrid search across memory files.
+      // Local provider: no API key, ~600MB disk, full privacy (nothing leaves your machine).
+      "memorySearch": {
+        "enabled": true,
+        "provider": "local",
+        "query": {
+          "hybrid": {
+            "enabled": true,
+            "vectorWeight": 0.7,
+            "textWeight": 0.3
+          }
+        },
+        "cache": {
+          "enabled": true,
+          "maxEntries": 50000
+        }
+      },
+      "maxConcurrent": 4,
+      "subagents": {
+        "maxConcurrent": 8,
+        "model": "anthropic/claude-sonnet-4-5",
+        "thinking": "low"
+      }
+    },
+    "list": [
+      {
+        // MAIN — single agent, full access, no sandbox.
+        // All tools available. Guard plugins are the safety net.
+        "id": "main",
+        "default": true,
+        "workspace": "/Users/openclaw/.openclaw/workspaces/main",
+        "tools": {
+          // Everything enabled except gateway management
+          "deny": ["gateway"]
+        },
+        "sandbox": { "mode": "off" },
+        // No inter-agent routing — allowAgents: [] prevents sessions_send to named agents.
+        // sessions_spawn sub-tasks still work (using defaults.subagents settings above).
+        "subagents": { "allowAgents": [] }
+      }
+    ]
+  },
+
+  // --- Channel Configuration ---
+  // No bindings section — unbound channels auto-route to the default agent (main).
+  // Add/remove channels as needed.
+  "channels": {
+    "whatsapp": {
+      "dmPolicy": "pairing",
+      "selfChatMode": false,
+      "allowFrom": ["+46XXXXXXXXX"], // REPLACE with real number — placeholder causes silent message drops
+      "groupPolicy": "allowlist",
+      "groups": { "*": { "requireMention": true } },
+      "mediaMaxMb": 50,
+      "debounceMs": 0
+    }
+  },
+
+  // --- Gateway ---
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "loopback",
+    "auth": {
+      "mode": "token",
+      "token": "${OPENCLAW_GATEWAY_TOKEN}"
+    }
+  },
+
+  // --- Network Discovery ---
+  "discovery": {
+    "mdns": { "mode": "minimal" }
+  },
+
+  // --- Logging ---
+  "logging": {
+    "redactSensitive": "tools",
+    "redactPatterns": ["pplx-[A-Za-z0-9]+"]
+  },
+
+  // --- Guard Plugins ---
+  // All five guards enabled. This is the primary defense layer —
+  // without Docker sandboxing, these plugins are what stand between
+  // a compromised agent and full OS access.
+  //
+  // All guards default to failOpen: false — if a guard is unavailable,
+  // access is denied rather than allowed.
+  "plugins": {
+    "entries": {
+      "whatsapp": { "enabled": true },
+
+      // ML-based: scans incoming channel messages for prompt injection.
+      // Three-tier: pass → warn (advisory injected) → block (message rejected).
+      "channel-guard": {
+        "enabled": true,
+        "config": {
+          "failOpen": false,
+          "sensitivity": 0.5,
+          "warnThreshold": 0.4,
+          "blockThreshold": 0.8
+        }
+      },
+
+      // ML-based: pre-fetches URLs and scans content for prompt injection
+      // before the agent processes web_fetch results.
+      "web-guard": {
+        "enabled": true,
+        "config": {
+          "failOpen": false,
+          "sensitivity": 0.5,
+          "timeoutMs": 10000,
+          "maxContentLength": 50000
+        }
+      },
+
+      // Deterministic: blocks read/write/delete of sensitive file paths
+      // (.env, .ssh/*, *.pem, credentials, etc.) via picomatch glob patterns.
+      "file-guard": {
+        "enabled": true,
+        "config": {
+          "failOpen": false,
+          "configPath": "./file-guard.json", // Relative to plugin install dir (~/.openclaw/plugins/file-guard/)
+          "logBlocks": true
+        }
+      },
+
+      // Deterministic: application-level domain allowlisting for web_fetch
+      // and exec tool calls. Blocks exfiltration patterns (curl -d, wget | sh).
+      // NOTE: web_fetch to URLs not in allowedDomains is blocked. web_search
+      //   results come through the provider API and are not affected.
+      //   Add domains as the agent needs them for web_fetch.
+      // NOTE: application-level only — not kernel-level like Docker egress rules.
+      "network-guard": {
+        "enabled": true,
+        "config": {
+          "allowedDomains": [
+            "github.com", "*.github.com",
+            "npmjs.org", "registry.npmjs.org",
+            "pypi.org", "*.pypi.org",
+            "api.anthropic.com"
+            // Add domains as needed:
+            // "playwright.azureedge.net",     // Browser binary downloads
+            // "storage.googleapis.com",       // Playwright CDN
+            // "api.openai.com",
+            // "your-internal-service.example.com"
+          ],
+          "blockDirectIp": true,
+          "failOpen": false,
+          "logBlocks": true
+        }
+      },
+
+      // Deterministic: blocks dangerous shell commands (rm -rf, fork bombs,
+      // git push -f, pipe-to-shell, interpreter escapes) via regex matching.
+      "command-guard": {
+        "enabled": true,
+        "config": {
+          "guardedTools": ["exec", "bash"],
+          "failOpen": false,
+          "logBlocks": true
+        }
+      }
+    }
+  }
+}

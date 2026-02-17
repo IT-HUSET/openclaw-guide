@@ -11,6 +11,7 @@ Run OpenClaw as a system service that starts at boot, survives reboots, and is l
 
 **Choose your deployment method and skip the others** — each section is self-contained:
 - [Docker Containerized](#docker-containerized-gateway) — official Docker setup, simplest path
+- [Pragmatic Single Agent](../pragmatic-single-agent.md) — single unsandboxed agent, guard plugins, full native OS access
 - [Docker Isolation](#docker-isolation) *(recommended)* — macOS or Linux, dedicated OS user with Docker sandboxing
 - [VM: macOS VMs](#vm-isolation-macos-vms) — macOS hosts, stronger host isolation, no Docker inside
 - [VM: Linux VMs](#vm-isolation-linux-vms) — any host, strongest combined (VM + Docker)
@@ -21,6 +22,7 @@ Run OpenClaw as a system service that starts at boot, survives reboots, and is l
 
 | Method | Isolation | Sandboxing | Best for |
 |--------|-----------|-----------|----------|
+| **[Pragmatic Single Agent](../pragmatic-single-agent.md)** | OS user or VM | Guard plugins (no Docker) | Full native OS access, simplicity |
 | **Docker Containerized** | Container boundary | Docker (gateway runs inside container) | VPS, cloud, fastest path |
 | **Docker Isolation** *(recommended)* | OS user boundary | Docker (per-agent sandboxing) | Dedicated hardware, full control |
 | **VM: macOS VMs** | Kernel-level VM | Tool policy only (no Docker) | macOS hosts, strongest host isolation |
@@ -52,12 +54,13 @@ For anything beyond testing, run as a system service.
 
 Before setting up the service, choose your deployment method. See [Security: Deployment Isolation Options](phase-3-security.md#deployment-isolation-options) for the full trade-off analysis of the isolation models.
 
+- **[Pragmatic Single Agent](../pragmatic-single-agent.md)** — single unsandboxed agent, all five guard plugins, non-admin user or VM. Full native OS access, no Docker. See the dedicated guide for setup.
 - **Docker Containerized** — official `docker-setup.sh`, gateway runs inside a Docker container. Simplest path.
 - **Docker Isolation** *(recommended)* — multi-agent gateway as `openclaw` user with Docker sandboxing. macOS or Linux.
 - **VM: macOS VMs** (Lume / Parallels) — single macOS VM, multi-agent gateway, no Docker inside VM. macOS hosts only.
 - **VM: Linux VMs** (Multipass / KVM / UTM) — Linux VM with Docker inside. Strongest combined posture (VM boundary + Docker sandbox). macOS or Linux hosts.
 
-The isolation models (Docker Isolation, macOS VMs, Linux VMs) all use the same multi-agent architecture with `sessions_send` delegation. They differ in the outer boundary and internal sandboxing:
+The multi-agent isolation models (Docker Isolation, macOS VMs, Linux VMs) all use the same multi-agent architecture with `sessions_send` delegation. They differ in the outer boundary and internal sandboxing. The Pragmatic Single Agent is a simpler alternative that trades agent separation for full native OS access — see [Phase 3: Deployment Isolation Options](phase-3-security.md#deployment-isolation-options) for the full comparison.
 - **Docker Isolation:** OS user boundary + Docker sandbox. LaunchDaemon/systemd on host.
 - **VM: macOS VMs:** Kernel-level VM boundary + standard user (no sudo). LaunchDaemon inside VM. No Docker.
 - **VM: Linux VMs:** Kernel-level VM boundary + Docker sandbox inside VM. systemd inside VM.

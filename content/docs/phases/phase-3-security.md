@@ -23,7 +23,7 @@ What can go wrong with an AI agent that has tools?
 | **Node-pairing / remote execution** | Paired nodes expose `system.run` for remote code execution on macOS | Attacker runs arbitrary commands on paired machines |
 | **Platform escape** | Compromised agent breaks out of sandbox/VM | Access to host filesystem, other users' data, lateral movement |
 
-The fix isn't one setting — it's layered defense. Each setting below blocks a specific attack path. Mitigations fire at different points in the pipeline: **channel-guard** scans on message ingestion, **web-guard** on `web_fetch` calls, **tool policy** (`deny`/`allow`) on every tool call, and **SOUL.md/AGENTS.md** instructions influence every model turn. For maximum hardening, three additional deterministic guards are available: **file-guard** (path-based file protection), **network-guard** (application-level domain allowlisting), and **command-guard** (dangerous command blocking) — see [Hardened Multi-Agent](../hardened-multi-agent.md) for configuration.
+The fix isn't one setting — it's layered defense. Each setting below blocks a specific attack path. Mitigations fire at different points in the pipeline: **channel-guard** scans on message ingestion, **web-guard** on `web_fetch` calls, **tool policy** (`deny`/`allow`) on every tool call, and **SOUL.md/AGENTS.md** instructions influence every model turn. For maximum hardening, three additional deterministic guards are available: **file-guard** (path-based file protection), **network-guard** (application-level domain allowlisting), and **command-guard** (dangerous command blocking) — see [Hardened Multi-Agent](../hardened-multi-agent.md) or [Pragmatic Single Agent](../pragmatic-single-agent.md) for configuration.
 
 > **Version note:** A token exfiltration vulnerability via Control UI (CVSS 8.8) was patched in 2026.1.29. Ensure you're on that version or later. See the [official security advisories](https://github.com/openclaw/openclaw/security/advisories) for the latest vulnerability information.
 >
@@ -349,7 +349,9 @@ Full dedicated user setup is covered in [Phase 6: Deployment](phase-6-deployment
 
 > **Dedicated machine?** This decision affects where you install OpenClaw. If deploying on a dedicated machine, choose your isolation model *before* installation — see Phase 1 note on dedicated machines. A dedicated machine also changes the trade-off analysis — see the [note below the comparison table](#comparison).
 
-Three deployment postures for isolating OpenClaw from your personal data, trading off between host isolation, internal sandboxing, and operational complexity. All three use the same multi-agent architecture (2 core agents: main + search, plus channel agents as configured, `sessions_send` delegation). They differ in the outer isolation boundary and internal sandboxing.
+Four deployment postures, trading off between simplicity, native OS access, host isolation, and internal sandboxing. The first three use multi-agent architecture (2 core agents: main + search, plus channel agents as configured, `sessions_send` delegation). They differ in the outer isolation boundary and internal sandboxing. The fourth trades multi-agent separation and Docker for simplicity and full native OS access.
+
+> **Want the simplest setup with full native OS access?** See [Pragmatic Single Agent](../pragmatic-single-agent.md) — a single unsandboxed agent hardened by all five guard plugins + OS-level isolation (non-admin user or VM). No Docker, no multi-agent delegation.
 
 > **Egress allowlisting:** The recommended 2-agent config runs the main agent on an egress-allowlisted Docker network — outbound traffic restricted to pre-approved hosts. See [egress setup](../hardened-multi-agent.md#step-1-verify-docker-network) for the walkthrough.
 
@@ -425,24 +427,27 @@ See [Phase 6: VM Isolation — Linux VMs](phase-6-deployment.md#vm-isolation-lin
 > - Need strongest isolation? → **VM: Linux VMs** (VM boundary + Docker inside)
 > - macOS-only host, no Docker? → **VM: macOS VMs**
 > - Simplest setup with good security? → **Docker isolation** (dedicated user + Docker sandboxing)
+> - Simplest setup with full native OS access? → **[Pragmatic Single Agent](../pragmatic-single-agent.md)** (one agent, guard plugins, no Docker)
 
-|  | **Docker isolation** *(recommended)* | **VM: macOS VMs** | **VM: Linux VMs** |
-|--|---|---|---|
-| Host OS | macOS or Linux | macOS only | macOS or Linux |
-| Gateways | 1 (multi-agent) — or [multi-gateway](../multi-gateway.md) for channel separation | 1 (multi-agent) — or 2 with [two-VM option](../multi-gateway.md#vm-variants) | 1 (multi-agent) — [unlimited VMs](../multi-gateway.md#vm-variants) |
-| Isolation from host | Process-level (OS user) | Kernel-level (VM) | Kernel-level (VM) |
-| Internal agent isolation | Docker sandbox | Tool policy + SOUL.md (no Docker) | Docker sandbox |
-| `read→exfiltrate` within platform | Closed (Docker roots filesystem) | Open within VM (only OpenClaw data at risk) | Closed (Docker roots filesystem) |
-| Privilege escalation within platform | `openclaw` user has no sudo | Standard user has no sudo + no GUI session | `openclaw` user has no sudo (docker group only) |
-| If fully compromised | Attacker on host as `openclaw` user | Attacker in VM, host untouched | Attacker in VM, host untouched |
-| Resource overhead | ~100MB per container | 8-16GB RAM per VM | 2-4GB RAM per VM |
-| Setup complexity | Low-medium | Medium | Medium-high |
+|  | **[Pragmatic Single Agent](../pragmatic-single-agent.md)** | **Docker isolation** *(recommended)* | **VM: macOS VMs** | **VM: Linux VMs** |
+|--|---|---|---|---|
+| Host OS | macOS or Linux | macOS or Linux | macOS only | macOS or Linux |
+| Agents | 1 (main only) | 2+ (main + search) | 2+ (main + search) | 2+ (main + search) |
+| Gateways | 1 | 1 (multi-agent) — or [multi-gateway](../multi-gateway.md) | 1 — or 2 with [two-VM option](../multi-gateway.md#vm-variants) | 1 — [unlimited VMs](../multi-gateway.md#vm-variants) |
+| Isolation from host | Process-level (OS user) or VM | Process-level (OS user) | Kernel-level (VM) | Kernel-level (VM) |
+| Internal agent isolation | Guard plugins (no Docker, no agent separation) | Docker sandbox | Tool policy + SOUL.md (no Docker) | Docker sandbox |
+| `read→exfiltrate` within platform | Open (guard plugins block known paths) | Closed (Docker roots filesystem) | Open within VM (only OpenClaw data at risk) | Closed (Docker roots filesystem) |
+| Privilege escalation within platform | Non-admin user, no sudo (or VM user) | `openclaw` user has no sudo | Standard user has no sudo + no GUI session | `openclaw` user has no sudo (docker group only) |
+| Native OS access | Full (macOS or Linux native) | No (Linux containers) | Full (macOS native inside VM) | No (Linux inside VM) |
+| If fully compromised | OS user access (or VM contents) | Attacker on host as `openclaw` user | Attacker in VM, host untouched | Attacker in VM, host untouched |
+| Resource overhead | Minimal (no containers/VMs) | ~100MB per container | 8-16GB RAM per VM | 2-4GB RAM per VM |
+| Setup complexity | Low | Low-medium | Medium | Medium-high |
 
 > **Note:** "Closed" in the `read→exfiltrate` row means credential exfiltration is blocked — Docker roots the filesystem so no agent (including main) can read `openclaw.json` or `auth-profiles.json`. Agents with `workspaceAccess: "rw"` can still access workspace data (SOUL.md, USER.md, memory). See [Accepted Risks](#accepted-risks) below.
 
-> **Dedicated machine with no personal data?** The comparison above assumes personal data on the host — which is what makes the VM's host boundary valuable. On a **dedicated machine** (no personal files, no external drives, no browser sessions), Docker isolation is actually the stronger choice: Docker closes `read→exfiltrate` for credentials while the VM protects an empty host. macOS VMs are weaker internally — no Docker means no agent sandboxing (the `read→exfiltrate` chain is open within the VM). For dedicated machines, use **Docker isolation** (simplest) or **Linux VMs** (VM boundary + Docker inside).
+> **Dedicated machine with no personal data?** The comparison above assumes personal data on the host — which is what makes the VM's host boundary valuable. On a **dedicated machine** (no personal files, no external drives, no browser sessions), Docker isolation is actually the stronger choice: Docker closes `read→exfiltrate` for credentials while the VM protects an empty host. macOS VMs are weaker internally — no Docker means no agent sandboxing (the `read→exfiltrate` chain is open within the VM). For dedicated machines, use **Docker isolation** (simplest), **Linux VMs** (VM boundary + Docker inside), or the **[Pragmatic Single Agent](../pragmatic-single-agent.md)** if you value simplicity and full native OS access over Docker-level isolation.
 
-**In plain terms:** Docker isolation gives you Docker-level internal isolation with a single gateway — the recommended approach for most deployments. macOS VM isolation gives the strongest host boundary at the cost of running a macOS VM, but with no Docker inside. Linux VM isolation combines both — VM host boundary *and* Docker sandbox inside — giving the strongest overall posture, at the cost of more moving parts and no native macOS tooling (Xcode, etc.) inside the VM.
+**In plain terms:** The pragmatic single agent is the simplest option — one agent, no Docker, full native OS access, with guard plugins as the safety net. Docker isolation gives you Docker-level internal isolation with a single gateway — the recommended approach for most deployments. macOS VM isolation gives the strongest host boundary at the cost of running a macOS VM, but with no Docker inside. Linux VM isolation combines both — VM host boundary *and* Docker sandbox inside — giving the strongest overall posture, at the cost of more moving parts and no native macOS tooling (Xcode, etc.) inside the VM.
 
 For adding macOS-native tooling (Xcode, iOS Simulator, macOS apps) via Lume VMs, see [Phase 8: Computer Use](phase-8-computer-use.md).
 
