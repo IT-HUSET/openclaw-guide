@@ -1,11 +1,17 @@
-Review the OpenClaw changelog for entries that may require updates to this documentation guide.
+Review and implement any necessary updates to this documentation guide based on new OpenClaw releases.
+
+## Context
+
+- New version to review up to: `{{NEW_VERSION}}`
+- New release notes since last review: `.changelog-diff.md`
 
 ## Instructions
 
-1. Read `.changelog-diff.md` in the repo root — these are new changelog entries since the last reviewed version.
+1. Read `.changelog-diff.md` — these are new OpenClaw release notes since the last reviewed version.
 2. Read `CLAUDE.md` for guide structure and content descriptions.
-3. For each changelog entry, determine if it affects any documented content.
-4. When in doubt, spot-check the relevant doc files to confirm whether content is affected.
+3. For each release entry, determine if it affects any documented content (see criteria below).
+4. For entries that affect the guide, spot-check the relevant doc files to understand current content, then make the necessary edits directly. Only edit files under `content/docs/`, `examples/`, `scripts/`, or `.guide-version` — do not touch `.github/`, `extensions/`, `CLAUDE.md`, or any infrastructure/config files.
+5. Update `.guide-version` to `{{NEW_VERSION}}` (always, whether or not content changes were made).
 
 ## What affects the guide
 
@@ -30,9 +36,5 @@ Review the OpenClaw changelog for entries that may require updates to this docum
 
 Return JSON matching the provided schema:
 
-- `needs_update`: true if any changelog entry affects guide content
-- `report`: markdown string — if `needs_update` is true, include:
-  - **Affected guide sections** with file paths and what to check
-  - **Changelog entries requiring attention** with impact description
-  - **Priority** (high/medium/low) with brief justification
-  If `needs_update` is false, a 1-2 sentence summary of what was in the changelog.
+- `needs_update`: true if any guide content files were changed (not counting `.guide-version`)
+- `summary`: markdown string — if `needs_update` is true, describe what was changed and why (with affected file paths); if false, a 1-2 sentence summary of what was in the releases

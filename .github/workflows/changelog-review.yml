@@ -1,5 +1,5 @@
-# Scheduled review: checks the OpenClaw changelog for entries that may
-# require guide updates, and opens an issue with Claude Code's analysis.
+# Scheduled review: fetches new OpenClaw GitHub releases, has Claude analyze
+# and implement any required guide updates, then opens a PR.
 #
 # Setup:
 #   1. Install the Claude GitHub App: https://github.com/apps/claude
@@ -14,53 +14,79 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  issues: write
-  id-token: write
+  contents: write
+  pull-requests: write
 
 jobs:
   review:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check for new changelog entries
+      - name: Check for new releases
         id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           LAST=$(tr -d '[:space:]' < .guide-version)
           echo "last=$LAST" >> "$GITHUB_OUTPUT"
 
-          curl -sfL https://raw.githubusercontent.com/openclaw/openclaw/main/CHANGELOG.md \
-            -o /tmp/changelog.md
+          gh api repos/openclaw/openclaw/releases --paginate > /tmp/releases.json
 
-          # Extract entries newer than last reviewed version.
-          # awk prints from start until it hits the "## <version>" line.
-          awk -v ver="## $LAST" '$0 == ver { exit } { print }' /tmp/changelog.md \
-            > .changelog-diff.md
+          # Find the published_at date of the last reviewed version (tag may have 'v' prefix)
+          LAST_DATE=$(jq -r --arg ver "$LAST" \
+            '.[] | select(.tag_name == ("v"+$ver) or .tag_name == $ver) | .published_at' \
+            /tmp/releases.json | head -1)
 
-          if grep -q "^## " .changelog-diff.md; then
-            LATEST=$(grep -m1 "^## " .changelog-diff.md | sed 's/^## //')
-            echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
-            echo "has_updates=true" >> "$GITHUB_OUTPUT"
-            echo "New entries found: $LAST → $LATEST"
-          else
+          if [ -z "$LAST_DATE" ]; then
+            echo "Version $LAST not found in releases, skipping."
             echo "has_updates=false" >> "$GITHUB_OUTPUT"
-            echo "No new changelog entries since $LAST"
+            exit 0
           fi
 
-      - name: Load analysis prompt
+          # Collect stable releases newer than LAST_DATE, oldest first
+          jq -r --arg date "$LAST_DATE" \
+            '[.[] | select(.prerelease == false and .published_at > $date)] | reverse | .[] | "## \(.tag_name)\n\n\(.body)\n"' \
+            /tmp/releases.json > .changelog-diff.md
+
+          LATEST=$(jq -r --arg date "$LAST_DATE" \
+            '[.[] | select(.prerelease == false and .published_at > $date)] | .[0].tag_name | ltrimstr("v")' \
+            /tmp/releases.json)
+
+          if [ -n "$LATEST" ] && grep -q "^## " .changelog-diff.md; then
+            echo "has_updates=true" >> "$GITHUB_OUTPUT"
+            echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+            echo "New releases: $LAST → $LATEST"
+          else
+            echo "has_updates=false" >> "$GITHUB_OUTPUT"
+            echo "No new stable releases since $LAST"
+          fi
+
+      - name: Check for existing open PR
         if: steps.check.outputs.has_updates == 'true'
-        id: prompt
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COUNT=$(gh pr list -l changelog-review -s open --json number -q length)
+          echo "skip=$([ "$COUNT" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Load prompt
+        if: steps.check.outputs.has_updates == 'true' && steps.existing.outputs.skip != 'true'
+        env:
+          NEW_VERSION: ${{ steps.check.outputs.latest }}
         run: |
           {
             echo 'REVIEW_PROMPT<<ENDOFPROMPT'
-            cat .github/prompts/changelog-review.md
+            sed "s/{{NEW_VERSION}}/$NEW_VERSION/g" .github/prompts/changelog-review.md
             echo 'ENDOFPROMPT'
           } >> "$GITHUB_ENV"
 
-      - name: Analyze with Claude Code
-        if: steps.check.outputs.has_updates == 'true'
-        id: analyze
+      - name: Analyze and implement with Claude Code
+        if: steps.check.outputs.has_updates == 'true' && steps.existing.outputs.skip != 'true'
+        id: implement
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -68,44 +94,51 @@ jobs:
           prompt: ${{ env.REVIEW_PROMPT }}
           claude_args: |
             --model sonnet
-            --max-turns 20
-            --allowedTools "Read,Glob,Grep"
-            --json-schema '{"type":"object","properties":{"needs_update":{"type":"boolean"},"report":{"type":"string"}},"required":["needs_update","report"]}'
+            --max-turns 40
+            --allowedTools "Read,Glob,Grep,Edit,Write"
+            --json-schema '{"type":"object","properties":{"needs_update":{"type":"boolean"},"summary":{"type":"string"}},"required":["needs_update","summary"]}'
 
-      - name: Create issue
-        if: steps.check.outputs.has_updates == 'true'
+      - name: Commit and open PR
+        if: steps.check.outputs.has_updates == 'true' && steps.existing.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          ANALYSIS: ${{ steps.analyze.outputs.structured_output }}
+          ANALYSIS: ${{ steps.implement.outputs.structured_output }}
+          LAST: ${{ steps.check.outputs.last }}
+          LATEST: ${{ steps.check.outputs.latest }}
         run: |
-          # Check if Claude found updates needed
           NEEDS_UPDATE=$(echo "$ANALYSIS" | jq -r '.needs_update')
-          if [ "$NEEDS_UPDATE" != "true" ]; then
-            echo "No guide updates needed."
+          SUMMARY=$(echo "$ANALYSIS" | jq -r '.summary')
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="changelog-update/$LATEST"
+          git checkout -b "$BRANCH"
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes staged — nothing to commit."
             exit 0
           fi
 
-          # Skip if there's already an open changelog-review issue
-          if [ "$(gh issue list -l changelog-review -s open --json number -q length)" -gt 0 ]; then
-            echo "Open changelog-review issue already exists."
-            exit 0
-          fi
+          git commit -m "docs: update guide for OpenClaw ${LAST} → ${LATEST}"
+          git push --force-with-lease origin "$BRANCH"
 
           gh label create changelog-review --color "1d76db" --force 2>/dev/null || true
 
-          LAST="${{ steps.check.outputs.last }}"
-          LATEST="${{ steps.check.outputs.latest }}"
-
           {
-            echo "New OpenClaw changelog entries since **${LAST}**. Latest: **${LATEST}**"
+            if [ "$NEEDS_UPDATE" = "true" ]; then
+              echo "Guide updates for OpenClaw **${LAST}** → **${LATEST}**."
+            else
+              echo "No guide content changes needed for OpenClaw **${LAST}** → **${LATEST}**. Version bump only."
+            fi
             echo ""
-            echo "$ANALYSIS" | jq -r '.report'
-            echo ""
-            echo "---"
-            echo "_After updating, bump \`.guide-version\` to the reviewed version._"
-          } > /tmp/issue-body.md
+            echo "$SUMMARY"
+          } > /tmp/pr-body.md
 
-          gh issue create \
-            --title "Guide review: OpenClaw ${LAST} → ${LATEST}" \
+          gh pr create \
+            --title "Guide update: OpenClaw ${LAST} → ${LATEST}" \
             --label "changelog-review" \
-            --body-file /tmp/issue-body.md
+            --body-file /tmp/pr-body.md \
+            --base main \
+            --head "$BRANCH"
