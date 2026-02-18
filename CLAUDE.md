@@ -62,7 +62,7 @@ Primarily documentation (Markdown + annotated JSON config examples), plus TypeSc
 - Target deployment: macOS (Apple Silicon) or Linux
 - Four deployment postures: **Pragmatic single agent** (single unsandboxed agent, guard plugins + non-admin user or VM), **Docker isolation** (recommended — dedicated OS user + Docker), **VM: macOS VMs** (Lume / Parallels, stronger host isolation, no Docker inside), **VM: Linux VMs** (Multipass / KVM, strongest combined — VM boundary + Docker inside)
 - **Docker isolation:** single gateway on host, core agents (main + search) plus optional channel agents, Docker sandboxing
-- **VM: macOS VMs:** single macOS VM, dedicated standard user, multi-agent gateway, no Docker. macOS hosts only. Optional: 2 VMs for channel separation
+- **VM: macOS VMs:** single macOS VM, dedicated standard user (auto-login), multi-agent gateway, no Docker. macOS hosts only. Optional: 2 VMs for channel separation
 - **VM: Linux VMs:** single Linux VM with Docker inside, dedicated user (docker group, no sudo), multi-agent gateway. macOS or Linux hosts. No VM count limit
 - **Multi-gateway options:** profiles (`--profile` flag, simplest), multi-user (separate OS users), VM variants (one VM per channel)
 - Official docs: https://docs.openclaw.ai
@@ -188,3 +188,25 @@ Version-specific content that should be removed when the referenced fix lands:
 
 - **openclaw#15176** (channel bindings regression): Simplified references remain in `content/docs/phases/phase-4-multi-agent.md` and `content/docs/reference.md`. Not relevant for the recommended 2-agent config (all channels route to main). Check with `openclaw --version` after updating.
 - **openclaw#9857** (sessions_spawn sandbox bug): Search agent runs unsandboxed as workaround. When fixed, re-enable sandbox on search agent (`"sandbox": { "mode": "all", "scope": "agent", "workspaceAccess": "none" }`) in both config examples and update all docs that note the workaround. Grep for `#9857` to find all references.
+
+
+---
+
+
+## Useful Tools and MCP Servers
+
+### Command line file search and code exploration tools
+- **ripgrep (rg)**: Fast recursive search. Example: `rg "createServerSupabaseClient"`. _Use instead of grep_ for better search performance.
+- **ast-grep**: Search by AST node types. Example: `ast-grep 'import { $X } from "supabase"' routes/`
+- **tree**: Directory structure visualization. Example: `tree -L 2 routes/`
+
+### Context7 MCP - Library and Framework Documentation Lookup (https://github.com/upstash/context7)
+Context7 MCP pulls up-to-date, version-specific documentation and code examples straight from the source.
+**Only** use Context7 MCP via the _`documentation-lookup`_ sub-agent for documentation retrieval tasks.
+
+### Fetch (https://github.com/modelcontextprotocol/servers/tree/main/src/fetch)
+Retrieves and processes content from web pages, converting HTML to markdown for easier consumption.
+**Only** use Fetch MCP via the _`documentation-lookup`_ sub-agent for documentation retrieval tasks.
+
+
+---

@@ -134,6 +134,9 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
   // Network discovery
   discovery: { mdns: { mode: "minimal" } },
 
+  // Plugin allowlist
+  plugins: { allow: ["whatsapp", "channel-guard", "web-guard"] },
+
   // Logging
   logging: { redactSensitive: "tools" },
 
@@ -419,17 +422,21 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 
 29. **OpenClaw uses a flat image content block format** — `{type: "image", data: "<base64>", mimeType: "image/png"}`. This differs from the Anthropic API format (`{type: "image", source: {type: "base64", media_type, data}}`). Plugins must use the flat format; OpenClaw converts to API format before sending to the LLM.
 
-30. **Plugin-generated temp files accumulate** — plugins that save images via `MEDIA:` pattern write to `$TMPDIR`. macOS clears `/tmp` on reboot, but long-running servers accumulate files. Consider a cron job: `find /tmp/openclaw-image-gen -mtime +1 -delete`.
+30. **`plugins.allow` and `enabled: false` are independent checks** — both must pass for a plugin to load. A plugin in `plugins.allow` with `"enabled": false` is fully blocked: the file is never imported, `register()` is never called. Check precedence: `deny` → `allow` → `enabled`. You can safely pre-populate `plugins.allow` with trusted plugin IDs and control which ones actually load via `enabled`.
+
+31. **Plugin tools are available by default** — enabling a plugin that registers tools (image-gen → `generate_image`, computer-use → `vm_*`) makes those tools callable by any agent not blocking them. Agents using `tools.allow` are safe (unlisted tools are blocked). Agents using only `tools.deny` must explicitly deny plugin tools they shouldn't have.
+
+32. **Plugin-generated temp files accumulate** — plugins that save images via `MEDIA:` pattern write to `$TMPDIR`. macOS clears `/tmp` on reboot, but long-running servers accumulate files. Consider a cron job: `find /tmp/openclaw-image-gen -mtime +1 -delete`.
 
 ### Memory
 
-31. **Remote memory search providers need a separate API key** — the embedding key (e.g., `OPENAI_API_KEY` for OpenAI embeddings) is not the same as your AI provider key (`ANTHROPIC_API_KEY`). Both must be set.
+33. **Remote memory search providers need a separate API key** — the embedding key (e.g., `OPENAI_API_KEY` for OpenAI embeddings) is not the same as your AI provider key (`ANTHROPIC_API_KEY`). Both must be set.
 
-32. **Local memory search requires native build approval** — run `npx pnpm approve-builds` then `npx pnpm rebuild node-llama-cpp` (from the OpenClaw install directory). Without this, `memory_search` falls back to a remote provider (if configured) or returns no results.
+34. **Local memory search requires native build approval** — run `npx pnpm approve-builds` then `npx pnpm rebuild node-llama-cpp` (from the OpenClaw install directory). Without this, `memory_search` falls back to a remote provider (if configured) or returns no results.
 
-33. **Memory search auto-reindexes on provider/model change** — OpenClaw tracks the embedding provider, model, and chunking params in the index. Changing any of these triggers an automatic reindex. Run `openclaw memory index` to force an immediate rebuild.
+35. **Memory search auto-reindexes on provider/model change** — OpenClaw tracks the embedding provider, model, and chunking params in the index. Changing any of these triggers an automatic reindex. Run `openclaw memory index` to force an immediate rebuild.
 
-34. **Daily memory files are auto-loaded for today + yesterday only** — older files are only accessible via `memory_search`. If search isn't configured, the agent can't recall anything beyond yesterday.
+36. **Daily memory files are auto-loaded for today + yesterday only** — older files are only accessible via `memory_search`. If search isn't configured, the agent can't recall anything beyond yesterday.
 
 ---
 
@@ -530,7 +537,7 @@ openclaw plugins install --link /path/to/plugin
       "image-gen": {
         enabled: true,
         config: {
-          // Uses $OPENROUTER_API_KEY from env by default
+          apiKey: "${OPENROUTER_API_KEY}",
           defaultModel: "openai/gpt-5-image-mini",
           defaultAspectRatio: "1:1",
           defaultImageSize: "2K",

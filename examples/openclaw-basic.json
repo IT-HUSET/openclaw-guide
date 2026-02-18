@@ -226,6 +226,9 @@
 
   // --- Plugins ---
   "plugins": {
+    // Only allow these plugins to load. Without this, any plugin dropped into
+    // ~/.openclaw/extensions/ loads automatically at startup.
+    "allow": ["whatsapp", "web-guard", "channel-guard"],
     "entries": {
       "whatsapp": { "enabled": true },
       "web-guard": {

@@ -1,5 +1,5 @@
 {
-  "name": "openclaw-computer-use",
+  "name": "computer-use",
   "version": "0.1.0",
   "description": "OpenClaw plugin: VM-based macOS computer interaction via Lume and cua-computer-server",
   "license": "MIT",

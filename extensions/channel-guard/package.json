@@ -1,5 +1,5 @@
 {
-  "name": "openclaw-channel-guard",
+  "name": "channel-guard",
   "version": "0.1.0",
   "description": "OpenClaw plugin: scan incoming channel messages for prompt injection using local DeBERTa ONNX model",
   "license": "MIT",

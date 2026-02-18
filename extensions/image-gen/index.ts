@@ -8,7 +8,7 @@
  * Saves the generated image to a temp file and returns a MEDIA: directive
  * so the channel delivery layer (WhatsApp, Signal, etc.) auto-attaches it.
  *
- * Requires: OpenRouter API key (via config or OPENROUTER_API_KEY env var).
+ * Requires: OpenRouter API key via plugin config (use ${OPENROUTER_API_KEY} for env var substitution).
  */
 
 import { lookup } from "node:dns/promises";
@@ -32,7 +32,7 @@ const SUPPORTED_ASPECT_RATIOS = [
 const SUPPORTED_SIZES = ["1K", "2K", "4K"] as const;
 
 export interface PluginConfig {
-  /** OpenRouter API key. Falls back to OPENROUTER_API_KEY env var. */
+  /** OpenRouter API key. Use ${OPENROUTER_API_KEY} in config for env var substitution. */
   apiKey?: string;
   /** API base URL. Default: https://openrouter.ai/api/v1. Must be HTTPS. */
   baseUrl?: string;
@@ -75,7 +75,7 @@ interface OpenRouterImageResponse {
 }
 
 function resolveApiKey(cfg: PluginConfig): string | null {
-  return cfg.apiKey || process.env.OPENROUTER_API_KEY || null;
+  return cfg.apiKey || null;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -292,7 +292,7 @@ export async function generateImage(
 
   const apiKey = resolveApiKey(cfg);
   if (!apiKey) {
-    return { error: "No API key configured. Set apiKey in plugin config or OPENROUTER_API_KEY env var." };
+    return { error: "No API key configured. Set apiKey in plugin config (use ${OPENROUTER_API_KEY} for env var substitution)." };
   }
 
   const model = params.model ?? cfg.defaultModel ?? DEFAULT_MODEL;

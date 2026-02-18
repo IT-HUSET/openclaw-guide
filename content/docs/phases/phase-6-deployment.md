@@ -61,8 +61,8 @@ Before setting up the service, choose your deployment method. See [Security: Dep
 - **VM: Linux VMs** (Multipass / KVM / UTM) — Linux VM with Docker inside. Strongest combined posture (VM boundary + Docker sandbox). macOS or Linux hosts.
 
 The multi-agent isolation models (Docker Isolation, macOS VMs, Linux VMs) all use the same multi-agent architecture with `sessions_send` delegation. They differ in the outer boundary and internal sandboxing. The Pragmatic Single Agent is a simpler alternative that trades agent separation for full native OS access — see [Phase 3: Deployment Isolation Options](phase-3-security.md#deployment-isolation-options) for the full comparison.
-- **Docker Isolation:** OS user boundary + Docker sandbox. LaunchAgent/systemd on host (LaunchDaemon as hardened alternative).
-- **VM: macOS VMs:** Kernel-level VM boundary + standard user (no sudo). LaunchAgent inside VM (LaunchDaemon as hardened alternative). No Docker.
+- **Docker Isolation:** OS user boundary + Docker sandbox. LaunchDaemon/systemd on host (LaunchAgent for auto-login setups).
+- **VM: macOS VMs:** Kernel-level VM boundary + standard user (no sudo). LaunchAgent inside VM (auto-login required). No Docker.
 - **VM: Linux VMs:** Kernel-level VM boundary + Docker sandbox inside VM. systemd inside VM.
 
 ---
@@ -72,7 +72,7 @@ The multi-agent isolation models (Docker Isolation, macOS VMs, Linux VMs) all us
 Keep `openclaw.json` secrets-free — use `${ENV_VAR}` references in config, store actual values in the service plist (macOS) or environment file (Linux). This applies to all deployment methods.
 
 **Choose your secrets method:**
-- **Docker isolation (macOS)** → LaunchAgent `EnvironmentVariables` block (or LaunchDaemon for hardened setup)
+- **Docker isolation (macOS)** → LaunchDaemon `EnvironmentVariables` block (or LaunchAgent for auto-login setups)
 - **Docker isolation (Linux)** → `/etc/openclaw/secrets.env` file
 - **VM: macOS/Linux** → SSH-load secrets before gateway start
 
@@ -360,21 +360,158 @@ sudo chmod -R 600 /Users/openclaw/.openclaw/credentials/whatsapp/default/*
 sudo chmod 700 /Users/openclaw/.openclaw/credentials/whatsapp
 ```
 
-### macOS: LaunchAgent
+### macOS: LaunchDaemon
 
-> **VM isolation:** macOS VMs — use the [LaunchAgent (Inside VM)](#launchagent-inside-vm) section below. Linux VMs — use [Linux: systemd](#linux-systemd).
+> **VM isolation:** macOS VMs — use the [LaunchAgent (Inside VM)](#launchagent-inside-vm) section below (VMs typically configure auto-login). Linux VMs — use [Linux: systemd](#linux-systemd).
 
-A LaunchAgent in the `openclaw` user's `gui/<uid>` domain runs as the dedicated user with automatic access to OrbStack's Docker socket and compatibility with `openclaw gateway restart`. Since the `openclaw` user never logs in interactively, the `gui/<uid>` domain must be bootstrapped manually (persists across reboots).
+A LaunchDaemon runs in the `system` domain — starts at boot before any user logs in, no GUI session required. The `UserName` and `GroupName` keys make launchd run the process as the dedicated `openclaw` user. This is the correct pattern for dedicated headless service accounts.
+
+> **After starting, verify the process UID:** `ps aux | grep openclaw` — confirm the `USER` column shows `openclaw`, not `root`. The `UserName` key is Apple's official mechanism for privilege drop in system daemons.
+
+| | LaunchDaemon (recommended) | LaunchAgent (auto-login only) |
+|--|---|---|
+| Starts at boot | Yes — no GUI session required | Only if user has GUI auto-login configured |
+| `openclaw gateway restart` | Does not work — use `launchctl` instead | Works |
+| OrbStack Docker socket | Via `/var/run/docker.sock` (OrbStack must be running) | Automatic — same user session |
+| Agent persistence via LaunchAgents | Blocked (no `gui/<uid>` domain) | Possible |
+| When to use | Dedicated headless service account (most deployments) | Personal Mac or VM with auto-login |
 
 > **Label convention:** OpenClaw's built-in service installer (`openclaw gateway install`) uses the label `bot.molt.gateway`. We use `ai.openclaw.gateway` for the manual plist to avoid conflicts. The `disable-launchagent` marker prevents OpenClaw from auto-installing its own plist.
 
-#### Create LaunchAgents directory
+#### Create the plist
+
+Verify paths first:
+```bash
+which openclaw
+which node
+readlink -f $(which openclaw)
+```
+
+```bash
+sudo tee /Library/LaunchDaemons/ai.openclaw.gateway.plist > /dev/null << 'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>ai.openclaw.gateway</string>
+    <key>UserName</key>
+    <string>openclaw</string>
+    <key>GroupName</key>
+    <string>staff</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/opt/homebrew/bin/node</string>
+      <string>/opt/homebrew/lib/node_modules/openclaw/dist/index.js</string>
+      <string>gateway</string>
+      <string>--port</string>
+      <string>18789</string>
+    </array>
+    <key>StandardOutPath</key>
+    <string>/Users/openclaw/.openclaw/logs/gateway.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/openclaw/.openclaw/logs/gateway.err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>HOME</key>
+      <string>/Users/openclaw</string>
+      <key>OPENCLAW_HOME</key>
+      <string>/Users/openclaw</string>
+      <key>PATH</key>
+      <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+      <key>OPENCLAW_GATEWAY_PORT</key>
+      <string>18789</string>
+      <key>DOCKER_HOST</key>
+      <string>unix:///var/run/docker.sock</string>
+      <key>OPENCLAW_GATEWAY_TOKEN</key>
+      <string><!-- See Secrets Management section above --></string>
+      <key>ANTHROPIC_API_KEY</key>
+      <string><!-- See Secrets Management section above --></string>
+      <key>BRAVE_API_KEY</key>
+      <string><!-- See Secrets Management section above --></string>
+      <key>GITHUB_TOKEN</key>
+      <string><!-- See Secrets Management section above --></string>
+      <key>OPENCLAW_SERVICE_MARKER</key>
+      <string>openclaw</string>
+      <key>OPENCLAW_SERVICE_KIND</key>
+      <string>gateway</string>
+    </dict>
+  </dict>
+</plist>
+PLIST
+```
+
+#### If using Docker (OrbStack)
+
+OrbStack runs in a user's GUI session and exposes Docker via a user-specific socket (`~/.orbstack/run/docker.sock`). OrbStack's privileged helper also creates a system-wide symlink at `/var/run/docker.sock` when OrbStack starts — this is what the LaunchDaemon uses via the `DOCKER_HOST` env var in the plist above. The socket is world-connectable (mode 755), so the `openclaw` user can reach it without any bootstrapping step.
+
+**Requirement:** OrbStack must be running in some user's GUI session before the gateway performs Docker operations. For reliable boot behavior, configure auto-login for the admin user so OrbStack starts automatically on boot.
+
+Verify Docker is accessible from the `openclaw` user:
+```bash
+sudo -u openclaw docker ps
+```
+
+If this fails, OrbStack is not running yet. Start OrbStack from the admin account and retry.
+
+#### Manage the daemon
+
+```bash
+# Start
+sudo launchctl bootstrap system /Library/LaunchDaemons/ai.openclaw.gateway.plist
+
+# Stop
+sudo launchctl bootout system/ai.openclaw.gateway
+
+# Restart
+sudo launchctl bootout system/ai.openclaw.gateway && sleep 1 && \
+  sudo launchctl bootstrap system /Library/LaunchDaemons/ai.openclaw.gateway.plist
+
+# Check status
+sudo launchctl print system/ai.openclaw.gateway 2>&1 | head -10
+
+# Check it's listening
+sudo lsof -i :18789
+
+# View logs
+tail -f /Users/openclaw/.openclaw/logs/gateway.log
+```
+
+> **Note:** Use `launchctl bootout`/`launchctl bootstrap` (not `openclaw gateway restart`) — the `openclaw gateway` lifecycle commands target the `gui/<uid>` launchd domain, which does not exist for headless service accounts.
+
+#### Config reload without restart
+
+OpenClaw watches `openclaw.json` for changes automatically. The default reload mode is `hybrid` — safe changes (tool policies, agent definitions) are hot-applied, while critical changes trigger an in-process restart. No manual action needed for most config edits.
+
+To force an immediate reload:
+
+```bash
+sudo kill -USR1 $(pgrep -f "openclaw.*gateway")
+```
+
+Use a full `launchctl` restart only for binary updates or when auto-reload doesn't pick up your changes. Disable auto-reload with `gateway.reload.mode: "off"` if you prefer manual control.
+
+#### Alternative: LaunchAgent (auto-login sessions only)
+
+A LaunchAgent running in the `openclaw` user's `gui/<uid>` domain gives `openclaw gateway restart` CLI compatibility and automatic OrbStack Docker socket access — but **only if the user has an active GUI session**. The `gui/<uid>` domain is created by `loginwindow` on GUI login and destroyed on logout; it cannot be bootstrapped for a headless service account that never logs in.
+
+**Use LaunchAgent when:**
+- Running on a personal Mac where you're always logged in, or
+- Inside a macOS VM with auto-login configured for the service user
+
+> **Prerequisite:** The `openclaw` user must be logged in via the GUI (auto-login or Fast User Switching without logging out). Logging out destroys the `gui/<uid>` domain and stops the service. Without auto-login, the service does not start at reboot — use LaunchDaemon instead.
+
+##### Create LaunchAgents directory
 
 ```bash
 sudo -u openclaw mkdir -p /Users/openclaw/Library/LaunchAgents
 ```
 
-#### Create the plist
+##### Create the plist
 
 Verify paths first:
 ```bash
@@ -437,7 +574,7 @@ sudo -u openclaw tee /Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.pl
 PLIST
 ```
 
-#### Bootstrap and manage the LaunchAgent
+##### Bootstrap and manage the LaunchAgent
 
 Get the `openclaw` user's UID (needed for `gui/` domain):
 
@@ -445,148 +582,24 @@ Get the `openclaw` user's UID (needed for `gui/` domain):
 OPENCLAW_UID=$(id -u openclaw)
 ```
 
-Since the `openclaw` user never logs in, its `gui/<uid>` domain must be bootstrapped manually. This persists across reboots — you only need to do it once.
+The user must be logged in via GUI before running this. If the `gui/<uid>` domain doesn't exist yet (no active GUI session), `bootstrap` fails with error 125.
 
 ```bash
-# Start (bootstrap into the user's GUI domain)
+# Start (requires active GUI session for openclaw user)
 sudo launchctl bootstrap gui/$OPENCLAW_UID /Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.plist
 
 # Stop
 sudo launchctl bootout gui/$OPENCLAW_UID/ai.openclaw.gateway
 
-# Restart (stop + start)
+# Restart
 sudo launchctl bootout gui/$OPENCLAW_UID/ai.openclaw.gateway
 sudo launchctl bootstrap gui/$OPENCLAW_UID /Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.plist
 
 # Check status
 sudo launchctl print gui/$OPENCLAW_UID/ai.openclaw.gateway 2>&1 | head -10
-
-# Check it's listening
-sudo lsof -i :18789
-
-# View logs
-tail -f /Users/openclaw/.openclaw/logs/gateway.log
 ```
 
-> **Survives logout?** Yes — `gui/<uid>` domains persist even when no user is visually logged in at the console, as long as the domain has been bootstrapped.
-
-> **`openclaw gateway restart` works.** Unlike LaunchDaemon, the LaunchAgent runs in the `gui/<uid>` domain that `openclaw gateway` targets. Both `openclaw gateway stop` and `openclaw gateway restart` work correctly.
-
-#### Config reload without restart
-
-OpenClaw watches `openclaw.json` for changes automatically. The default reload mode is `hybrid` — safe changes (tool policies, agent definitions) are hot-applied, while critical changes trigger an in-process restart. No manual action needed for most config edits.
-
-To force an immediate reload:
-
-```bash
-sudo kill -USR1 $(pgrep -f "openclaw.*gateway")
-```
-
-Use a full `launchctl` restart only for binary updates or when auto-reload doesn't pick up your changes. Disable auto-reload with `gateway.reload.mode: "off"` if you prefer manual control.
-
-#### Hardened alternative: LaunchDaemon
-
-A LaunchDaemon runs in the `system` domain — the `openclaw` user has no `gui/<uid>` domain, which prevents agents from establishing persistence via `~/Library/LaunchAgents/`, login items, or shell RC files. This is the strongest macOS service posture but adds operational friction.
-
-| | LaunchAgent (default) | LaunchDaemon (hardened) |
-|--|---|---|
-| OrbStack Docker socket | Automatic — same user domain | Requires manual OrbStack helper bootstrap |
-| `openclaw gateway restart` | Works | Does not work (gotcha — use `launchctl` instead) |
-| Playwright (browser tool) | Reliable — has GUI framework access | Works headless; can break across macOS updates |
-| Agent persistence via LaunchAgents | Possible (writable `~/Library/LaunchAgents/`) | Blocked (no `gui/<uid>` domain) |
-| Setup complexity | Standard | Higher |
-
-**When to use:** Deployments where agents should not be able to write to persistence directories, and where the operational trade-offs (manual OrbStack bootstrap, no `openclaw gateway restart`) are acceptable. For dedicated machine deployments, the Docker/VM boundary is typically sufficient — the LaunchAgent's writable `~/Library/LaunchAgents/` is an acceptable risk.
-
-##### Create the plist
-
-```bash
-sudo tee /Library/LaunchDaemons/ai.openclaw.gateway.plist > /dev/null << 'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key>Label</key>
-    <string>ai.openclaw.gateway</string>
-    <key>UserName</key>
-    <string>openclaw</string>
-    <key>GroupName</key>
-    <string>staff</string>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>ProgramArguments</key>
-    <array>
-      <string>/opt/homebrew/bin/node</string>
-      <string>/opt/homebrew/lib/node_modules/openclaw/dist/index.js</string>
-      <string>gateway</string>
-      <string>--port</string>
-      <string>18789</string>
-    </array>
-    <key>StandardOutPath</key>
-    <string>/Users/openclaw/.openclaw/logs/gateway.log</string>
-    <key>StandardErrorPath</key>
-    <string>/Users/openclaw/.openclaw/logs/gateway.err.log</string>
-    <key>EnvironmentVariables</key>
-    <dict>
-      <key>HOME</key>
-      <string>/Users/openclaw</string>
-      <key>OPENCLAW_HOME</key>
-      <string>/Users/openclaw</string>
-      <key>PATH</key>
-      <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
-      <key>OPENCLAW_GATEWAY_PORT</key>
-      <string>18789</string>
-      <key>OPENCLAW_GATEWAY_TOKEN</key>
-      <string><!-- See Secrets Management section above --></string>
-      <key>ANTHROPIC_API_KEY</key>
-      <string><!-- See Secrets Management section above --></string>
-      <key>BRAVE_API_KEY</key>
-      <string><!-- See Secrets Management section above --></string>
-      <key>GITHUB_TOKEN</key>
-      <string><!-- See Secrets Management section above --></string>
-      <key>OPENCLAW_SERVICE_MARKER</key>
-      <string>openclaw</string>
-      <key>OPENCLAW_SERVICE_KIND</key>
-      <string>gateway</string>
-    </dict>
-  </dict>
-</plist>
-PLIST
-```
-
-##### If using Docker (OrbStack)
-
-Required if using Docker sandboxing with OrbStack (not needed for Docker Desktop or native Docker on Linux). OrbStack runs as a user-session LaunchAgent. Bootstrap it into the `openclaw` user's GUI domain so the Docker socket is available to the gateway:
-
-```bash
-sudo launchctl bootstrap gui/$(id -u openclaw) /Library/LaunchAgents/com.orbstack.helper.plist
-```
-
-Verify Docker is accessible:
-```bash
-sudo -u openclaw docker run --rm hello-world
-```
-
-##### Manage the daemon
-
-```bash
-# Start
-sudo launchctl bootstrap system /Library/LaunchDaemons/ai.openclaw.gateway.plist
-
-# Stop
-sudo launchctl bootout system/ai.openclaw.gateway
-
-# Restart
-sudo launchctl bootout system/ai.openclaw.gateway
-sudo launchctl bootstrap system /Library/LaunchDaemons/ai.openclaw.gateway.plist
-
-# Check status
-sudo launchctl print system/ai.openclaw.gateway 2>&1 | head -10
-```
-
-> **Note:** Use `launchctl bootout` / `launchctl bootstrap` instead of `openclaw gateway restart` — the latter targets user-level LaunchAgents (`gui/<uid>` domain), not system-level LaunchDaemons (`system` domain).
+> **`openclaw gateway restart` works** in this mode — the LaunchAgent runs in the `gui/<uid>` domain that `openclaw gateway` targets.
 
 ### Docker Sandboxing
 
@@ -829,7 +842,7 @@ xcode-select --install
 
 The default VM user is typically admin with a known password (e.g., Lume creates `lume`/`lume`). A compromised agent with `exec` access could escalate via `echo <password> | sudo -S <command>`. Create a dedicated **standard** (non-admin) user to run OpenClaw:
 
-> **Why not just use the default user?** Three reasons: (1) admin users can `sudo` — a compromised agent could gain root access to the VM, (2) a non-login user has no `gui/<uid>` domain, preventing LaunchAgent/login item persistence, (3) shell RC files (`.zshrc`) are never sourced since nobody logs in interactively as this user.
+> **Why not just use the default user?** Three reasons: (1) admin users can `sudo` — a compromised agent could gain root access to the VM, (2) the dedicated user has no interactive shell sessions — auto-login creates the `gui/<uid>` domain for the LaunchAgent but RC files (`.zshrc`) are never sourced, so environment injection is neutralized, (3) a non-default username is less predictable to an attacker enumerating the system.
 
 ```bash
 # Create a standard user (NOT admin — no sudo access)
@@ -914,7 +927,9 @@ Then follow [Phase 4](phase-4-multi-agent.md) and [Phase 5](phase-5-web-search.m
 
 #### LaunchAgent (Inside VM)
 
-A LaunchAgent in the `openclaw` user's `gui/<uid>` domain — same pattern as the Docker isolation section. Since the `openclaw` user never logs in, the domain must be bootstrapped manually.
+A LaunchAgent in the `openclaw` user's `gui/<uid>` domain. With auto-login configured for the `openclaw` user, `loginwindow` creates the `gui/<uid>` domain automatically at boot — no manual bootstrap required.
+
+> **Prerequisite:** Auto-login must be configured for the `openclaw` user (System Settings → Users & Groups → automatically log in as `openclaw`). Without auto-login, the `gui/<uid>` domain doesn't exist after a reboot and the service doesn't start.
 
 ##### Create LaunchAgents directory
 
@@ -1012,7 +1027,7 @@ tail -f /Users/openclaw/.openclaw/logs/gateway.log
 
 ##### Hardened alternative: LaunchDaemon
 
-For stronger isolation inside the VM, use a LaunchDaemon instead — the `openclaw` user has no `gui/<uid>` domain, blocking agent persistence via LaunchAgents, login items, or shell RC files. See the Docker isolation section's [Hardened alternative: LaunchDaemon](#hardened-alternative-launchdaemon) for the plist format (add `UserName`/`GroupName` keys, place in `/Library/LaunchDaemons/`, use `system` domain for `launchctl` commands).
+For stronger isolation inside the VM, use a LaunchDaemon instead — the `openclaw` user has no `gui/<uid>` domain, blocking agent persistence via LaunchAgents, login items, or shell RC files. See the Docker isolation section's [macOS: LaunchDaemon](#macos-launchdaemon) for the plist format (already includes `UserName`/`GroupName` keys; place in `/Library/LaunchDaemons/`, use `system` domain for `launchctl` commands).
 
 > **Trade-off:** The VM boundary is the real isolation layer — the `openclaw` user's writable `~/Library/LaunchAgents/` is acceptable risk since a compromised VM doesn't affect the host. Use LaunchDaemon only when you want defense-in-depth within the VM.
 
@@ -1044,7 +1059,7 @@ OpenClaw watches `openclaw.json` for changes automatically — same behavior as 
 
 - **No Docker** — `sandbox` blocks in `openclaw.json` have no effect. Tool policy + SOUL.md provide internal isolation. The `read→exfiltrate` chain is open within the VM (channel agents can read `~/.openclaw/openclaw.json`), but only OpenClaw data is at risk.
 - **Standard user** — the `openclaw` user has no sudo access. Even within the VM, privilege escalation is blocked.
-- **No interactive login** — the `openclaw` user never logs in interactively. The `gui/<uid>` domain is bootstrapped manually for the LaunchAgent. Login items and shell RC file persistence are neutralized. For defense-in-depth against LaunchAgent persistence, use the hardened LaunchDaemon alternative.
+- **No interactive login** — the `openclaw` user never logs in interactively. Auto-login creates the `gui/<uid>` domain for the LaunchAgent automatically at boot, but shell RC files (`.zshrc`) are never sourced in non-interactive sessions. For defense-in-depth against LaunchAgent persistence within the VM, use the hardened LaunchDaemon alternative.
 - **VM is the outer boundary** — your host macOS is untouched. A full compromise of the VM doesn't affect the host.
 
 For channel separation with two macOS VMs, see [Multi-Gateway: VM Variants](../multi-gateway.md#vm-variants).
@@ -1204,13 +1219,13 @@ For multiple Linux VMs, see [Multi-Gateway: VM Variants](../multi-gateway.md#vm-
 
 ## Service Management Comparison
 
-| | LaunchAgent (macOS) | LaunchDaemon (macOS, hardened) | systemd (Linux) |
+| | LaunchDaemon (macOS) | LaunchAgent (macOS, auto-login) | systemd (Linux) |
 |--|---|---|---|
-| Runs as | Dedicated user | Dedicated user | Dedicated user |
-| Starts at | Bootstrap (persists across reboots) | Boot | Boot |
-| `openclaw gateway` compat | Yes | No (use `launchctl` instead) | N/A |
-| OrbStack Docker | Automatic | Requires helper bootstrap | N/A |
-| Security | Standard | Strongest (macOS) | Strongest (Linux) |
+| Runs as | Dedicated user (`UserName` key) | Dedicated user | Dedicated user |
+| Starts at | Boot — no GUI session required | Boot (requires GUI auto-login configured) | Boot |
+| `openclaw gateway` compat | No (use `launchctl` instead) | Yes | N/A |
+| OrbStack Docker | Via `/var/run/docker.sock` (OrbStack must run) | Automatic — same user session | N/A |
+| Security | Strongest (macOS) | Standard | Strongest (Linux) |
 
 ## Linux: systemd
 
@@ -1631,7 +1646,11 @@ tail -20 /home/openclaw/.openclaw/logs/gateway.log     # Linux
 # Edit config (VM and Docker isolation use the same dedicated user)
 sudo -u openclaw vi /Users/openclaw/.openclaw/openclaw.json
 
-# Restart (macOS — LaunchAgent, both VM and Docker isolation)
+# Restart (macOS — LaunchDaemon, Docker isolation)
+sudo launchctl bootout system/ai.openclaw.gateway && sleep 1 && \
+  sudo launchctl bootstrap system /Library/LaunchDaemons/ai.openclaw.gateway.plist
+
+# Restart (macOS — LaunchAgent, VM with auto-login)
 OPENCLAW_UID=$(id -u openclaw)
 sudo launchctl bootout gui/$OPENCLAW_UID/ai.openclaw.gateway
 sudo launchctl bootstrap gui/$OPENCLAW_UID /Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.plist

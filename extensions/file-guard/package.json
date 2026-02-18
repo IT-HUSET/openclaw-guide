@@ -1,5 +1,5 @@
 {
-  "name": "openclaw-file-guard",
+  "name": "file-guard",
   "version": "0.1.0",
   "description": "OpenClaw plugin: path-based file access protection with multi-level policies (no_access, read_only, no_delete)",
   "license": "MIT",

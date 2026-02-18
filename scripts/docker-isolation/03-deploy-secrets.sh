@@ -7,7 +7,7 @@ set -euo pipefail
 # What this script does:
 #   1. Prompts for shared secrets (with generation/validation)
 #   2. Generates unique OPENCLAW_GATEWAY_TOKEN per instance
-#   3. Injects into LaunchAgent plist(s) via PlistBuddy (stdin mode)
+#   3. Injects into LaunchDaemon plist(s) via PlistBuddy (stdin mode)
 #   4. Locks down plist permissions
 #   5. Tightens file permissions
 #   6. Initializes workspace git repos (.gitignore, user config, initial commit)
@@ -22,7 +22,7 @@ set -euo pipefail
 #
 # Environment variable overrides (fallback when .instances is absent):
 #   OPENCLAW_USER  — dedicated user name (default: openclaw)
-#   PLIST_PATH     — plist location (default: /Users/$OPENCLAW_USER/Library/LaunchAgents/ai.openclaw.gateway.plist)
+#   PLIST_PATH     — plist location (default: /Library/LaunchDaemons/ai.openclaw.gateway.plist)
 
 # Color output (disabled when not writing to a terminal)
 if [ -t 1 ]; then
@@ -84,10 +84,10 @@ for idx in "${!INST_NAMES[@]}"; do
     local_home="/Users/${INST_USERS[$idx]}"
     if [[ "$MULTI_INSTANCE" -eq 1 ]]; then
         PLIST_LABELS+=("ai.openclaw.gateway.${INST_NAMES[$idx]}")
-        PLIST_PATHS+=("$local_home/Library/LaunchAgents/ai.openclaw.gateway.${INST_NAMES[$idx]}.plist")
+        PLIST_PATHS+=("/Library/LaunchDaemons/ai.openclaw.gateway.${INST_NAMES[$idx]}.plist")
     else
         PLIST_LABELS+=("ai.openclaw.gateway")
-        PLIST_PATHS+=("${PLIST_PATH:-$local_home/Library/LaunchAgents/ai.openclaw.gateway.plist}")
+        PLIST_PATHS+=("${PLIST_PATH:-/Library/LaunchDaemons/ai.openclaw.gateway.plist}")
     fi
 done
 
@@ -326,10 +326,9 @@ echo -e "${BOLD}--- Step 7: Starting service(s) ---${NC}"
 
 for idx in "${!INST_NAMES[@]}"; do
     local_label="${PLIST_LABELS[$idx]}"
-    local_user="${INST_USERS[$idx]}"
 
     # Stop existing if running
-    launchctl bootout "gui/$(id -u "$local_user")/${local_label}" 2>/dev/null || true
+    launchctl bootout "system/${local_label}" 2>/dev/null || true
 done
 
 sleep 2
@@ -337,10 +336,9 @@ sleep 2
 for idx in "${!INST_NAMES[@]}"; do
     local_label="${PLIST_LABELS[$idx]}"
     local_plist="${PLIST_PATHS[$idx]}"
-    local_user="${INST_USERS[$idx]}"
     local_name="${INST_NAMES[$idx]}"
 
-    launchctl bootstrap "gui/$(id -u "$local_user")" "$local_plist"
+    launchctl bootstrap system "$local_plist"
     echo "  $local_name: started"
 done
 
@@ -364,13 +362,11 @@ for idx in "${!INST_NAMES[@]}"; do
     echo -e "${BOLD}  $local_name (port $local_port):${NC}"
 
     # Service status
-    local local_uid
-    local_uid=$(id -u "$local_user")
-    if launchctl print "gui/${local_uid}/${local_label}" 2>&1 | grep -q "state = running"; then
+    if launchctl print "system/${local_label}" 2>&1 | grep -q "state = running"; then
         echo -e "    Service: ${GREEN}running${NC}"
     else
         echo -e "    Service: ${YELLOW}not running yet (may need more time)${NC}"
-        echo "    Check: sudo launchctl print gui/${local_uid}/${local_label}"
+        echo "    Check: sudo launchctl print system/${local_label}"
     fi
 
     # Port check
@@ -437,15 +433,14 @@ for idx in "${!INST_NAMES[@]}"; do
     echo "  sudo -u $local_user vi $local_home/.openclaw/workspaces/main/SOUL.md"
     echo ""
 
-    local local_uid
-    local_uid=$(id -u "$local_user")
-
     echo -e "${BOLD}Service management:${NC}"
+    echo "  # Note: 'openclaw gateway restart' does NOT work (system domain)."
+    echo "  # Use launchctl bootout/bootstrap instead:"
     echo "  # Status"
-    echo "  sudo launchctl print gui/${local_uid}/${local_label} 2>&1 | head -10"
+    echo "  sudo launchctl print system/${local_label} 2>&1 | head -10"
     echo "  # Restart"
-    echo "  sudo launchctl bootout gui/${local_uid}/${local_label}"
-    echo "  sudo launchctl bootstrap gui/${local_uid} $local_plist"
+    echo "  sudo launchctl bootout system/${local_label}"
+    echo "  sudo launchctl bootstrap system $local_plist"
     echo "  # Logs"
     echo "  sudo tail -f $local_home/.openclaw/logs/gateway.log"
     echo ""

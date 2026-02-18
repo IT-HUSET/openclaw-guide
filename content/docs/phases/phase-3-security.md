@@ -66,6 +66,12 @@ Add these settings to `~/.openclaw/openclaw.json`. Each one is explained below.
     "redactSensitive": "tools"
   },
 
+  "plugins": {
+    // Only plugins in this list are permitted to load.
+    // A plugin in the list with "enabled": false is still blocked — code never executes.
+    "allow": ["whatsapp", "channel-guard", "web-guard"]
+  },
+
   "gateway": {
     "bind": "loopback",
     "auth": {
@@ -94,6 +100,7 @@ Add these settings to `~/.openclaw/openclaw.json`. Each one is explained below.
 | `mdns.mode: "minimal"` | Broadcasting filesystem paths and SSH availability on LAN. For cloud/VPS or sensitive environments, use `"off"` instead of `"minimal"` to disable mDNS entirely |
 | `logging.redactSensitive: "tools"` | Sensitive data appearing in log files |
 | `gateway.bind: "loopback"` | Network access to gateway from other machines. **Never use `lan` (`0.0.0.0`) without also firewalling the port to specific source IPs** — see [Phase 6](phase-6-deployment.md#if-you-need-lan-access) |
+| `plugins.allow` | Unauthorized plugins loading from extensions directory. Plugins not in this list never load. Plugins in the list with `enabled: false` also never load — both checks must pass |
 | `gateway.auth.mode: "token"` | Unauthorized gateway API access |
 
 Generate a gateway token:
@@ -191,6 +198,24 @@ The `deny` list is a hard restriction — these tools cannot be used regardless 
 - **`browser`** — browser automation. High risk (logged-in sessions). See below for options.
 
 > **Node pairing:** The security baseline sets `mdns.mode: "minimal"` which reduces LAN broadcasting. To fully disable node pairing and `system.run`, set `mdns.mode: "off"` instead and add `"nodes"` to the tool deny list (already included above).
+
+### Plugin-Registered Tools
+
+Enabled plugins can register new tools (e.g., `generate_image` from image-gen, `vm_*` from computer-use). These tools are available to any agent whose tool policy doesn't block them.
+
+**If an agent uses `tools.allow` (explicit allowlist),** plugin tools are implicitly blocked — only listed tools work. This is the safer pattern and is used in the [recommended config](../examples/config.md).
+
+**If an agent uses only `tools.deny` (denylist),** plugin tools are available unless explicitly denied. For agents handling untrusted input, either switch to `tools.allow` or add plugin tools to `tools.deny`:
+
+```json
+{
+  "tools": {
+    "deny": ["generate_image", "vm_screenshot", "vm_exec", "vm_click", "vm_type", "vm_key", "vm_launch", "vm_scroll"]
+  }
+}
+```
+
+> **Rule of thumb:** Use `tools.allow` (allowlist) for agents exposed to untrusted input. Use `tools.deny` (denylist) only for operator-facing agents where you want broad tool access.
 
 ### Browser Control
 
@@ -494,13 +519,15 @@ openclaw security audit
 ```
 
 Review the output. Common findings:
-- `WARN` about `trustedProxies` — safe to ignore if you're not behind a reverse proxy
+- `WARN` about `trustedProxies` — safe to ignore if you're not behind a reverse proxy. **Do not** add `trustedProxies` preemptively — without a proxy, the gateway ignores `X-Forwarded-For` entirely (safest). Setting it tells the gateway to trust XFF headers from those IPs; any local process on the host — any user, any service — can then forge client IPs in gateway requests
 - `INFO` about attack surface — shows which tools and access modes are enabled
 
 For a deeper check against a running gateway:
 ```bash
 openclaw security audit --deep
 ```
+
+> **Note:** `--deep` includes a `plugins.code_safety` heuristic that flags `env-harvesting` when a plugin reads `process.env` and makes network calls. Best practice: plugins should receive API keys via config (`"apiKey": "${OPENROUTER_API_KEY}"`) instead of reading `process.env` directly — this avoids the heuristic and keeps config as the single source of truth. The heuristic is mainly useful for vetting *untrusted* third-party plugins. See the [worked audit example](../examples/security-audit.md) for details.
 
 To auto-apply safe guardrails (review changes first):
 ```bash

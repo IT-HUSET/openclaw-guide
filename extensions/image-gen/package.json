@@ -1,5 +1,5 @@
 {
-  "name": "openclaw-image-gen",
+  "name": "image-gen",
   "version": "0.2.0",
   "description": "OpenClaw plugin: generate images from text prompts via OpenRouter",
   "license": "MIT",

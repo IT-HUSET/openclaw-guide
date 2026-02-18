@@ -346,6 +346,14 @@
 
   // --- Plugins ---
   "plugins": {
+    // Only allow these plugins to load. Without this, any plugin dropped into
+    // ~/.openclaw/extensions/ loads automatically at startup.
+    "allow": [
+      "whatsapp", "signal", "googlechat",
+      "channel-guard", "web-guard", "image-gen"
+      // Add when using hardening plugins:
+      // "file-guard", "network-guard", "command-guard"
+    ],
     "entries": {
       "whatsapp": { "enabled": true },
       "signal": { "enabled": true },
@@ -379,7 +387,7 @@
       "image-gen": {
         "enabled": true,
         "config": {
-          // Uses $OPENROUTER_API_KEY from env (same key as Perplexity if configured)
+          "apiKey": "${OPENROUTER_API_KEY}",
           "defaultModel": "openai/gpt-5-image-mini",
           "defaultAspectRatio": "1:1",
           "defaultImageSize": "2K",

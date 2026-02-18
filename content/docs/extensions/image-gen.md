@@ -14,19 +14,21 @@ OpenClaw plugin that registers a `generate_image` tool for text-to-image generat
 # 1. Install (no npm install needed — zero dependencies)
 openclaw plugins install -l ./extensions/image-gen
 
-# 2. Set API key
+# 2. Set API key (OpenClaw substitutes ${OPENROUTER_API_KEY} from here at startup)
 echo 'OPENROUTER_API_KEY=sk-or-...' >> ~/.openclaw/.env
 
-# 3. Enable in openclaw.json
+# 3. Enable in openclaw.json and add to plugins.allow
 ```
 
 ```json5
 {
   plugins: {
+    allow: ["whatsapp", "channel-guard", "web-guard", "image-gen"], // add "image-gen" here
     entries: {
       "image-gen": {
         enabled: true,
         config: {
+          apiKey: "${OPENROUTER_API_KEY}",
           defaultModel: "openai/gpt-5-image-mini",
           defaultAspectRatio: "1:1",
           defaultImageSize: "2K"
@@ -37,13 +39,13 @@ echo 'OPENROUTER_API_KEY=sk-or-...' >> ~/.openclaw/.env
 }
 ```
 
-Restart the gateway. Any agent that doesn't explicitly deny `generate_image` can now use it.
+Restart the gateway. Any agent that doesn't explicitly deny `generate_image` can now use it. If your agent uses `tools.deny` rather than `tools.allow`, add `"generate_image"` to its deny list for any agent that shouldn't have image generation access.
 
 ## Config
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `apiKey` | `$OPENROUTER_API_KEY` | OpenRouter API key |
+| `apiKey` | _(required)_ | OpenRouter API key. Use `${OPENROUTER_API_KEY}` for env var substitution |
 | `baseUrl` | `https://openrouter.ai/api/v1` | API base URL (must be HTTPS) |
 | `defaultModel` | `openai/gpt-5-image-mini` | Default model ID |
 | `defaultAspectRatio` | `1:1` | Default aspect ratio |

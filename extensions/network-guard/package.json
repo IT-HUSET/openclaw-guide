@@ -1,5 +1,5 @@
 {
-  "name": "openclaw-network-guard",
+  "name": "network-guard",
   "version": "0.1.0",
   "description": "OpenClaw plugin: application-level domain allowlisting for web_fetch and exec tool calls",
   "license": "MIT",

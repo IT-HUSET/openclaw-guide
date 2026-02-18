@@ -37,15 +37,9 @@ describe("generateImage — validation", () => {
   });
 
   it("rejects missing API key", async () => {
-    const saved = process.env.OPENROUTER_API_KEY;
-    delete process.env.OPENROUTER_API_KEY;
-    try {
-      const result = await generateImage({ prompt: "test" }, {});
-      assert.ok("error" in result);
-      assert.match(result.error, /No API key/);
-    } finally {
-      if (saved) process.env.OPENROUTER_API_KEY = saved;
-    }
+    const result = await generateImage({ prompt: "test" }, {});
+    assert.ok("error" in result);
+    assert.match(result.error, /No API key/);
   });
 
   it("enforces allowedModels", async () => {

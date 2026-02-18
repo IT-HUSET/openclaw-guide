@@ -52,7 +52,7 @@ Multi-gateway provides stronger isolation: each channel runs under a separate OS
 # 1. Install prerequisites, plan instances, create dedicated user(s), enable firewall
 bash scripts/docker-isolation/01-setup-host.sh
 
-# 2. Configure gateway(s), directories, workspaces, LaunchAgent plist(s)
+# 2. Configure gateway(s), directories, workspaces, LaunchDaemon plist(s)
 sudo bash scripts/docker-isolation/02-setup-gateway.sh
 
 # 3. Inject secrets, start service(s), verify
@@ -89,6 +89,7 @@ The plan is confirmed before proceeding, and saved to `scripts/docker-isolation/
 | Gateway port | 18789 | 18789, 18790, ... |
 | Browser CDP port | 18800 | 18800, 18801, ... |
 | Plist label | `ai.openclaw.gateway` | `ai.openclaw.gateway.{name}` |
+| Plist path | `/Library/LaunchDaemons/ai.openclaw.gateway.plist` | `/Library/LaunchDaemons/ai.openclaw.gateway.{name}.plist` |
 | Gateway token | one | unique per instance |
 | Config | full multi-agent JSON5 | filtered JSON per instance |
 
@@ -100,7 +101,7 @@ Override defaults by exporting before running (single-instance fallback only —
 |----------|---------|---------|
 | `OPENCLAW_USER` | `openclaw` | All scripts |
 | `GATEWAY_PORT` | `18789` | 02, 03 |
-| `PLIST_PATH` | `/Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.plist` | 03 |
+| `PLIST_PATH` | `/Library/LaunchDaemons/ai.openclaw.gateway.plist` | 03 |
 
 ## What Gets Created
 
@@ -110,7 +111,7 @@ Override defaults by exporting before running (single-instance fallback only —
 /Users/openclaw/                          # chmod 700
   └── .openclaw/                          # chmod 700
        ├── openclaw.json                  # Config (from examples/, JSON5 with comments)
-       ├── disable-launchagent
+       ├── disable-launchagent            # Prevents OpenClaw's built-in plist installer
        ├── logs/
        ├── credentials/{whatsapp,signal}/
        ├── agents/{main,whatsapp,signal,search}/agent/
@@ -118,7 +119,7 @@ Override defaults by exporting before running (single-instance fallback only —
        ├── identity/
        └── devices/
 
-/Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.plist
+/Library/LaunchDaemons/ai.openclaw.gateway.plist   # root:wheel, 644
 ```
 
 ### Multi-instance (example: wa + sig)
@@ -127,8 +128,8 @@ Override defaults by exporting before running (single-instance fallback only —
 /Users/openclaw-wa/.openclaw/             # Only whatsapp channel + agents
 /Users/openclaw-sig/.openclaw/            # Only signal channel + agents
 
-/Users/openclaw-wa/Library/LaunchAgents/ai.openclaw.gateway.wa.plist
-/Users/openclaw-sig/Library/LaunchAgents/ai.openclaw.gateway.sig.plist
+/Library/LaunchDaemons/ai.openclaw.gateway.wa.plist   # root:wheel, 644
+/Library/LaunchDaemons/ai.openclaw.gateway.sig.plist  # root:wheel, 644
 
 scripts/docker-isolation/.instances       # Instance definitions
 ```
@@ -236,12 +237,12 @@ Add to `/etc/newsyslog.d/openclaw.conf`:
 **Service not starting:**
 ```bash
 # Single instance
-sudo launchctl print gui/$(id -u openclaw)/ai.openclaw.gateway 2>&1 | head -20
+sudo launchctl print system/ai.openclaw.gateway 2>&1 | head -20
 sudo tail -50 /Users/openclaw/.openclaw/logs/gateway.err.log
 sudo -u openclaw openclaw doctor
 
-# Multi-instance (replace {name} and user accordingly)
-sudo launchctl print gui/$(id -u openclaw-{name})/ai.openclaw.gateway.{name} 2>&1 | head -20
+# Multi-instance (replace {name} accordingly)
+sudo launchctl print system/ai.openclaw.gateway.{name} 2>&1 | head -20
 sudo tail -50 /Users/openclaw-{name}/.openclaw/logs/gateway.err.log
 sudo -u openclaw-{name} openclaw doctor
 ```
@@ -271,12 +272,12 @@ sudo bash scripts/docker-isolation/03-deploy-secrets.sh
 id openclaw-wa && id openclaw-sig
 
 # Check plists exist
-ls /Users/openclaw-wa/Library/LaunchAgents/ai.openclaw.gateway.wa.plist
-ls /Users/openclaw-sig/Library/LaunchAgents/ai.openclaw.gateway.sig.plist
+ls /Library/LaunchDaemons/ai.openclaw.gateway.wa.plist
+ls /Library/LaunchDaemons/ai.openclaw.gateway.sig.plist
 
 # Check services running
-sudo launchctl print gui/$(id -u openclaw-wa)/ai.openclaw.gateway.wa
-sudo launchctl print gui/$(id -u openclaw-sig)/ai.openclaw.gateway.sig
+sudo launchctl print system/ai.openclaw.gateway.wa
+sudo launchctl print system/ai.openclaw.gateway.sig
 
 # Check ports listening
 sudo lsof -i :18789 -i :18790

@@ -163,7 +163,7 @@ Both scripts read `allowlist.conf`, resolve hostnames to IPs, and install rules 
 2. Allow traffic only to resolved IPs on the specified ports
 3. Allow DNS (UDP 53) so containers can resolve hostnames internally
 
-> **macOS:** pf rules don't survive reboot. Add `apply-rules.sh` to a LaunchDaemon that runs before the OpenClaw gateway starts. See [Phase 6: LaunchDaemon](phases/phase-6-deployment.md#hardened-alternative-launchdaemon) for the pattern.
+> **macOS:** pf rules don't survive reboot. Add `apply-rules.sh` to a LaunchDaemon that runs before the OpenClaw gateway starts. See [Phase 6: LaunchDaemon](phases/phase-6-deployment.md#macos-launchdaemon) for the pattern.
 
 > **Linux:** nftables rules don't survive reboot either. Use `nft list ruleset > /etc/nftables.conf` to persist, or add `apply-rules-linux.sh` to a systemd unit that runs before the gateway.
 

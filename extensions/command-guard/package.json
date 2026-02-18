@@ -1,5 +1,5 @@
 {
-  "name": "openclaw-command-guard",
+  "name": "command-guard",
   "version": "0.1.0",
   "description": "OpenClaw plugin: regex-based dangerous command blocking for exec/bash tool calls",
   "license": "MIT",

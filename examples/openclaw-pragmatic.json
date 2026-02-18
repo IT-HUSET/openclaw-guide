@@ -140,6 +140,10 @@
       {
         // MAIN — single agent, full access, no sandbox.
         // All tools available. Guard plugins are the safety net.
+        // NOTE: This uses tools.deny (denylist). Any plugin added to plugins.allow
+        // that registers new tools (e.g. image-gen → generate_image) will be
+        // automatically available to the agent. Add such tools to this deny list
+        // if the agent shouldn't have them.
         "id": "main",
         "default": true,
         "workspace": "/Users/openclaw/.openclaw/workspaces/main",
@@ -200,6 +204,13 @@
   // All guards default to failOpen: false — if a guard is unavailable,
   // access is denied rather than allowed.
   "plugins": {
+    // Only allow these plugins to load. Without this, any plugin dropped into
+    // ~/.openclaw/extensions/ loads automatically at startup.
+    "allow": [
+      "whatsapp",
+      "channel-guard", "web-guard",
+      "file-guard", "network-guard", "command-guard"
+    ],
     "entries": {
       "whatsapp": { "enabled": true },
 

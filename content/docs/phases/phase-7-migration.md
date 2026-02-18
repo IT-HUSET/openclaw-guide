@@ -39,11 +39,11 @@ An OpenClaw deployment consists of these components:
 ### Stop the gateway
 
 ```bash
-# macOS (LaunchAgent — default)
-sudo launchctl bootout gui/$(id -u openclaw)/ai.openclaw.gateway
-
-# macOS (LaunchDaemon — hardened alternative)
+# macOS (LaunchDaemon — default for dedicated headless accounts)
 sudo launchctl bootout system/ai.openclaw.gateway
+
+# macOS (LaunchAgent — if openclaw user has auto-login or active GUI session)
+# sudo launchctl bootout gui/$(id -u openclaw)/ai.openclaw.gateway
 
 # Linux (systemd)
 sudo systemctl stop openclaw-gateway
@@ -337,7 +337,7 @@ sudo -u openclaw grep -rl "media_type" /Users/openclaw/.openclaw/agents/*/sessio
 
 Create new service files on the target — **don't copy plists or unit files** from the source, as they contain secrets and host-specific paths.
 
-Follow the [LaunchAgent](phase-6-deployment.md#macos-launchagent) (macOS) or [systemd](phase-6-deployment.md#linux-systemd) instructions from Phase 6. For the hardened LaunchDaemon alternative, see [LaunchDaemon](phase-6-deployment.md#hardened-alternative-launchdaemon).
+Follow the [LaunchDaemon](phase-6-deployment.md#macos-launchdaemon) (macOS) or [systemd](phase-6-deployment.md#linux-systemd) instructions from Phase 6. For the LaunchAgent alternative (auto-login setups), see [LaunchAgent](phase-6-deployment.md#alternative-launchagent-auto-login-sessions-only).
 
 ### Enter secrets
 
@@ -530,8 +530,11 @@ Re-tag the new device as `tag:openclaw` in the Tailscale admin console. If using
 # Create log directory first
 sudo -u openclaw mkdir -p /Users/openclaw/.openclaw/logs
 
-# macOS (LaunchAgent — default)
-sudo launchctl bootstrap gui/$(id -u openclaw) /Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.plist
+# macOS (LaunchDaemon — default for dedicated headless accounts)
+sudo launchctl bootstrap system /Library/LaunchDaemons/ai.openclaw.gateway.plist
+
+# macOS (LaunchAgent — only if openclaw user has auto-login or active GUI session)
+# sudo launchctl bootstrap gui/$(id -u openclaw) /Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.plist
 
 # Linux
 sudo systemctl enable --now openclaw-gateway
@@ -541,7 +544,7 @@ sudo systemctl enable --now openclaw-gateway
 
 ```bash
 # Gateway is running
-sudo launchctl print gui/$(id -u openclaw)/ai.openclaw.gateway 2>&1 | head -10  # macOS
+sudo launchctl print system/ai.openclaw.gateway 2>&1 | head -10  # macOS (LaunchDaemon)
 sudo systemctl status openclaw-gateway                            # Linux
 
 # Listening on correct port
@@ -588,7 +591,7 @@ After verifying everything works:
 rm /tmp/openclaw-backup-*.tar.gz
 
 # On source: keep the backup, stop and disable the old service
-sudo launchctl bootout gui/$(id -u openclaw)/ai.openclaw.gateway  # macOS
+sudo launchctl bootout system/ai.openclaw.gateway  # macOS (LaunchDaemon)
 sudo systemctl disable --now openclaw-gateway       # Linux
 ```
 

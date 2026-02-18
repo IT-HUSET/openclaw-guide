@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# === Gateway Setup: Config + Directories + Workspaces + LaunchAgent ===
+# === Gateway Setup: Config + Directories + Workspaces + LaunchDaemon ===
 # Run with sudo: sudo bash 02-setup-gateway.sh
 #
 # What this script does (per instance):
@@ -12,8 +12,8 @@ set -euo pipefail
 #   5. Copies auth-profiles to all agents
 #   6. Installs plugins (web-guard, channel-guard, image-gen, computer-use)
 #   7. Bootstraps workspace files (SOUL.md, AGENTS.md, etc.)
-#   8. Creates disable-launchagent marker
-#   9. Creates LaunchAgent plist (secrets as placeholders)
+#   8. Creates disable-launchagent marker (prevents OpenClaw's built-in plist installer)
+#   9. Creates LaunchDaemon plist at /Library/LaunchDaemons/ (secrets as placeholders)
 #  10. Sets ownership + permissions
 #
 # Reads scripts/docker-isolation/.instances (from 01-setup-host.sh).
@@ -324,12 +324,12 @@ setup_instance() {
     # Build agents array from CSV
     IFS=',' read -ra agents <<< "$inst_agents_csv"
 
-    # Plist label and path
+    # Plist label and path (LaunchDaemon — system domain, root-owned)
     local plist_label="ai.openclaw.gateway"
-    local plist_path="$home_dir/Library/LaunchAgents/ai.openclaw.gateway.plist"
+    local plist_path="/Library/LaunchDaemons/ai.openclaw.gateway.plist"
     if [[ "$MULTI_INSTANCE" -eq 1 ]]; then
         plist_label="ai.openclaw.gateway.${inst_name}"
-        plist_path="$home_dir/Library/LaunchAgents/ai.openclaw.gateway.${inst_name}.plist"
+        plist_path="/Library/LaunchDaemons/ai.openclaw.gateway.${inst_name}.plist"
     fi
 
     echo -e "${BOLD}━━━ Instance: ${inst_name} (user: ${inst_user}, port: ${inst_port}) ━━━${NC}"
@@ -345,16 +345,15 @@ setup_instance() {
 
     # -- Stop existing service --
     if [[ -f "$plist_path" ]]; then
-        echo -e "${YELLOW}LaunchAgent plist already exists — stopping service${NC}"
-        launchctl bootout "gui/$(id -u "$inst_user")/${plist_label}" 2>/dev/null || true
+        echo -e "${YELLOW}LaunchDaemon plist already exists — stopping service${NC}"
+        launchctl bootout "system/${plist_label}" 2>/dev/null || true
     fi
 
     # -- Check for conflicting built-in LaunchAgent --
     local builtin_agent="$home_dir/Library/LaunchAgents/bot.molt.gateway.plist"
     if [[ -f "$builtin_agent" ]]; then
         echo -e "${YELLOW}WARNING: Built-in LaunchAgent (bot.molt.gateway) found at $builtin_agent${NC}"
-        echo "  This conflicts with our LaunchAgent (${plist_label})."
-        echo "  Remove it: rm '$builtin_agent'"
+        echo "  This may conflict — remove it: rm '$builtin_agent'"
     fi
 
     # -- Create directory tree --
@@ -624,12 +623,17 @@ MEMEOF
     done
 
     # -- Create disable-launchagent marker --
+    # Prevents OpenClaw's built-in `openclaw gateway install` from creating its own plist.
+    # This marker does not affect our manually created LaunchDaemon.
     touch "$target/disable-launchagent"
 
-    # -- Create LaunchAgent plist --
-    mkdir -p "$home_dir/Library/LaunchAgents"
-    chown "$inst_user:$group" "$home_dir/Library" "$home_dir/Library/LaunchAgents"
-    echo "  Creating LaunchAgent plist..."
+    # -- Create LaunchDaemon plist --
+    # LaunchDaemons live in /Library/LaunchDaemons/ (root-owned, system domain).
+    # UserName/GroupName drop privileges to the dedicated openclaw user after load.
+    # Use: sudo launchctl bootstrap system <plist>  /  bootout system/<label>
+    # Note: `openclaw gateway restart` does NOT work with LaunchDaemon (system domain).
+    #       Use launchctl bootout/bootstrap instead (see service management in 03-deploy-secrets.sh summary).
+    echo "  Creating LaunchDaemon plist..."
     cat > "$plist_path" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -637,6 +641,12 @@ MEMEOF
   <dict>
     <key>Label</key>
     <string>${plist_label}</string>
+    <key>Comment</key>
+    <string>OpenClaw Gateway (Docker isolation)</string>
+    <key>UserName</key>
+    <string>${inst_user}</string>
+    <key>GroupName</key>
+    <string>${group}</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
@@ -663,6 +673,8 @@ MEMEOF
       <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
       <key>OPENCLAW_GATEWAY_PORT</key>
       <string>${inst_port}</string>
+      <key>DOCKER_HOST</key>
+      <string>unix:///var/run/docker.sock</string>
       <key>OPENCLAW_GATEWAY_TOKEN</key>
       <string>PLACEHOLDER_RUN_03</string>
       <key>ANTHROPIC_API_KEY</key>
@@ -681,8 +693,9 @@ MEMEOF
   </dict>
 </plist>
 PLIST
-    chown "$inst_user:$group" "$plist_path"
-    chmod 600 "$plist_path"
+    # LaunchDaemon plists must be root-owned (root:wheel) and not group/world writable
+    chown root:wheel "$plist_path"
+    chmod 644 "$plist_path"
 
     # -- Set ownership + permissions --
     chmod 700 "$home_dir"
@@ -717,7 +730,7 @@ for idx in "${!INST_NAMES[@]}"; do
     local_user="${INST_USERS[$idx]}"
     local_port="${INST_PORTS[$idx]}"
     local_home="/Users/$local_user"
-    local_plist="$local_home/Library/LaunchAgents/ai.openclaw.gateway"
+    local_plist="/Library/LaunchDaemons/ai.openclaw.gateway"
     if [[ "$MULTI_INSTANCE" -eq 1 ]]; then
         local_plist="${local_plist}.${local_name}"
     fi

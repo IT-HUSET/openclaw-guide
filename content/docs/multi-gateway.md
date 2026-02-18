@@ -90,7 +90,7 @@ Each gateway needs a unique port. Leave a gap of >= 20 between ports to accommod
 
 **4. Service files:**
 
-Create one LaunchAgent (macOS) or systemd unit (Linux) per profile. Use the same templates from [Phase 6](phases/phase-6-deployment.md#macos-launchagent), adding `--profile` to the program arguments. For the hardened LaunchDaemon alternative, see [Phase 6: LaunchDaemon](phases/phase-6-deployment.md#hardened-alternative-launchdaemon).
+Create one LaunchAgent (macOS) or systemd unit (Linux) per profile. Since profiles run under your own personal account (always logged in), use the LaunchAgent template from [Phase 6](phases/phase-6-deployment.md#alternative-launchagent-auto-login-sessions-only), adding `--profile` to the program arguments.
 
 **macOS LaunchAgent** (`~/Library/LaunchAgents/ai.openclaw.gateway.wa.plist`):
 
@@ -272,9 +272,9 @@ Each gateway needs a unique port:
 
 ### Service files
 
-Create one LaunchAgent (macOS) or systemd unit (Linux) per user. Use the same templates from the [LaunchAgent](phases/phase-6-deployment.md#macos-launchagent) / [systemd](phases/phase-6-deployment.md#linux-systemd) sections, changing per instance:
+Create one LaunchDaemon (macOS) or systemd unit (Linux) per user. Use the same templates from the [LaunchDaemon](phases/phase-6-deployment.md#macos-launchdaemon) / [systemd](phases/phase-6-deployment.md#linux-systemd) sections, changing per instance:
 
-- `User` (systemd) or `UserName` (LaunchDaemon only) → channel-specific user (`openclaw-wa` or `openclaw-sig`). LaunchAgent doesn't need this — it runs in the user's own domain.
+- `UserName` (LaunchDaemon) or `User` (systemd) → channel-specific user (`openclaw-wa` or `openclaw-sig`)
 - `--port` and `OPENCLAW_GATEWAY_PORT` → assigned port
 - `Label` / service name → channel-specific (see table above)
 - `HOME`, `OPENCLAW_HOME`, log paths → user's home directory
@@ -422,7 +422,7 @@ Leave a gap of >= 20 between gateway ports to accommodate CDP port ranges:
 Per gateway instance, regardless of approach:
 
 - [ ] Separate state directory (profile), OS user, or VM
-- [ ] Separate LaunchAgent/systemd unit (or LaunchDaemon for hardened/VM) with unique label/name and port
+- [ ] Separate LaunchDaemon/systemd unit (or LaunchAgent for auto-login setups) with unique label/name and port
 - [ ] Separate `openclaw.json` with only the relevant channels and agents
 - [ ] Separate secrets (unique `OPENCLAW_GATEWAY_TOKEN` per instance)
 - [ ] File permissions locked down (`chmod 700` home directory, `chmod 600` sensitive files)

@@ -1,5 +1,5 @@
 {
-  "name": "openclaw-web-guard",
+  "name": "web-guard",
   "version": "0.2.0",
   "description": "OpenClaw plugin: scan web_fetch content for prompt injection using local DeBERTa ONNX model",
   "license": "MIT",
