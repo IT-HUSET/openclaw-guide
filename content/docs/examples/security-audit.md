@@ -95,7 +95,7 @@ If the main agent doesn't need shell execution:
 {
   "id": "main",
   "tools": {
-    "deny": ["exec", "process", "canvas", "gateway"]
+    "deny": ["exec", "process", "canvas", "gateway", "nodes"]
   }
 }
 ```
