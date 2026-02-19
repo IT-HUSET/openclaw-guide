@@ -22,6 +22,7 @@ Review and implement any necessary updates to this documentation guide based on 
 - Security-related changes (affects Phase 3, Phase 6, or security audit example)
 - Plugin/extension API changes (affects extensions/ docs or Phase 5)
 - Deployment or service management changes (affects Phase 6, Phase 7, scripts/)
+- Sandbox image changes — if `Dockerfile.sandbox` base image or packages changed, update `scripts/custom-sandbox/Dockerfile` to match
 - Memory or session behavior changes (affects Phase 2, sessions doc)
 
 ## What to ignore

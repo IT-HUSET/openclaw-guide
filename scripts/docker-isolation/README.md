@@ -151,6 +151,25 @@ The DeBERTa ONNX model (~370MB, used by channel-guard) downloads on first gatewa
 
 ## After Setup
 
+### Gateway Management
+
+`gateway.sh` wraps the platform-specific service commands. It reads `.instances` automatically — no arguments needed for a single-instance setup.
+
+```bash
+bash scripts/gateway.sh start    # Start
+bash scripts/gateway.sh stop     # Stop
+bash scripts/gateway.sh restart  # Restart
+bash scripts/gateway.sh status   # Status
+bash scripts/gateway.sh reload   # Reload config (SIGUSR1, no restart)
+bash scripts/gateway.sh logs     # Tail log
+
+# Multi-instance: add the instance name
+bash scripts/gateway.sh restart wa
+bash scripts/gateway.sh logs sig
+```
+
+Works on macOS (LaunchDaemon, `system` domain) and Linux (systemd system service).
+
 ### Channel Pairing
 
 **WhatsApp:** The gateway shows a QR code in logs on first start. Scan with WhatsApp > Linked Devices.

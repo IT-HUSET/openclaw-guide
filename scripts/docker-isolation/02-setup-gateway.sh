@@ -197,8 +197,16 @@ generate_filtered_config() {
     local gateway_port="$6"
     local cdp_port="$7"
 
-    python3 << PYEOF
-import json, re, sys
+    # Pass values via environment variables — avoids bash-variable injection into Python source.
+    GFC_INPUT="$input" \
+    GFC_OUTPUT="$output" \
+    GFC_AGENTS="$agents_csv" \
+    GFC_CHANNELS="$channels_csv" \
+    GFC_USER="$instance_user" \
+    GFC_PORT="$gateway_port" \
+    GFC_CDP="$cdp_port" \
+    python3 << 'PYEOF'
+import json, os, re
 
 def strip_json5(text):
     """Strip JSON5 comments and trailing commas to produce valid JSON."""
@@ -213,7 +221,7 @@ def strip_json5(text):
             escape_next = False
             i += 1
             continue
-        if ch == '\\\\' and in_string:
+        if ch == '\\' and in_string:
             result.append(ch)
             escape_next = True
             i += 1
@@ -230,7 +238,7 @@ def strip_json5(text):
         result.append(ch)
         i += 1
     text = ''.join(result)
-    text = re.sub(r',\s*([}\]])', r'\\1', text)
+    text = re.sub(r',\s*([}\]])', r'\1', text)
     return text
 
 def update_paths(obj, new_user):
@@ -243,13 +251,13 @@ def update_paths(obj, new_user):
         return [update_paths(item, new_user) for item in obj]
     return obj
 
-input_file = "$input"
-output_file = "$output"
-instance_agents = "$agents_csv".split(',')
-instance_channels = "$channels_csv".split(',')
-instance_user = "$instance_user"
-gateway_port = int("$gateway_port")
-cdp_port = int("$cdp_port")
+input_file     = os.environ['GFC_INPUT']
+output_file    = os.environ['GFC_OUTPUT']
+instance_agents   = os.environ['GFC_AGENTS'].split(',')
+instance_channels = os.environ['GFC_CHANNELS'].split(',')
+instance_user  = os.environ['GFC_USER']
+gateway_port   = int(os.environ['GFC_PORT'])
+cdp_port       = int(os.environ['GFC_CDP'])
 
 with open(input_file) as f:
     raw = f.read()

@@ -568,12 +568,21 @@ openclaw channels login                     # Link a channel (QR code for WhatsA
 openclaw channels login --account <id>      # Link a specific account
 openclaw channels logout                    # Unlink channel
 
-# Gateway management
+# Gateway management (foreground / LaunchAgent)
 openclaw start                              # Start gateway in foreground
 openclaw health                             # Gateway health check
 openclaw status                             # Gateway status
 openclaw dashboard                          # Open browser UI
 openclaw logs                               # View logs
+
+# Gateway management — LaunchDaemon (macOS) / systemd (Linux)
+# scripts/docker-isolation/gateway.sh wraps these for both platforms + multi-instance
+bash scripts/gateway.sh start    [instance]  # Start
+bash scripts/gateway.sh stop     [instance]  # Stop
+bash scripts/gateway.sh restart  [instance]  # Restart
+bash scripts/gateway.sh status   [instance]  # Status
+bash scripts/gateway.sh reload   [instance]  # Reload config (SIGUSR1, no restart)
+bash scripts/gateway.sh logs     <instance>  # Tail logs (instance required for multi)
 
 # Diagnostics & security
 openclaw doctor                             # Diagnose config issues

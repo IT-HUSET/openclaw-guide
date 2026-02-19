@@ -88,6 +88,36 @@ This means the container **permanently** runs with network access and a writable
 
 ---
 
+## Ready-Made Example
+
+This guide ships a fully worked example at `scripts/custom-sandbox/` — a standalone Dockerfile with:
+
+| Tool | Version |
+|------|---------|
+| Base OS | Debian 13 (trixie) |
+| Python | 3.13 (via multi-stage copy from `python:3.13-slim`) |
+| pip | 25.x |
+| uv | latest (Astral) |
+| Node.js | 24 LTS |
+| Deno | latest |
+| Dart SDK | latest |
+| GitHub CLI | latest |
+| zsh | system |
+
+```bash
+cd scripts/custom-sandbox
+./build.sh                          # builds openclaw-sandbox-custom:latest
+./build.sh myorg/sandbox:v1         # custom tag
+```
+
+The build script auto-detects Apple Silicon and sets `--platform linux/amd64` (required for Deno, which has no official arm64 Linux binary).
+
+{{< callout type="info" >}}
+**Why Debian trixie?** Python 3.12+ requires glibc 2.38+, which is only available in Debian 13 (trixie). The official `python:3.13-slim` Docker image is trixie-based. If you need to stay on Debian 12 (bookworm), the maximum Python version you can run is 3.11 (the bookworm default).
+{{< /callout >}}
+
+---
+
 ## Building a Custom Image
 
 ### Option 1: Extend the official base
@@ -119,18 +149,22 @@ docker build -t my-sandbox:latest -f Dockerfile.custom .
 
 ### Option 2: Standalone (no dependency on official base)
 
-Replicate the base image structure directly:
+Replicate the base image structure directly. Base image choice depends on which Python version you need:
+
+| Base | glibc | Max Python |
+|------|-------|------------|
+| `debian:bookworm-slim` (Debian 12) | 2.36 | 3.11 |
+| `debian:trixie-slim` (Debian 13) | 2.41 | 3.13+ |
 
 ```dockerfile
-FROM debian:bookworm-slim
+FROM debian:trixie-slim   # or bookworm-slim if you don't need Python 3.12+
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-    bash ca-certificates curl git jq python3 ripgrep \
+    bash ca-certificates curl git jq ripgrep \
     build-essential nodejs npm \
- && npm install -g pnpm \
  && rm -rf /var/lib/apt/lists/*
 
 # OpenClaw expects non-root user "sandbox" (UID 1000)
@@ -154,6 +188,8 @@ docker build --platform linux/amd64 -t my-sandbox:latest .
 ```
 
 For images used across both architectures, build a multi-arch manifest with `docker buildx`.
+
+> **Deno constraint:** Deno has no official arm64 Linux binary. Images that include Deno must always be built and run as `linux/amd64`. On Apple Silicon, OrbStack and Docker Desktop run these via Rosetta transparently.
 
 ---
 

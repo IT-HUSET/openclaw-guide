@@ -156,7 +156,7 @@ sudo pfctl -si | grep Status
 docker network inspect openclaw-egress --format '{{.Id}}'
 ```
 
-**OrbStack note:** OrbStack uses its own networking stack. The bridge interface name may differ from standard Docker. If rules aren't working, inspect the actual interface with `ifconfig` or `ip link` and verify it matches what the apply script detected.
+**Docker Desktop / OrbStack:** These tools run containers inside a Linux VM. The bridge interface lives inside that VM — not on the macOS host — so host-level pf rules cannot filter container egress traffic. The apply script detects this and exits with an error. Use a Linux VM with `apply-rules-linux.sh` inside the VM, or Colima with bridged networking.
 
 ## Risks and Limitations
 

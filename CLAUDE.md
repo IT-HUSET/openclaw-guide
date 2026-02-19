@@ -182,6 +182,12 @@ When updating the guide for a new OpenClaw version:
 4. Bump `.guide-version` to the reviewed version
 5. Check "Pending Cleanup" below for version-gated TODOs that may now be resolved
 
+### Custom sandbox image sync
+`scripts/custom-sandbox/Dockerfile` is a standalone image that mirrors the structure of the upstream `Dockerfile.sandbox` (in `openclaw/openclaw`). When reviewing a new OpenClaw version, also check:
+- Did the upstream `Dockerfile.sandbox` change its base image or add/remove packages?
+- If so, update `scripts/custom-sandbox/Dockerfile` to stay consistent (same base, same core packages)
+- The custom Dockerfile **extends** the default, so any tools removed from the default that the custom image still needs must be explicitly added there
+
 ## Pending Cleanup
 
 Version-specific content that should be removed when the referenced fix lands:
