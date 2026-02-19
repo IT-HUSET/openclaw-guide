@@ -1,6 +1,6 @@
 ---
 title: "Phase 5 — Web Search Isolation"
-description: "Isolated search agent for web search delegation. Web-guard plugin for prompt injection scanning."
+description: "Isolated search agent for web search delegation. Content-guard plugin for prompt injection scanning."
 weight: 50
 ---
 
@@ -383,86 +383,66 @@ See [`examples/openclaw.json`](../examples/config.md) for the full annotated con
 
 The search agent processes untrusted web content — a prime vector for indirect prompt injection. Poisoned web pages can embed hidden instructions that manipulate the agent.
 
-The [`web-guard`](../extensions/web-guard.md) plugin adds a defense layer using a local [DeBERTa ONNX model](https://huggingface.co/ProtectAI/deberta-v3-base-prompt-injection-v2) to scan fetched web content before the agent sees it. No API key required — the model runs locally and is downloaded on first use.
+The [`content-guard`](../extensions/content-guard.md) plugin guards the `sessions_send` boundary between the search agent and the main agent. This is the key insight: by the time the search agent calls `sessions_send` to return results to main, it has already processed all web content — both `web_search` results and `web_fetch` page content. Intercepting at this boundary is more effective than scanning individual `web_fetch` calls, because it covers the entire payload the search agent sends back.
+
+The plugin uses an LLM (claude-haiku-4-5 via OpenRouter) to classify the content — no local model download needed. Requires `OPENROUTER_API_KEY`. Always fails closed — there is no `failOpen` option.
 
 > **Requires OpenClaw >= 2026.2.1** — the `before_tool_call` hook was wired in PRs #6570/#6660.
 
 ### How it works
 
-The plugin hooks into `before_tool_call` for `web_fetch`:
+The plugin hooks into `before_tool_call` for `sessions_send`:
 
-1. Validates the URL (blocks non-http/https schemes and private/internal IPs — SSRF prevention)
-2. Pre-fetches the URL and classifies content using a local DeBERTa ONNX model (prompt injection detection)
-3. If flagged → **blocks the tool call** with a reason
-4. If clean → allows the tool to execute normally
+1. Extracts the message content from the tool call arguments
+2. Detects Cloudflare challenge pages (skips — not real content)
+3. Truncates to `maxContentLength` to control LLM cost
+4. Sends to OpenRouter (claude-haiku-4-5) for classification
+5. If injection detected → **blocks the tool call**, search result never reaches main agent
+6. If clean → allows `sessions_send` to proceed normally
 
 ```
-Search Agent calls web_fetch(url)
+Search Agent processes web content
+(web_search results + web_fetch pages)
          │
          ▼
-  URL validation (scheme + host)
+  calls sessions_send to return results
+         │
+         ▼
+   content-guard scans payload
          │
     ┌────┴────┐
     │         │
-  PUBLIC   PRIVATE/INVALID
+  SAFE    INJECTION
     │         │
     ▼         ▼
-  pre-fetch  BLOCKED
-  + guard     (SSRF)
-    │
-    ┌────┴────┐
-    │         │
-  CLEAN    INJECTION
-    │         │
-    ▼         ▼
-  tool     tool call
-  executes blocked
+  Main     sessions_send
+  Agent    blocked — main
+ receives  never sees it
 ```
 
-> **Warning:** web-guard only scans `web_fetch` requests. `web_search` results are not scanned for prompt injection. Strengthen your search agent's AGENTS.md instructions to reject suspicious content from search results.
-
-> **Note:** The DeBERTa model is trained on English text only. Prompt injections in other languages may not be detected.
+> **Note:** content-guard covers both `web_search` results and `web_fetch` page content in one scan — it intercepts the full payload the search agent sends back to main, not individual tool calls.
 
 ### Install
 
 ```bash
 # Install the plugin into OpenClaw (dependencies are installed automatically)
-openclaw plugins install -l ./extensions/web-guard
+openclaw plugins install -l ./extensions/content-guard
 ```
 
-The plugin downloads the DeBERTa ONNX model (~370MB) on first use and caches it locally. Subsequent startups load from cache in ~1s.
-
-### Verify
-
-Confirm the ONNX model downloads successfully after install:
-
-```bash
-# Start the gateway and watch logs for model load
-openclaw start
-# Look for: "web-guard: model loaded" or similar
-
-# If the model fails to download, behavior depends on failOpen:
-#   failOpen: false (default) → ALL web_fetch calls silently blocked
-#   failOpen: true → web_fetch works but without injection scanning
-```
-
-> **Tip:** Set `failOpen: true` during initial setup to avoid silently blocking all web access if the model fails to load. Switch to `false` once you've confirmed the plugin works. In a daemon context, startup warnings are easy to miss.
-
-> **Production:** Before deploying to production, switch to `failOpen: false` and verify the model loads correctly. Test with a known-safe and known-malicious URL to confirm scanning works.
+No model download — LLM classification runs via OpenRouter.
 
 ### Configure
 
-```json
+```json5
 {
   "plugins": {
     "entries": {
-      "web-guard": {
+      "content-guard": {
         "enabled": true,
         "config": {
-          "failOpen": false,
-          "timeoutMs": 10000,
+          "model": "anthropic/claude-haiku-4-5",
           "maxContentLength": 50000,
-          "sensitivity": 0.5
+          "timeoutMs": 15000
         }
       }
     }
@@ -470,16 +450,13 @@ openclaw start
 }
 ```
 
-- `failOpen: false` (default) — block **all** `web_fetch` calls when the model is unavailable (download failure, corrupt cache, OOM). This means a broken plugin silently disables web access entirely. Set to `true` during initial setup or if availability matters more than security.
-- `timeoutMs` — timeout for pre-fetch. Slow pages may need a higher value.
-- `sensitivity` — detection threshold (0.0–1.0, default 0.5). Lower = more aggressive (fewer false negatives, more false positives). The underlying model achieves 95.5% F1 / 99.7% recall at default sensitivity.
-- `cacheDir` — directory to cache the ONNX model. Defaults to the `@huggingface/transformers` cache location.
+- `model` — OpenRouter model to use for classification. Default: `anthropic/claude-haiku-4-5`.
+- `maxContentLength` — truncate content before sending to LLM (controls cost). Default: 50000.
+- `timeoutMs` — timeout for LLM classification call. Default: 15000.
 
-### Limitations
+Set `OPENROUTER_API_KEY` in `~/.openclaw/.env` — the plugin reads it from the environment.
 
-- **Only guards `web_fetch`** (full page content). `web_search` results cannot be intercepted because `after_tool_result` is [not yet wired](https://github.com/openclaw/openclaw/issues/6535) in OpenClaw.
-- **TOCTOU (time-of-check/time-of-use)** — the plugin pre-fetches the URL to scan it, then the tool fetches it again. A server could return clean content to the guard and malicious content to the tool. The window is typically sub-second and exploitation requires an active adversary controlling the target server in real time. This is an inherent limitation of the `before_tool_call` approach — `after_tool_result` would eliminate it when available.
-- **Not a complete solution** — prompt injection detection is probabilistic. This is a defense-in-depth layer, not a guarantee. The DeBERTa model achieves [95.5% F1 on evaluation data](https://huggingface.co/ProtectAI/deberta-v3-base-prompt-injection-v2) but may miss novel attack patterns.
+> **Fail closed, always.** If the LLM call fails (network error, timeout, API key missing), content-guard blocks the `sessions_send` call. There is no `failOpen` option — unavailability means the search result is dropped rather than delivered unscanned.
 
 ### See also
 
@@ -492,7 +469,7 @@ Other OpenClaw security plugins worth evaluating:
 
 ## Inbound Message Guard (channel-guard)
 
-Channel messages from WhatsApp and Signal are another injection surface — adversarial users can craft prompts to manipulate channel agents. The [`channel-guard`](../extensions/channel-guard.md) plugin uses the same DeBERTa ONNX model as web-guard, but applied to incoming messages via the `message_received` hook.
+Channel messages from WhatsApp and Signal are another injection surface — adversarial users can craft prompts to manipulate channel agents. The [`channel-guard`](../extensions/channel-guard.md) plugin uses a local DeBERTa ONNX model, applied to incoming messages via the `message_received` hook. Compare: content-guard guards inter-agent communication (`sessions_send`); channel-guard guards the inbound channel perimeter (`message_received`).
 
 **Three-tier response:**
 
@@ -531,20 +508,19 @@ openclaw plugins install -l ./extensions/channel-guard
 
 - `sensitivity` — model confidence threshold (0.0–1.0, default 0.5). Lower = more aggressive.
 - `warnThreshold` / `blockThreshold` — control the three-tier response. Adjust based on your false positive tolerance.
-- `failOpen: false` (default) — block all messages when model unavailable. Same fail-closed philosophy as web-guard.
+- `failOpen: false` (default) — block all messages when model unavailable. Fail-closed philosophy.
 - `logDetections` — log flagged messages (score + source channel + snippet) to the gateway console.
 
 ### Scope and limitations
 
 - **Channel messages only** — the `message_received` hook fires for WhatsApp/Signal bridge messages. It does **not** fire for HTTP API requests or Control UI messages. This is by design — channel-guard protects the channel perimeter.
-- **Same model, shared cache** — if web-guard has already downloaded the DeBERTa model, channel-guard reuses it. Set `cacheDir` in both plugins to the same path to guarantee deduplication.
-- **Probabilistic** — same accuracy caveats as web-guard. This is a defense-in-depth layer, not a guarantee.
+- **Probabilistic** — DeBERTa achieves 95.5% F1 on evaluation data but may miss novel attack patterns. This is a defense-in-depth layer, not a guarantee.
 
 ---
 
 ## Additional Hardening Guards
 
-The ML-based guards above (web-guard, channel-guard) provide probabilistic defense-in-depth. For deployments that need deterministic enforcement, three additional plugins are available:
+The guards above (content-guard, channel-guard) provide probabilistic/LLM-based defense-in-depth. For deployments that need deterministic enforcement, three additional plugins are available:
 
 - [**file-guard**](../extensions/file-guard.md) — path-based file protection (no_access, read_only, no_delete)
 - [**network-guard**](../extensions/network-guard.md) — application-level domain allowlisting for `web_fetch` and `exec`

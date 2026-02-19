@@ -11,7 +11,7 @@ Run OpenClaw as a system service that starts at boot, survives reboots, and is l
 
 **Choose your deployment method and skip the others** — each section is self-contained:
 - [Docker Containerized](#docker-containerized-gateway) — official Docker setup, simplest path
-- [Pragmatic Single Agent](../pragmatic-single-agent.md) — single unsandboxed agent, guard plugins, full native OS access
+- [Pragmatic Single Agent](../pragmatic-single-agent.md) — two-agent (main + search), guard plugins, full native OS access, no Docker
 - [Docker Isolation](#docker-isolation) *(recommended)* — macOS or Linux, dedicated OS user with Docker sandboxing
 - [VM: macOS VMs](#vm-isolation-macos-vms) — macOS hosts, stronger host isolation, no Docker inside
 - [VM: Linux VMs](#vm-isolation-linux-vms) — any host, strongest combined (VM + Docker)
@@ -54,13 +54,13 @@ For anything beyond testing, run as a system service.
 
 Before setting up the service, choose your deployment method. See [Security: Deployment Isolation Options](phase-3-security.md#deployment-isolation-options) for the full trade-off analysis of the isolation models.
 
-- **[Pragmatic Single Agent](../pragmatic-single-agent.md)** — single unsandboxed agent, all five guard plugins, non-admin user or VM. Full native OS access, no Docker. See the dedicated guide for setup.
+- **[Pragmatic Single Agent](../pragmatic-single-agent.md)** — two-agent setup (main + search), all five guard plugins, no Docker. Full native OS access. See the dedicated guide for setup.
 - **Docker Containerized** — official `docker-setup.sh`, gateway runs inside a Docker container. Simplest path.
 - **Docker Isolation** *(recommended)* — multi-agent gateway as `openclaw` user with Docker sandboxing. macOS or Linux.
 - **VM: macOS VMs** (Lume / Parallels) — single macOS VM, multi-agent gateway, no Docker inside VM. macOS hosts only.
 - **VM: Linux VMs** (Multipass / KVM / UTM) — Linux VM with Docker inside. Strongest combined posture (VM boundary + Docker sandbox). macOS or Linux hosts.
 
-The multi-agent isolation models (Docker Isolation, macOS VMs, Linux VMs) all use the same multi-agent architecture with `sessions_send` delegation. They differ in the outer boundary and internal sandboxing. The Pragmatic Single Agent is a simpler alternative that trades agent separation for full native OS access — see [Phase 3: Deployment Isolation Options](phase-3-security.md#deployment-isolation-options) for the full comparison.
+The multi-agent isolation models (Docker Isolation, macOS VMs, Linux VMs) all use the same multi-agent architecture with `sessions_send` delegation. They differ in the outer boundary and internal sandboxing. The Pragmatic Single Agent is a simpler alternative that trades container isolation for full native OS access — it still uses a search agent for web delegation (and content-guard at that boundary) but runs without Docker. See [Phase 3: Deployment Isolation Options](phase-3-security.md#deployment-isolation-options) for the full comparison.
 - **Docker Isolation:** OS user boundary + Docker sandbox. LaunchDaemon/systemd on host (LaunchAgent for auto-login setups).
 - **VM: macOS VMs:** Kernel-level VM boundary + standard user (no sudo). LaunchAgent inside VM (auto-login required). No Docker.
 - **VM: Linux VMs:** Kernel-level VM boundary + Docker sandbox inside VM. systemd inside VM.
@@ -85,7 +85,7 @@ Keep `openclaw.json` secrets-free — use `${ENV_VAR}` references in config, sto
 | Brave search key | `BRAVE_API_KEY` | Referenced as `${BRAVE_API_KEY}` in config |
 | OpenRouter key | `OPENROUTER_API_KEY` | If using Perplexity via OpenRouter |
 | GitHub token | `GITHUB_TOKEN` | Fine-grained PAT — see [GitHub token setup](#github-token-setup) below |
-| *(web-guard & channel-guard use local ONNX models — no API keys needed)* | | See [plugin setup](phase-5-web-search.md#advanced-prompt-injection-guard) |
+| *(channel-guard uses local ONNX model — no API key needed; content-guard requires OPENROUTER_API_KEY)* | | See [plugin setup](phase-5-web-search.md#advanced-prompt-injection-guard) |
 
 > **Empty env vars cause startup failure.** If a `${VAR}` reference resolves to an empty string, the gateway exits with `EX_CONFIG` (exit 78). For optional keys not yet provisioned (e.g., `BRAVE_API_KEY` when using Perplexity instead), use a non-empty placeholder like `"not-configured"` rather than leaving the variable empty or unset.
 >
@@ -1371,7 +1371,7 @@ OPENCLAW_GATEWAY_TOKEN=your-gateway-token
 ANTHROPIC_API_KEY=sk-ant-...
 BRAVE_API_KEY=BSA...
 GITHUB_TOKEN=github_pat_...
-# web-guard and channel-guard plugins use local ONNX models — no API keys needed
+# channel-guard uses local ONNX model — no API key needed; content-guard requires OPENROUTER_API_KEY
 EOF
 sudo chmod 600 /etc/openclaw/secrets.env
 sudo chown root:root /etc/openclaw/secrets.env

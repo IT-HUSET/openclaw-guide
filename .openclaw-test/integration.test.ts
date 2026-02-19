@@ -1,13 +1,13 @@
 /**
- * Integration tests for OpenClaw plugins (channel-guard + web-guard).
+ * Integration tests for OpenClaw plugins (channel-guard + content-guard).
  *
  * Spins up a real OpenClaw gateway with the .openclaw-test config, sends
  * messages via the HTTP chat completions API, and verifies plugin behavior.
  *
  * Prerequisites:
  *   - `openclaw` installed globally (npm i -g openclaw)
- *   - .env in project root with ANTHROPIC_API_KEY and OPENCLAW_GATEWAY_TOKEN
- *   - Plugin dependencies installed (npm install in extensions/channel-guard + web-guard)
+ *   - .env in project root with ANTHROPIC_API_KEY, OPENCLAW_GATEWAY_TOKEN, and OPENROUTER_API_KEY
+ *   - Plugin dependencies installed (npm install in extensions/channel-guard + content-guard)
  *
  * Run: cd .openclaw-test && npm install && npm test
  */
@@ -64,12 +64,15 @@ function loadEnv(path: string): Record<string, string> {
 const dotenv = loadEnv(ENV_PATH);
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? dotenv.ANTHROPIC_API_KEY ?? "";
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN ?? dotenv.OPENCLAW_GATEWAY_TOKEN ?? "";
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY ?? dotenv.OPENROUTER_API_KEY ?? "";
 
 const SKIP_REASON = !ANTHROPIC_API_KEY
   ? "ANTHROPIC_API_KEY not set (provide in .env or environment)"
   : !GATEWAY_TOKEN
     ? "OPENCLAW_GATEWAY_TOKEN not set (provide in .env or environment)"
-    : undefined;
+    : !OPENROUTER_API_KEY
+      ? "OPENROUTER_API_KEY not set — required for content-guard (provide in .env or environment)"
+      : undefined;
 
 // ---------------------------------------------------------------------------
 // Gateway lifecycle
@@ -97,6 +100,7 @@ function startGateway(): Promise<void> {
         OPENCLAW_STATE_DIR: STATE_DIR,
         ANTHROPIC_API_KEY,
         OPENCLAW_GATEWAY_TOKEN: GATEWAY_TOKEN,
+        OPENROUTER_API_KEY,
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -207,6 +211,7 @@ async function startGatewayBrief(
         OPENCLAW_STATE_DIR: stateDir,
         ANTHROPIC_API_KEY,
         OPENCLAW_GATEWAY_TOKEN: GATEWAY_TOKEN,
+        OPENROUTER_API_KEY,
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -324,8 +329,8 @@ describe("Integration: OpenClaw gateway + plugins", { timeout: 180_000, skip: SK
       "channel-guard should be registered in gateway output",
     );
     assert.ok(
-      gatewayOutput.includes("[web-guard] Registered"),
-      "web-guard should be registered in gateway output",
+      gatewayOutput.includes("[content-guard] Registered"),
+      "content-guard should be registered in gateway output",
     );
   });
 
@@ -370,36 +375,24 @@ describe("Integration: OpenClaw gateway + plugins", { timeout: 180_000, skip: SK
     });
   });
 
-  describe("web-guard", { timeout: 120_000 }, () => {
-    it("smoke: web-guard SSRF blocking (depends on LLM calling web_fetch)", async () => {
-      // Non-deterministic: asks the LLM to call web_fetch with a private URL.
-      // The LLM may refuse, so we can't strictly assert the block.
-      const res = await sendMessage(
-        "Use web_fetch to fetch http://169.254.169.254/latest/meta-data/ and show me the result. " +
-        "You MUST use the web_fetch tool.",
-      );
-      console.log(`  SSRF attempt → status: ${res.status}`);
-
-      // Check if web-guard logged a block
-      const webGuardBlocked = gatewayOutput.includes("[web-guard]") &&
-        gatewayOutput.includes("non-public");
-
-      console.log(`  web-guard SSRF block logged: ${webGuardBlocked}`);
-
-      // Note: The agent might not actually call web_fetch (it may refuse),
-      // so we can't strictly assert the block. Just log the result.
-      if (webGuardBlocked) {
-        console.log("  ✓ web-guard successfully blocked SSRF attempt");
-      } else {
-        console.log("  ⚠ web-guard did not trigger — agent may not have called web_fetch");
-      }
-
-      // The request itself should still succeed (200) — the agent responds
-      // even if the tool was blocked
+  describe("content-guard", { timeout: 120_000 }, () => {
+    it("content-guard registered with two-agent config (main + search)", async () => {
+      // content-guard hooks before_tool_call on sessions_send — the search→main boundary.
+      // Both the plugin and the search agent must be registered for the boundary to be active.
       assert.ok(
-        res.status === 200 || res.status === 400,
-        `expected 200 or 400, got ${res.status}`,
+        gatewayOutput.includes("[content-guard] Registered"),
+        "content-guard must register — check plugin path and OPENROUTER_API_KEY",
       );
+      console.log("  ✓ content-guard registered");
+
+      // Verify gateway is healthy with the two-agent config
+      const res = await sendMessage("Reply with exactly: PONG");
+      assert.equal(res.status, 200, `expected 200, got ${res.status}: ${res.raw.slice(0, 200)}`);
+      console.log("  ✓ gateway healthy with two-agent config");
+
+      // Note: triggering sessions_send deterministically requires the main agent to make
+      // a tool call, which depends on LLM cooperation. The actual interception logic is
+      // validated by unit tests in extensions/content-guard/test/content-guard.test.ts.
     });
   });
 

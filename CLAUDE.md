@@ -23,13 +23,13 @@ Primarily documentation (Markdown + annotated JSON config examples), plus TypeSc
 - `content/docs/phases/phase-2-memory.md` — Phase 2: Two-layer memory architecture, semantic/hybrid search, pre-compaction flush, memory CLI
 - `content/docs/phases/phase-3-security.md` — Phase 3: Threat model, security baseline, SOUL.md, file permissions
 - `content/docs/phases/phase-4-multi-agent.md` — Phase 4: Channel connections (WhatsApp/Signal), multiple agents, routing, workspace isolation
-- `content/docs/phases/phase-5-web-search.md` — Phase 5: Isolated search agent, browser on main, web-guard plugin
+- `content/docs/phases/phase-5-web-search.md` — Phase 5: Isolated search agent, browser on main, content-guard plugin
 - `content/docs/phases/phase-6-deployment.md` — Phase 6: VM isolation, LaunchAgent/systemd, LaunchDaemon (hardened alternative), secrets management, firewall, Tailscale, Signal setup
 - `content/docs/phases/phase-7-migration.md` — Phase 7: Moving a deployment to a new machine — config, credentials, memory, channels, services, cron jobs
 - `content/docs/google-chat.md` — Google Chat: GCP setup, webhook exposure, multi-agent, multi-org, known issues
 - `content/docs/multi-gateway.md` — Multi-Gateway: profiles, multi-user, VM variants for running multiple gateway instances
 - `content/docs/custom-sandbox-images.md` — Custom Sandbox Images: building, deploying, and using custom Docker images for production sandboxes
-- `content/docs/pragmatic-single-agent.md` — Pragmatic Single Agent: single unsandboxed agent with full OS access, hardened by all five guard plugins + OS-level isolation (non-admin user or VM)
+- `content/docs/pragmatic-single-agent.md` — Pragmatic Single Agent: two-agent setup (main + search), no Docker, hardened by all five guard plugins + OS-level isolation (non-admin user or VM)
 - `content/docs/hardened-multi-agent.md` — Hardened Multi-Agent: optional exec isolation via dedicated computer agent on top of 2-agent baseline
 - `content/docs/reference.md` — Config cheat sheet, tool groups, plugins, gotchas, useful commands
 - `content/docs/architecture.md` — System internals: core components, module dependencies, networking, diagrams
@@ -38,7 +38,7 @@ Primarily documentation (Markdown + annotated JSON config examples), plus TypeSc
 ### Examples
 - `examples/openclaw.json` — Recommended config (main/search, all agents sandboxed, all hardening)
 - `examples/openclaw-basic.json` — Minimal config (main + search, single channel)
-- `examples/openclaw-pragmatic.json` — Pragmatic single agent config (one unsandboxed agent, all five guard plugins)
+- `examples/openclaw-pragmatic.json` — Pragmatic config (two-agent: main + search, unsandboxed, all five guard plugins)
 - `content/docs/examples/security-audit.md` — Worked example of `openclaw security audit` output
 
 ### Scripts
@@ -49,7 +49,7 @@ Primarily documentation (Markdown + annotated JSON config examples), plus TypeSc
 - `.openclaw-test/` — Local OpenClaw gateway config + integration tests. Requires `openclaw` installed globally (`npm i -g openclaw`) and `.env` with `ANTHROPIC_API_KEY` + `OPENCLAW_GATEWAY_TOKEN`
 
 ### Extensions
-- `extensions/web-guard/` — OpenClaw plugin (TypeScript): pre-fetch prompt injection scanning for `web_fetch` using local DeBERTa ONNX model
+- `extensions/content-guard/` — OpenClaw plugin (TypeScript): LLM-based prompt injection scanning for sessions_send at the search→main trust boundary. Requires OPENROUTER_API_KEY.
 - `extensions/channel-guard/` — OpenClaw plugin (TypeScript): prompt injection scanning for incoming channel messages (WhatsApp, Signal, Google Chat) using local DeBERTa ONNX model
 - `extensions/file-guard/` — OpenClaw plugin (TypeScript): path-based file access protection with three levels (no_access, read_only, no_delete) using deterministic picomatch patterns
 - `extensions/network-guard/` — OpenClaw plugin (TypeScript): application-level domain allowlisting for web_fetch and exec tool calls (deterministic regex + glob, no ML model)
@@ -73,9 +73,9 @@ Primarily documentation (Markdown + annotated JSON config examples), plus TypeSc
 ### Unit tests (per plugin, no OpenClaw needed)
 ```bash
 cd extensions/channel-guard && npm install && npm test
-cd extensions/web-guard && npm install && npm test
+cd extensions/content-guard && npm install && npm test
 ```
-Guard plugin tests use real DeBERTa ONNX model (~370 MB, cached in each plugin's `node_modules/`). First run downloads the model.
+channel-guard tests use real DeBERTa ONNX model (~370 MB, cached in `node_modules/`). First run downloads the model. content-guard tests are mock-based (<1s).
 
 ```bash
 cd extensions/file-guard && npm install && npm test
@@ -96,7 +96,7 @@ cd .openclaw-test && npm install && npm test
 ```
 Starts an OpenClaw gateway, sends messages via HTTP chat completions API, verifies plugin behavior. Requires `.env` at project root with `ANTHROPIC_API_KEY` and `OPENCLAW_GATEWAY_TOKEN`.
 
-**Known behavior:** `message_received` hook (used by channel-guard) only fires for configured channel bridges (WhatsApp/Signal), not for HTTP API messages. `before_tool_call` (used by web-guard) fires for all tool calls regardless of message source. Computer-use smoke tests require a running Lume VM and `cua-computer-server`.
+**Known behavior:** `message_received` hook (used by channel-guard) only fires for configured channel bridges (WhatsApp/Signal), not for HTTP API messages. `before_tool_call` (used by content-guard and network-guard) fires for all tool calls regardless of message source. Computer-use smoke tests require a running Lume VM and `cua-computer-server`.
 
 ## Conventions
 

@@ -39,3 +39,6 @@ scripts/docker-isolation/.instances
 public/
 resources/
 .hugo_build.lock
+
+# Changelog review workflow temp file
+.changelog-diff.md

@@ -20,7 +20,7 @@
       "blockDirectIp": {
         "type": "boolean",
         "default": true,
-        "description": "Block direct IP access in URLs (IPv4 dotted notation only)."
+        "description": "Block direct IP access in URLs (IPv4 and IPv6). Bare IP addresses are rejected without DNS lookup."
       },
       "failOpen": {
         "type": "boolean",
@@ -40,6 +40,16 @@
         },
         "default": {},
         "description": "Agent ID to additional allowed domains (additive — extends base allowlist, never replaces)."
+      },
+      "resolveDns": {
+        "type": "boolean",
+        "default": true,
+        "description": "Resolve DNS for allowed hostnames and block those that resolve to private/reserved IP ranges (SSRF protection). Default: true."
+      },
+      "dnsTimeoutMs": {
+        "type": "number",
+        "default": 2000,
+        "description": "DNS resolution timeout in milliseconds. Default: 2000."
       }
     }
   },
@@ -49,6 +59,8 @@
     "blockDirectIp": { "label": "Block Direct IP" },
     "failOpen": { "label": "Fail Open" },
     "logBlocks": { "label": "Log Blocks" },
-    "agentOverrides": { "label": "Agent Overrides" }
+    "agentOverrides": { "label": "Agent Overrides" },
+    "resolveDns": { "label": "Resolve DNS" },
+    "dnsTimeoutMs": { "label": "DNS Timeout (ms)" }
   }
 }

@@ -140,14 +140,14 @@ Multi-instance configs are generated from `examples/openclaw.json` — filtered 
 
 Scripts install four plugins from `extensions/` per instance:
 
-- **web-guard** — pre-fetch prompt injection scanning for `web_fetch`
+- **content-guard** — LLM-based injection scanning at the `sessions_send` boundary (search→main)
 - **channel-guard** — prompt injection scanning for incoming channel messages
 - **image-gen** — image generation via OpenRouter (needs `OPENROUTER_API_KEY`)
 - **computer-use** — VM-based macOS computer interaction via Lume
 
 For hardened deployments, also install the deterministic guard plugins: **file-guard**, **network-guard**, **command-guard**. See [hardened-multi-agent.md](../../content/docs/hardened-multi-agent.md) for configuration.
 
-The ONNX model (~370MB, shared by web-guard and channel-guard) downloads on first gateway start.
+The DeBERTa ONNX model (~370MB, used by channel-guard) downloads on first gateway start. content-guard requires no local model — it calls OpenRouter (`OPENROUTER_API_KEY` must be set).
 
 ## After Setup
 

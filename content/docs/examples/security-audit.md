@@ -123,7 +123,7 @@ Without `plugins.allow`, any plugin in `~/.openclaw/extensions/` loads at startu
 ```json
 {
   "plugins": {
-    "allow": ["whatsapp", "signal", "channel-guard", "web-guard"]
+    "allow": ["whatsapp", "signal", "channel-guard", "content-guard"]
   }
 }
 ```

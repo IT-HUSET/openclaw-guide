@@ -12,7 +12,7 @@ A pragmatic, security-first guide to [OpenClaw](https://docs.openclaw.ai) — th
 
 **Philosophy:** Secure by default, unlock capabilities progressively. Each phase builds on the previous one. Start with a working agent, then harden, then expand.
 
-**Includes runnable security plugins:** Five OpenClaw guard plugins — two ML-based ([web-guard](extensions/web-guard/), [channel-guard](extensions/channel-guard/)) and three deterministic ([file-guard](extensions/file-guard/), [network-guard](extensions/network-guard/), [command-guard](extensions/command-guard/)). No API keys, no cloud dependencies. Drop them into any OpenClaw gateway.
+**Includes runnable security plugins:** Five OpenClaw guard plugins — one LLM-based ([content-guard](extensions/content-guard/)), one ML-based ([channel-guard](extensions/channel-guard/)), and three deterministic ([file-guard](extensions/file-guard/), [network-guard](extensions/network-guard/), [command-guard](extensions/command-guard/)). Drop them into any OpenClaw gateway.
 
 **Based on:** OpenClaw 2026.2.x, macOS primary, Linux equivalents included. Covers WhatsApp, Signal, and Google Chat channels — for Telegram, Discord, Slack, and others see the [official docs](https://docs.openclaw.ai/channels).
 
@@ -20,12 +20,10 @@ A pragmatic, security-first guide to [OpenClaw](https://docs.openclaw.ai) — th
 
 ## Security Plugins
 
-### ML-Based Guards (recommended baseline)
+### Probabilistic Guards (recommended baseline)
 
-Prompt injection detection using a local DeBERTa ONNX model (~370 MB, downloaded on first use) — no API keys, no cloud calls.
-
-- [`extensions/web-guard/`](extensions/web-guard/) — Intercepts `web_fetch` tool calls, pre-fetches the URL, and scans content for prompt injection before the agent sees it. Also blocks SSRF attempts to private/internal IPs. See [Phase 5 — web-guard](https://IT-HUSET.github.io/openclaw-guide/docs/phases/phase-5-web-search/#advanced-prompt-injection-guard).
-- [`extensions/channel-guard/`](extensions/channel-guard/) — Scans inbound WhatsApp/Signal/Google Chat messages for prompt injection with three-tier response: pass, warn (inject advisory into agent context), or block. See [Phase 5 — channel-guard](https://IT-HUSET.github.io/openclaw-guide/docs/phases/phase-5-web-search/#inbound-message-guard-channel-guard).
+- [`extensions/content-guard/`](extensions/content-guard/) — LLM-based injection scanning (claude-haiku-4-5 via OpenRouter) at the `sessions_send` boundary between search and main agents. Covers both `web_search` results and `web_fetch` content. Requires `OPENROUTER_API_KEY`. See [Phase 5 — content-guard](https://IT-HUSET.github.io/openclaw-guide/docs/phases/phase-5-web-search/#advanced-prompt-injection-guard).
+- [`extensions/channel-guard/`](extensions/channel-guard/) — Scans inbound WhatsApp/Signal/Google Chat messages for prompt injection using a local DeBERTa ONNX model (~370 MB, downloaded on first use). Three-tier response: pass, warn, or block. No API keys. See [Phase 5 — channel-guard](https://IT-HUSET.github.io/openclaw-guide/docs/phases/phase-5-web-search/#inbound-message-guard-channel-guard).
 
 ### Deterministic Guards (hardened deployments)
 

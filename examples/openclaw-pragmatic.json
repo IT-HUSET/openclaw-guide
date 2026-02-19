@@ -1,20 +1,22 @@
 {
   // ============================================================
-  // OpenClaw Configuration — Pragmatic Single Agent
+  // OpenClaw Configuration — Pragmatic Two-Agent Setup
   // ============================================================
   // NOTE: This file uses JSON5 comments (//) for documentation.
   // OpenClaw supports JSON5 natively — no need to strip comments.
   //
-  // Single-agent architecture:
-  //   Main agent — unsandboxed, full OS access (exec, browser, web, filesystem).
-  //                Security via guard plugins + OS-level isolation (non-admin user or VM).
+  // Two-agent architecture (no Docker):
+  //   Main agent   — unsandboxed, full OS access (exec, browser, filesystem).
+  //                  Delegates web search to search agent.
+  //   Search agent — web_search/web_fetch only, no filesystem, no exec.
   //
-  // No Docker, no multi-agent delegation, no sessions_send choreography.
-  // All five guard plugins provide the primary defense layer.
+  // Security via guard plugins + OS-level isolation (non-admin user or VM).
+  // content-guard scans sessions_send messages at the search→main trust boundary.
   //
   // Prerequisites:
-  //   1. All five guard plugins installed (channel-guard, web-guard, file-guard,
+  //   1. Guard plugins installed (channel-guard, content-guard, file-guard,
   //      network-guard, command-guard)
+  //      OPENROUTER_API_KEY required for content-guard
   //   2. Non-admin OS user or VM boundary (Lume/Multipass)
   //
   // See pragmatic-single-agent.md for full deployment guide and security analysis.
@@ -33,6 +35,7 @@
   //   OPENCLAW_GATEWAY_TOKEN
   //   ANTHROPIC_API_KEY
   //   BRAVE_API_KEY (or OPENROUTER_API_KEY for Perplexity)
+  //   OPENROUTER_API_KEY (required for content-guard)
   // See Phase 6 — Deployment > Secrets Management for details.
   // ============================================================
 
@@ -51,10 +54,9 @@
 
   // --- Global Tool Restrictions ---
   "tools": {
-    // Only deny tools globally that the agent should never have.
-    // Unlike multi-agent configs, web_search and web_fetch are NOT denied here —
-    // the single agent handles everything, including web searches.
-    "deny": ["canvas", "gateway"],
+    // Only deny tools globally that NO agent should ever have.
+    // web_search and web_fetch are allowed for the search agent, not denied globally.
+    "deny": ["canvas", "gateway", "nodes"],
 
     // Disable elevated mode — prevents sandbox escape
     "elevated": { "enabled": false },
@@ -89,8 +91,7 @@
     // Each sender on each channel gets their own isolated session
     "dmScope": "per-channel-peer",
 
-    // Inter-agent communication settings (unused with single agent,
-    // but harmless to include for forward-compatibility)
+    // Inter-agent communication settings
     "agentToAgent": {
       "maxPingPongTurns": 5
     }
@@ -138,23 +139,34 @@
     },
     "list": [
       {
-        // MAIN — single agent, full access, no sandbox.
-        // All tools available. Guard plugins are the safety net.
-        // NOTE: This uses tools.deny (denylist). Any plugin added to plugins.allow
-        // that registers new tools (e.g. image-gen → generate_image) will be
-        // automatically available to the agent. Add such tools to this deny list
-        // if the agent shouldn't have them.
+        // MAIN — channel-facing, full exec + browser + filesystem, no sandbox.
+        // Delegates web search to search agent via sessions_send.
+        // Guard plugins are the safety net for exec/filesystem access.
         "id": "main",
         "default": true,
         "workspace": "/Users/openclaw/.openclaw/workspaces/main",
         "tools": {
-          // Everything enabled except gateway management
-          "deny": ["gateway"]
+          "allow": ["group:runtime", "group:fs", "group:sessions", "memory_search", "memory_get", "message", "browser", "web_fetch"],
+          "deny": ["web_search", "canvas", "gateway"]
         },
-        "sandbox": { "mode": "off" },
-        // No inter-agent routing — allowAgents: [] prevents sessions_send to named agents.
-        // sessions_spawn sub-tasks still work (using defaults.subagents settings above).
-        "subagents": { "allowAgents": [] }
+        "subagents": { "allowAgents": ["search"] },
+        "sandbox": { "mode": "off" }
+      },
+      {
+        // SEARCH — isolated web search + content processing.
+        // Only reachable via sessions_send from main.
+        // No filesystem tools — nothing to read or exfiltrate.
+        // Unsandboxed — workaround for #9857 (sessions_spawn broken when both agents sandboxed).
+        "id": "search",
+        "workspace": "/Users/openclaw/.openclaw/workspaces/search",
+        "agentDir": "/Users/openclaw/.openclaw/agents/search/agent",
+        "model": "anthropic/claude-sonnet-4-5",
+        "tools": {
+          "allow": ["web_search", "web_fetch", "sessions_send", "session_status"],
+          "deny": ["exec", "read", "write", "edit", "apply_patch", "process", "browser", "gateway", "cron"]
+        },
+        "subagents": { "allowAgents": [] },
+        "sandbox": { "mode": "off" }
       }
     ]
   },
@@ -197,7 +209,7 @@
   },
 
   // --- Guard Plugins ---
-  // All five guards enabled. This is the primary defense layer —
+  // Five guards enabled. This is the primary defense layer —
   // without Docker sandboxing, these plugins are what stand between
   // a compromised agent and full OS access.
   //
@@ -208,7 +220,7 @@
     // ~/.openclaw/extensions/ loads automatically at startup.
     "allow": [
       "whatsapp",
-      "channel-guard", "web-guard",
+      "channel-guard", "content-guard",
       "file-guard", "network-guard", "command-guard"
     ],
     "entries": {
@@ -226,15 +238,15 @@
         }
       },
 
-      // ML-based: pre-fetches URLs and scans content for prompt injection
-      // before the agent processes web_fetch results.
-      "web-guard": {
+      // LLM-based: scans sessions_send content at the search→main trust boundary.
+      // Prevents poisoned web content from compromising the main agent.
+      // Fails closed on all errors — no failOpen option.
+      "content-guard": {
         "enabled": true,
         "config": {
-          "failOpen": false,
-          "sensitivity": 0.5,
-          "timeoutMs": 10000,
-          "maxContentLength": 50000
+          "model": "anthropic/claude-haiku-4-5",
+          "maxContentLength": 50000,
+          "timeoutMs": 15000
         }
       },
 
@@ -262,7 +274,8 @@
             "github.com", "*.github.com",
             "npmjs.org", "registry.npmjs.org",
             "pypi.org", "*.pypi.org",
-            "api.anthropic.com"
+            "api.anthropic.com",
+            "openrouter.ai"               // Required for content-guard
             // Add domains as needed:
             // "playwright.azureedge.net",     // Browser binary downloads
             // "storage.googleapis.com",       // Playwright CDN
@@ -270,6 +283,7 @@
             // "your-internal-service.example.com"
           ],
           "blockDirectIp": true,
+          "resolveDns": true,
           "failOpen": false,
           "logBlocks": true
         }

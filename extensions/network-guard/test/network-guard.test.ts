@@ -9,6 +9,11 @@ import {
   detectNetworkCommand,
   DEFAULT_ALLOWED_DOMAINS,
   DEFAULT_BLOCKED_PATTERNS,
+  isPrivateOrReservedIpv4,
+  isPrivateOrReservedIpv6,
+  isDisallowedIp,
+  isDisallowedHostname,
+  checkDnsResolution,
 } from "../index.ts";
 
 // ---------------------------------------------------------------------------
@@ -248,16 +253,57 @@ describe("detectNetworkCommand", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Section 6: Plugin integration (mock OpenClaw API)
+// Section 6: SSRF — IPv4 private ranges
+// ---------------------------------------------------------------------------
+describe("isPrivateOrReservedIpv4", () => {
+  it("blocks 10.x private", () => { assert.equal(isPrivateOrReservedIpv4("10.0.0.1"), true); });
+  it("blocks 127.x loopback", () => { assert.equal(isPrivateOrReservedIpv4("127.0.0.1"), true); });
+  it("blocks 169.254.x link-local", () => { assert.equal(isPrivateOrReservedIpv4("169.254.1.1"), true); });
+  it("blocks 172.16.x private", () => { assert.equal(isPrivateOrReservedIpv4("172.16.0.1"), true); });
+  it("blocks 172.31.x private", () => { assert.equal(isPrivateOrReservedIpv4("172.31.255.255"), true); });
+  it("blocks 192.168.x private", () => { assert.equal(isPrivateOrReservedIpv4("192.168.1.1"), true); });
+  it("blocks 100.64.x CGNAT", () => { assert.equal(isPrivateOrReservedIpv4("100.64.0.1"), true); });
+  it("blocks 198.18.x benchmark", () => { assert.equal(isPrivateOrReservedIpv4("198.18.0.1"), true); });
+  it("blocks multicast 224.x", () => { assert.equal(isPrivateOrReservedIpv4("224.0.0.1"), true); });
+  it("allows public IP 1.1.1.1", () => { assert.equal(isPrivateOrReservedIpv4("1.1.1.1"), false); });
+  it("allows public IP 8.8.8.8", () => { assert.equal(isPrivateOrReservedIpv4("8.8.8.8"), false); });
+});
+
+// ---------------------------------------------------------------------------
+// Section 7: SSRF — IPv6 private ranges
+// ---------------------------------------------------------------------------
+describe("isPrivateOrReservedIpv6", () => {
+  it("blocks ::1 loopback", () => { assert.equal(isPrivateOrReservedIpv6("::1"), true); });
+  it("blocks fc00::/7 ULA", () => { assert.equal(isPrivateOrReservedIpv6("fc00::1"), true); });
+  it("blocks fd00::/8 ULA", () => { assert.equal(isPrivateOrReservedIpv6("fd12:3456::1"), true); });
+  it("blocks fe80:: link-local", () => { assert.equal(isPrivateOrReservedIpv6("fe80::1"), true); });
+  it("blocks ff:: multicast", () => { assert.equal(isPrivateOrReservedIpv6("ff02::1"), true); });
+  it("blocks ::ffff:192.168.1.1 mapped", () => { assert.equal(isPrivateOrReservedIpv6("::ffff:192.168.1.1"), true); });
+  it("allows public 2001:4860:4860::8888", () => { assert.equal(isPrivateOrReservedIpv6("2001:4860:4860::8888"), false); });
+});
+
+// ---------------------------------------------------------------------------
+// Section 8: SSRF — disallowed hostnames
+// ---------------------------------------------------------------------------
+describe("isDisallowedHostname", () => {
+  it("blocks localhost", () => { assert.equal(isDisallowedHostname("localhost"), true); });
+  it("blocks subdomain.localhost", () => { assert.equal(isDisallowedHostname("evil.localhost"), true); });
+  it("allows normal hostname", () => { assert.equal(isDisallowedHostname("github.com"), false); });
+});
+
+// ---------------------------------------------------------------------------
+// Section 9: Plugin integration (mock OpenClaw API)
 // ---------------------------------------------------------------------------
 describe("plugin before_tool_call", () => {
   async function getHandler(config: any = {}): Promise<Function> {
+    // Default resolveDns to false in tests to avoid real DNS lookups
+    const cfg = { resolveDns: false, ...config };
     const { default: plugin } = await import("../index.ts");
     let handler: Function | undefined;
     plugin.register({
       config: {
         plugins: {
-          entries: { "network-guard": { config } },
+          entries: { "network-guard": { config: cfg } },
         },
       },
       on(event: string, fn: Function) {
@@ -474,5 +520,124 @@ describe("plugin before_tool_call", () => {
     });
     assert.ok(result?.block);
     assert.ok(result?.blockReason?.includes("domain not in allowlist"));
+  });
+
+  // --- SSRF integration tests ---
+
+  it("blocks localhost hostname", async () => {
+    const handler = await getHandler({ allowedDomains: ["*"] });
+    const result = await handler({
+      toolName: "web_fetch",
+      agentId: "main",
+      params: { url: "http://localhost/admin" },
+    });
+    assert.ok(result?.block);
+    assert.ok(result?.blockReason?.includes("hostname blocked"));
+  });
+
+  it("blocks IPv6 loopback ::1", async () => {
+    const handler = await getHandler({ allowedDomains: ["*"] });
+    const result = await handler({
+      toolName: "web_fetch",
+      agentId: "main",
+      params: { url: "http://[::1]/admin" },
+    });
+    assert.ok(result?.block);
+    assert.ok(result?.blockReason?.includes("direct IP access blocked"));
+  });
+
+  it("blocks 169.254.x link-local IP", async () => {
+    const handler = await getHandler({ allowedDomains: ["*"] });
+    const result = await handler({
+      toolName: "web_fetch",
+      agentId: "main",
+      params: { url: "http://169.254.169.254/metadata" },
+    });
+    assert.ok(result?.block);
+    assert.ok(result?.blockReason?.includes("direct IP access blocked"));
+  });
+
+  it("blocks evil.localhost subdomain", async () => {
+    const handler = await getHandler({ allowedDomains: ["*"] });
+    const result = await handler({
+      toolName: "web_fetch",
+      agentId: "main",
+      params: { url: "http://evil.localhost/steal" },
+    });
+    assert.ok(result?.block);
+    assert.ok(result?.blockReason?.includes("hostname blocked"));
+  });
+
+  it("allows public IP when blockDirectIp is false", async () => {
+    const handler = await getHandler({
+      allowedDomains: ["*"],
+      blockDirectIp: false,
+    });
+    const result = await handler({
+      toolName: "web_fetch",
+      agentId: "main",
+      params: { url: "http://1.1.1.1/" },
+    });
+    assert.equal(result, undefined);
+  });
+
+  it("blocks domain that fails DNS resolution (resolveDns: true)", async () => {
+    // nonexistent-internal.test is in the allowlist, passes hostname check,
+    // but DNS lookup fails (NXDOMAIN) — should be blocked
+    const handler = await getHandler({
+      allowedDomains: ["nonexistent-internal.test"],
+      blockDirectIp: false,
+      resolveDns: true,
+      dnsTimeoutMs: 3000,
+    });
+    const result = await handler({
+      toolName: "web_fetch",
+      agentId: "main",
+      params: { url: "http://nonexistent-internal.test/admin" },
+    });
+    assert.ok(result?.block);
+    assert.ok(result?.blockReason?.includes("DNS resolution blocked"));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Section 10: SSRF — DNS resolution check (checkDnsResolution)
+// ---------------------------------------------------------------------------
+describe("checkDnsResolution", () => {
+  // IP inputs use the isDisallowedIp shortcut — no actual DNS lookup needed
+
+  it("returns true for public IPv4 (no DNS lookup)", async () => {
+    assert.equal(await checkDnsResolution("1.1.1.1", 2000), true);
+  });
+
+  it("returns false for private IPv4 10.x (no DNS lookup)", async () => {
+    assert.equal(await checkDnsResolution("10.0.0.1", 2000), false);
+  });
+
+  it("returns false for loopback 127.0.0.1 (no DNS lookup)", async () => {
+    assert.equal(await checkDnsResolution("127.0.0.1", 2000), false);
+  });
+
+  it("returns false for link-local 169.254.x (no DNS lookup)", async () => {
+    assert.equal(await checkDnsResolution("169.254.169.254", 2000), false);
+  });
+
+  it("returns false for IPv6 loopback ::1 (no DNS lookup)", async () => {
+    assert.equal(await checkDnsResolution("::1", 2000), false);
+  });
+
+  it("returns true for public IPv6 (no DNS lookup)", async () => {
+    assert.equal(await checkDnsResolution("2001:4860:4860::8888", 2000), true);
+  });
+
+  it("returns false when DNS lookup fails (NXDOMAIN — .invalid TLD per RFC 2606)", async () => {
+    assert.equal(
+      await checkDnsResolution("nonexistent-host-for-tests.invalid", 3000),
+      false,
+    );
+  });
+
+  it("returns false on timeout (0ms — fires before any I/O completes)", async () => {
+    assert.equal(await checkDnsResolution("github.com", 0), false);
   });
 });

@@ -6,7 +6,7 @@ weight: 132
 
 [View source on GitHub](https://github.com/IT-HUSET/openclaw-guide/tree/main/extensions/channel-guard/)
 
-Scans incoming channel messages (WhatsApp, Signal, Google Chat) for prompt injection using a local DeBERTa ONNX model. Companion to [web-guard](web-guard.md) which protects the web_fetch tool — channel-guard protects the **inbound message** surface instead.
+Scans incoming channel messages (WhatsApp, Signal, Google Chat) for prompt injection using a local DeBERTa ONNX model. Companion to [content-guard](content-guard.md) which scans content at the inter-agent sessions_send boundary — channel-guard protects the **inbound message** surface instead.
 
 ## How it works
 
@@ -91,16 +91,15 @@ WhatsApp/Signal/Google Chat message
   message (or not)
 ```
 
-## Relationship to web-guard
+## Relationship to content-guard
 
-| | web-guard | channel-guard |
+| | content-guard | channel-guard |
 |---|---|---|
 | **Hook** | `before_tool_call` | `message_received` |
-| **Protects** | Outbound web fetches | Inbound channel messages |
-| **Threat** | Malicious web content | Adversarial user messages |
-| **Model** | Same DeBERTa | Same DeBERTa |
-
-Both plugins share the same DeBERTa model cache, so if one has already downloaded the model the other will reuse it.
+| **Intercepts** | `sessions_send` | Inbound channel messages |
+| **Protects** | Inter-agent sessions_send boundary | Inbound channel messages |
+| **Threat** | Poisoned web content crossing agent boundary | Adversarial user messages |
+| **Model** | LLM (OpenRouter) | DeBERTa ML |
 
 ## Limitations
 

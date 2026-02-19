@@ -1,7 +1,7 @@
 {
   // Test config for plugin development and integration tests.
   // Start: OPENCLAW_CONFIG_PATH=.openclaw-test/openclaw.json OPENCLAW_STATE_DIR=.openclaw-test/state openclaw gateway run --verbose
-  // Requires ANTHROPIC_API_KEY and OPENCLAW_GATEWAY_TOKEN in env (or .env file).
+  // Requires ANTHROPIC_API_KEY, OPENCLAW_GATEWAY_TOKEN, and OPENROUTER_API_KEY in env (or .env file).
 
   "gateway": {
     "mode": "local",
@@ -18,11 +18,23 @@
   },
 
   "agents": {
-    "list": [{
-      "id": "main",
-      "default": true,
-      "workspace": ".openclaw-test/workspaces/main"
-    }]
+    "list": [
+      {
+        "id": "main",
+        "default": true,
+        "workspace": ".openclaw-test/workspaces/main",
+        "subagents": { "allowAgents": ["search"] }
+      },
+      {
+        "id": "search",
+        "workspace": ".openclaw-test/workspaces/search",
+        "tools": {
+          "allow": ["web_search", "web_fetch", "sessions_send", "session_status"],
+          "deny": ["exec", "read", "write", "edit", "apply_patch", "process", "browser", "gateway", "cron"]
+        },
+        "subagents": { "allowAgents": [] }
+      }
+    ]
   },
 
   "plugins": {
@@ -30,7 +42,7 @@
     "load": {
       "paths": [
         "./extensions/channel-guard",
-        "./extensions/web-guard"
+        "./extensions/content-guard"
       ]
     },
     "entries": {
@@ -44,11 +56,12 @@
           "logDetections": true
         }
       },
-      "web-guard": {
+      "content-guard": {
         "enabled": true,
         "config": {
-          "sensitivity": 0.5,
-          "failOpen": false
+          "model": "anthropic/claude-haiku-4-5",
+          "maxContentLength": 50000,
+          "timeoutMs": 15000
         }
       }
     }

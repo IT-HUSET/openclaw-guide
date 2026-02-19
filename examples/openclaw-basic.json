@@ -36,6 +36,7 @@
   //   OPENCLAW_GATEWAY_TOKEN
   //   ANTHROPIC_API_KEY
   //   BRAVE_API_KEY (or OPENROUTER_API_KEY for Perplexity)
+  //   OPENROUTER_API_KEY (required for content-guard)
   // See Phase 6 — Deployment > Secrets Management for details.
   // ============================================================
 
@@ -228,16 +229,18 @@
   "plugins": {
     // Only allow these plugins to load. Without this, any plugin dropped into
     // ~/.openclaw/extensions/ loads automatically at startup.
-    "allow": ["whatsapp", "web-guard", "channel-guard"],
+    "allow": ["whatsapp", "content-guard", "channel-guard"],
     "entries": {
       "whatsapp": { "enabled": true },
-      "web-guard": {
+      "content-guard": {
+        // LLM-based injection scanning at the sessions_send trust boundary.
+        // Guards search→main: prevents poisoned web content from compromising main.
+        // Requires OPENROUTER_API_KEY. Fails closed — no failOpen option.
         "enabled": true,
         "config": {
-          "failOpen": false,
-          "timeoutMs": 10000,
+          "model": "anthropic/claude-haiku-4-5",
           "maxContentLength": 50000,
-          "sensitivity": 0.5
+          "timeoutMs": 15000
         }
       },
       "channel-guard": {

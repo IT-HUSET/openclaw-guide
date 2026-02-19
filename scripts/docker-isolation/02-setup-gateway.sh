@@ -10,7 +10,7 @@ set -euo pipefail
 #   3. Generates openclaw.json (copy for single-instance, filtered for multi)
 #   4. Runs `openclaw setup` (interactive — API key prompt, first instance only)
 #   5. Copies auth-profiles to all agents
-#   6. Installs plugins (web-guard, channel-guard, image-gen, computer-use)
+#   6. Installs plugins (content-guard, channel-guard, image-gen, computer-use)
 #   7. Bootstraps workspace files (SOUL.md, AGENTS.md, etc.)
 #   8. Creates disable-launchagent marker (prevents OpenClaw's built-in plist installer)
 #   9. Creates LaunchDaemon plist at /Library/LaunchDaemons/ (secrets as placeholders)
@@ -460,7 +460,7 @@ with open('$target/openclaw.json', 'w') as f:
 
     # -- Install plugins --
     echo "  Installing plugins..."
-    for plugin_dir in web-guard channel-guard image-gen computer-use; do
+    for plugin_dir in content-guard channel-guard image-gen computer-use; do
         local plugin_path="$REPO_DIR/extensions/$plugin_dir"
         if [[ -d "$plugin_path" ]]; then
             sudo -u "$inst_user" HOME="$home_dir" \

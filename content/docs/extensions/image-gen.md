@@ -1,7 +1,7 @@
 ---
 title: "image-gen"
 description: "OpenClaw plugin that registers a generate_image tool for text-to-image generation via OpenRouter."
-weight: 133
+weight: 138
 ---
 
 [View source on GitHub](https://github.com/IT-HUSET/openclaw-guide/tree/main/extensions/image-gen/)
@@ -23,7 +23,7 @@ echo 'OPENROUTER_API_KEY=sk-or-...' >> ~/.openclaw/.env
 ```json5
 {
   plugins: {
-    allow: ["whatsapp", "channel-guard", "web-guard", "image-gen"], // add "image-gen" here
+    allow: ["whatsapp", "channel-guard", "content-guard", "image-gen"], // add "image-gen" here
     entries: {
       "image-gen": {
         enabled: true,

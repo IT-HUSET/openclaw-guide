@@ -78,7 +78,7 @@ Common secrets to track:
 - `ANTHROPIC_API_KEY`
 - `OPENCLAW_GATEWAY_TOKEN` (generate new on target — `openssl rand -hex 32`)
 - `BRAVE_API_KEY`
-- `OPENROUTER_API_KEY` (for image-gen plugin)
+- `OPENROUTER_API_KEY` (for content-guard and image-gen plugins)
 - `GITHUB_TOKEN` (consider generating a new PAT scoped to the new host)
 - `GOOGLE_CHAT_SERVICE_ACCOUNT_FILE` (path to service account JSON — host-specific, not a secret itself)
 - `JAVA_HOME` (not a secret, but host-specific — verify Java path on target)
@@ -283,25 +283,25 @@ If migrating from a single-agent to multi-agent setup (or vice versa), ensure ea
 
 ### Extensions (plugins)
 
-Plugin directories should be named to match their manifest ID (e.g., `web-guard/`, not `openclaw-web-guard/`):
+Plugin directories should be named to match their manifest ID (e.g., `content-guard/`, not `openclaw-content-guard/`):
 
 ```bash
 # Verify plugin directories
 sudo -u openclaw ls /Users/openclaw/.openclaw/extensions/
 
-# Expected: channel-guard/ image-gen/ web-guard/ (matching manifest IDs)
+# Expected: channel-guard/ content-guard/ image-gen/ (matching manifest IDs)
 ```
 
 If `node_modules` weren't included in the backup (they're large), reinstall per plugin:
 
 ```bash
-for plugin in channel-guard web-guard file-guard network-guard command-guard image-gen; do
+for plugin in channel-guard content-guard file-guard network-guard command-guard image-gen; do
   [ -d "/Users/openclaw/.openclaw/extensions/$plugin" ] && \
     sudo -u openclaw bash -c "cd /Users/openclaw/.openclaw/extensions/$plugin && npm install"
 done
 ```
 
-> **Guard plugins download a ~370 MB DeBERTa ONNX model** on first run. First gateway start after migration may be slow if node_modules weren't transferred.
+> **channel-guard downloads a ~370 MB DeBERTa ONNX model** on first run. First gateway start after migration may be slow if node_modules weren't transferred. content-guard requires no local model — it calls OpenRouter.
 
 > **Plugin changes require gateway restart.** Unlike config changes which hot-reload, plugin source is loaded at startup only.
 

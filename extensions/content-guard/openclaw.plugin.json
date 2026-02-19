@@ -1,0 +1,43 @@
+{
+  "id": "content-guard",
+  "name": "Content Guard",
+  "description": "LLM-based prompt injection detection for sessions_send tool calls. Classifies message content via OpenRouter API before delivery between agents. Guards the search→main boundary against poisoned web content. Fails closed on all errors — no failOpen option.",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "openRouterApiKey": {
+        "type": "string",
+        "description": "OpenRouter API key. Falls back to OPENROUTER_API_KEY environment variable if not set."
+      },
+      "model": {
+        "type": "string",
+        "default": "anthropic/claude-haiku-4-5",
+        "description": "OpenRouter model ID for classification."
+      },
+      "maxContentLength": {
+        "type": "number",
+        "default": 50000,
+        "description": "Maximum content length (characters) sent to the classifier. Longer content is truncated."
+      },
+      "timeoutMs": {
+        "type": "number",
+        "default": 15000,
+        "description": "Timeout in milliseconds for the OpenRouter API call."
+      },
+      "logDetections": {
+        "type": "boolean",
+        "default": true,
+        "description": "Log detected prompt injections to console."
+      }
+    }
+  },
+  "uiHints": {
+    "openRouterApiKey": { "label": "OpenRouter API Key" },
+    "model": { "label": "Model" },
+    "maxContentLength": { "label": "Max Content Length" },
+    "timeoutMs": { "label": "Timeout (ms)" },
+    "logDetections": { "label": "Log Detections" }
+  }
+}

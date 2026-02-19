@@ -17,7 +17,8 @@
   //   Uncomment to route channels to restricted agents instead of main.
   //
   // Prerequisites:
-  //   1. Guard plugins installed (channel-guard, web-guard)
+  //   1. Guard plugins installed (channel-guard, content-guard)
+  //      OPENROUTER_API_KEY required for content-guard
   //   2. Docker running
   //
   // OPTIONAL HARDENING PLUGINS (not included here — see hardened-multi-agent.md):
@@ -43,7 +44,7 @@
   //   OPENCLAW_GATEWAY_TOKEN
   //   ANTHROPIC_API_KEY
   //   BRAVE_API_KEY (or OPENROUTER_API_KEY for Perplexity)
-  //   OPENROUTER_API_KEY (required for image-gen plugin; also used by Perplexity)
+  //   OPENROUTER_API_KEY (required for content-guard and image-gen; also used by Perplexity)
   //   GITHUB_TOKEN
   //   GOOGLE_CHAT_SERVICE_ACCOUNT_FILE (path to service account JSON key)
   // See Phase 6 — Deployment > Secrets Management for details.
@@ -350,7 +351,7 @@
     // ~/.openclaw/extensions/ loads automatically at startup.
     "allow": [
       "whatsapp", "signal", "googlechat",
-      "channel-guard", "web-guard", "image-gen"
+      "channel-guard", "content-guard", "image-gen"
       // Add when using hardening plugins:
       // "file-guard", "network-guard", "command-guard"
     ],
@@ -369,15 +370,15 @@
           "blockThreshold": 0.8
         }
       },
-      "web-guard": {
-        // Scans web_fetch responses for prompt injection before content reaches agent.
-        // Protects main and search agents from poisoned web content.
+      "content-guard": {
+        // LLM-based injection scanning at the sessions_send trust boundary.
+        // Guards search→main: prevents poisoned web content from compromising main.
+        // Requires OPENROUTER_API_KEY. Fails closed — no failOpen option.
         "enabled": true,
         "config": {
-          "failOpen": false,
-          "sensitivity": 0.5,
-          "timeoutMs": 10000,
-          "maxContentLength": 50000
+          "model": "anthropic/claude-haiku-4-5",
+          "maxContentLength": 50000,
+          "timeoutMs": 15000
         }
       },
       // OPTIONAL HARDENING PLUGINS (see hardened-multi-agent.md for full config):

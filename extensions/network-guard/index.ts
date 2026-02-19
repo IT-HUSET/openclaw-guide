@@ -5,12 +5,14 @@
  * application-level domain allowlisting. Validates URLs against configurable
  * glob patterns, blocks data exfiltration patterns, and prevents direct IP access.
  *
- * Complements web-guard (content scanning) and network-egress scripts (firewall).
+ * Complements content-guard (inter-agent content scanning) and network-egress scripts (firewall).
  * Purely deterministic — no ML model, no external API calls.
  *
  * Minimum OpenClaw version: 2026.2.1 (before_tool_call wired in PRs #6570/#6660).
  */
 
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import picomatch from "picomatch";
 
 const GUARDED_TOOLS = ["web_fetch", "exec"];
@@ -53,6 +55,8 @@ export interface PluginConfig {
   failOpen?: boolean;
   logBlocks?: boolean;
   agentOverrides?: Record<string, string[]>;
+  resolveDns?: boolean;
+  dnsTimeoutMs?: number;
 }
 
 /** Extract all URLs (http/https) from a string. */
@@ -136,6 +140,102 @@ export function detectNetworkCommand(command: string): boolean {
   return false;
 }
 
+export function normalizeHostname(hostname: string): string {
+  return hostname.replace(/^\[|]$/g, "").replace(/\.$/, "").toLowerCase();
+}
+
+export function ipv4ToInt(ip: string): number | null {
+  const parts = ip.split(".");
+  if (parts.length !== 4) return null;
+  let out = 0;
+  for (const part of parts) {
+    const n = Number(part);
+    if (!Number.isInteger(n) || n < 0 || n > 255) return null;
+    out = (out << 8) | n;
+  }
+  return out >>> 0;
+}
+
+export function isPrivateOrReservedIpv4(ip: string): boolean {
+  const n = ipv4ToInt(ip);
+  if (n == null) return true;
+
+  const inRange = (start: number, end: number) => n >= start && n <= end;
+  return (
+    inRange(0x00000000, 0x00ffffff) || // 0.0.0.0/8
+    inRange(0x0a000000, 0x0affffff) || // 10.0.0.0/8
+    inRange(0x64400000, 0x647fffff) || // 100.64.0.0/10 (CGNAT)
+    inRange(0x7f000000, 0x7fffffff) || // 127.0.0.0/8
+    inRange(0xa9fe0000, 0xa9feffff) || // 169.254.0.0/16
+    inRange(0xac100000, 0xac1fffff) || // 172.16.0.0/12
+    inRange(0xc0a80000, 0xc0a8ffff) || // 192.168.0.0/16
+    inRange(0xc6120000, 0xc613ffff) || // 198.18.0.0/15
+    inRange(0xe0000000, 0xffffffff) // multicast + reserved
+  );
+}
+
+export function mappedIpv4FromIpv6(ip: string): string | null {
+  const lower = ip.toLowerCase();
+  if (!lower.startsWith("::ffff:")) return null;
+
+  const tail = lower.slice(7);
+  if (isIP(tail) === 4) return tail;
+
+  const match = tail.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (!match) return null;
+  const hi = Number.parseInt(match[1], 16);
+  const lo = Number.parseInt(match[2], 16);
+  if (Number.isNaN(hi) || Number.isNaN(lo)) return null;
+  return `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`;
+}
+
+export function isPrivateOrReservedIpv6(ip: string): boolean {
+  const normalized = ip.toLowerCase().split("%")[0];
+  if (normalized === "::" || normalized === "::1") return true;
+  if (normalized.startsWith("fc") || normalized.startsWith("fd")) return true; // ULA fc00::/7
+  if (/^fe[89ab]/.test(normalized)) return true; // link-local fe80::/10
+  if (/^fe[c-f]/.test(normalized)) return true; // site-local fec0::/10
+  if (normalized.startsWith("ff")) return true; // multicast ff00::/8
+
+  const mapped = mappedIpv4FromIpv6(normalized);
+  if (mapped) return isPrivateOrReservedIpv4(mapped);
+  return false;
+}
+
+export function isDisallowedIp(ip: string): boolean {
+  const family = isIP(ip);
+  if (family === 4) return isPrivateOrReservedIpv4(ip);
+  if (family === 6) return isPrivateOrReservedIpv6(ip);
+  return true;
+}
+
+export function isDisallowedHostname(host: string): boolean {
+  return host === "localhost" || host.endsWith(".localhost");
+}
+
+async function resolvesToPublicIps(host: string): Promise<boolean> {
+  if (isIP(host)) return !isDisallowedIp(host);
+  try {
+    const addresses = await lookup(host, { all: true, verbatim: true });
+    if (!addresses.length) return false;
+    return addresses.every((entry) => !isDisallowedIp(entry.address));
+  } catch {
+    return false;
+  }
+}
+
+/** Resolves hostname DNS and checks all IPs are public. */
+export async function checkDnsResolution(host: string, timeoutMs: number): Promise<boolean> {
+  try {
+    return await Promise.race([
+      resolvesToPublicIps(host),
+      new Promise<boolean>((_, reject) => setTimeout(() => reject(new Error("DNS timeout")), timeoutMs))
+    ]);
+  } catch {
+    return false;
+  }
+}
+
 export default {
   id: "network-guard",
   name: "Network Access Guard",
@@ -158,6 +258,8 @@ export default {
     const logBlocks: boolean = rawCfg.logBlocks ?? true;
     const agentOverrides: Record<string, string[]> =
       rawCfg.agentOverrides ?? {};
+    const resolveDns: boolean = rawCfg.resolveDns ?? true;
+    const dnsTimeoutMs: number = rawCfg.dnsTimeoutMs ?? 2000;
 
     // Pre-compile picomatch matchers at startup for performance
     const baseMatcher = picomatch(allowedDomains, { nocase: true });
@@ -173,7 +275,7 @@ export default {
 
     console.log(
       `[network-guard] Registered — guarding: ${GUARDED_TOOLS.join(", ")} ` +
-      `(domains: ${allowedDomains.length}, blockDirectIp: ${blockDirectIp}, failOpen: ${failOpen})`,
+      `(domains: ${allowedDomains.length}, blockDirectIp: ${blockDirectIp}, resolveDns: ${resolveDns}, failOpen: ${failOpen})`,
     );
 
     function getDomainMatcher(agentId?: string): (input: string) => boolean {
@@ -183,16 +285,31 @@ export default {
       return baseMatcher;
     }
 
-    function checkDomain(
+    async function checkDomain(
       domain: string,
       agentId?: string,
-    ): { blocked: boolean; reason?: string } {
-      if (blockDirectIp && isIpAddress(domain)) {
+    ): Promise<{ blocked: boolean; reason?: string }> {
+      // Normalize: strip brackets from IPv6 (URL constructor returns [::1])
+      const normalized = normalizeHostname(domain);
+      // IP blocking: when blockDirectIp is true, block all bare IPs (IPv4 + IPv6)
+      if (isIP(normalized) !== 0 && blockDirectIp) {
         return { blocked: true, reason: `direct IP access blocked: ${domain}` };
       }
+      // Hostname blocking (localhost, *.localhost)
+      if (isDisallowedHostname(normalized)) {
+        return { blocked: true, reason: `hostname blocked: ${domain}` };
+      }
+      // Domain allowlist check
       const matcher = getDomainMatcher(agentId);
-      if (!matcher(domain)) {
+      if (!matcher(normalized)) {
         return { blocked: true, reason: `domain not in allowlist: ${domain}` };
+      }
+      // DNS resolution check (only for non-IP hostnames)
+      if (resolveDns && isIP(normalized) === 0) {
+        const resolvesPublic = await checkDnsResolution(normalized, dnsTimeoutMs);
+        if (!resolvesPublic) {
+          return { blocked: true, reason: `DNS resolution blocked: ${domain} resolves to private/reserved IP` };
+        }
       }
       return { blocked: false };
     }
@@ -214,7 +331,7 @@ export default {
             };
           }
 
-          const result = checkDomain(domain, event.agentId);
+          const result = await checkDomain(domain, event.agentId);
           if (result.blocked) {
             if (logBlocks) {
               console.warn(
@@ -257,7 +374,7 @@ export default {
             const domain = extractDomain(url);
             if (!domain) continue;
 
-            const result = checkDomain(domain, event.agentId);
+            const result = await checkDomain(domain, event.agentId);
             if (result.blocked) {
               if (logBlocks) {
                 console.warn(

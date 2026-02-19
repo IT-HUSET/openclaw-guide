@@ -35,7 +35,7 @@ Hooks into `before_tool_call` for `web_fetch` and `exec`:
 
 Tools not listed above (read, write, edit, web_search, etc.) are ignored.
 
-> **Why not `web_search`?** Search queries are natural language, not URLs. Extracting domains from search queries would produce false positives. web-guard already scans content when results are fetched via `web_fetch`.
+> **Why not `web_search`?** Search queries are natural language, not URLs. Extracting domains from search queries would produce false positives. content-guard scans what the search agent reports back to the main agent via `sessions_send`.
 
 ## Setup
 
@@ -80,10 +80,12 @@ openclaw plugins install -l ./extensions/network-guard
 |-----|------|---------|-------------|
 | `allowedDomains` | string[] | _(hardcoded defaults)_ | Glob patterns for allowed domains (case-insensitive). Omit for defaults. `[]` blocks all. |
 | `blockedPatterns` | string[] | _(hardcoded defaults)_ | Regex patterns for blocked shell commands (exfiltration). |
-| `blockDirectIp` | boolean | `true` | Block direct IPv4 access in URLs |
+| `blockDirectIp` | boolean | `true` | Block direct IPv4 and IPv6 access in URLs |
 | `failOpen` | boolean | `false` | If `true`, allow on error. `false` = block on error. |
 | `logBlocks` | boolean | `true` | Log blocked requests to console |
 | `agentOverrides` | Record | `{}` | Agent ID to additional allowed domains (additive) |
+| `resolveDns` | boolean | `true` | Resolve hostname DNS and verify all IPs are public. Prevents DNS rebinding. |
+| `dnsTimeoutMs` | number | `2000` | DNS resolution timeout in ms. |
 
 ### Default allowed domains
 
@@ -120,32 +122,42 @@ Overrides are **additive** — they extend the base allowlist, never replace it:
 
 In this example, the `search` agent can access `github.com` (base) plus `npmjs.org`, `pypi.org` (override). The `main` agent can only access `github.com`.
 
+## SSRF Protection
+
+network-guard provides layered Server-Side Request Forgery (SSRF) protection for `web_fetch` and exec network commands:
+
+1. **Direct IP blocking** (`blockDirectIp: true`) — rejects any URL whose hostname is an IPv4 or IPv6 literal address. Covers standard dotted notation, IPv6 brackets, mapped IPv4-in-IPv6 (`::ffff:192.168.x.x`), CGNAT (100.64.0.0/10), link-local (169.254.0.0/16, fe80::/10), loopback (127.0.0.0/8, ::1), ULA (fc00::/7), and multicast ranges.
+2. **Hostname blocking** — `localhost` and `*.localhost` are always blocked regardless of `blockDirectIp`.
+3. **DNS resolution check** (`resolveDns: true`) — after a hostname passes the allowlist, its DNS is resolved and every returned IP is checked against private/reserved ranges. Prevents DNS rebinding attacks where an allowlisted domain resolves to an internal IP. Times out after `dnsTimeoutMs` ms and blocks on timeout.
+
+All three checks run in sequence. A domain must pass all of them before a request is allowed.
+
 ## Defense-in-depth comparison
 
 | Layer | Scope | Enforcement | What it catches |
 |-------|-------|-------------|-----------------|
 | **network-guard** (plugin) | Application — tool-call boundary | Deterministic regex + glob | Disallowed domains, exfiltration patterns, direct IP |
-| **web-guard** (plugin) | Application — content level | ML model (DeBERTa) | Prompt injection in fetched content |
+| **content-guard** (plugin) | Application — inter-agent boundary | LLM via OpenRouter API | Prompt injection in search results |
 | **network-egress** (scripts) | OS — firewall rules | iptables/pf | All non-allowlisted outbound traffic |
 | **Docker `network: none`** | OS — container isolation | No network stack | All network access from sandbox |
 
-These are complementary layers, not replacements. Use network-guard + web-guard together for application-level defense, and network-egress scripts for OS-level enforcement.
+These are complementary layers, not replacements. Use network-guard + content-guard together for application-level defense, and network-egress scripts for OS-level enforcement.
 
 ## Guard plugin family
 
-| | channel-guard | web-guard | file-guard | network-guard | command-guard |
+| | channel-guard | content-guard | file-guard | network-guard | command-guard |
 |---|---|---|---|---|---|
 | **Hook** | `message_received` | `before_tool_call` | `before_tool_call` | `before_tool_call` | `before_tool_call` |
-| **Method** | DeBERTa ML | DeBERTa ML | Deterministic patterns | Deterministic regex + glob | Regex patterns |
-| **Protects** | Inbound channels | Web fetches | File system | Network access | Shell execution |
-| **Latency** | ~100-500ms | ~100-500ms + fetch | <10ms | <5ms | <5ms |
+| **Method** | DeBERTa ML | LLM via OpenRouter | Deterministic patterns | Deterministic regex + glob | Regex patterns |
+| **Protects** | Inbound channels | Inter-agent boundary | File system | Network access | Shell execution |
+| **Latency** | ~100-500ms | ~500ms-2s | <10ms | <5ms | <5ms |
 
 ## Known limitations
 
 - **Regex URL extraction** — variables (`$URL`), base64-encoded URLs, command substitution (`` `cmd` ``/`$(cmd)`), and shell aliases are not detected. Mitigated by network-egress firewall rules.
-- **IPv4 only** — IPv6, decimal IP, octal IP, hex IP are not detected.
+- **IPv6 in exec commands** — IPv6 bracket notation (`http://[::1]/`) is not reliably extracted from exec command strings due to the URL regex stopping at `]`. `web_fetch` URLs are parsed directly and fully support IPv6.
+- **Alternative IP notation** — decimal (`http://2130706433`), octal, and hex IP representations are not detected by URL extraction.
 - **No URL path filtering** — domain-level only.
-- **No redirect following** — only the initial URL domain is validated. web-guard follows redirects and scans each hop.
 - **Domain fronting** — Host header manipulation in curl commands is not detected.
 - **URL-less network commands** — commands like `ssh user@host`, `scp`, `rsync`, and `nc` are detected as network commands but their destinations are not validated against the domain allowlist because they don't use HTTP URLs. Use `scripts/network-egress/` firewall rules for complete coverage of non-HTTP network access.
 - **`exec` only** — network commands in other tools are not intercepted.
@@ -165,5 +177,5 @@ No model download needed — tests are pure logic (~0.2s total).
 
 - **Deterministic** — no ML model, no probabilistic decisions. A domain either matches the allowlist or it doesn't.
 - **Fail-closed by default** — `failOpen: false` blocks on unexpected errors.
-- **No external calls** — all validation is local regex + glob matching.
-- **Complement, don't replace** — this plugin validates URLs at the application layer. Use `scripts/network-egress/` for OS-level enforcement and web-guard for content scanning.
+- **External calls for DNS only** — when `resolveDns: true` (default), a DNS lookup is performed per hostname. All other validation is local regex + glob matching.
+- **Complement, don't replace** — this plugin validates URLs at the application layer. Use `scripts/network-egress/` for OS-level enforcement and content-guard for inter-agent content scanning.

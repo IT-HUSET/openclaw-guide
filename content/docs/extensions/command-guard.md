@@ -6,7 +6,7 @@ weight: 134
 
 [View source on GitHub](https://github.com/IT-HUSET/openclaw-guide/tree/main/extensions/command-guard/)
 
-Deterministic regex-based command blocker for `exec`/`bash` tool calls. Blocks destructive commands (rm -rf, fork bombs, force push, etc.) before execution. Companion to [web-guard](web-guard.md) and [channel-guard](channel-guard.md) — command-guard protects the **shell execution** surface.
+Deterministic regex-based command blocker for `exec`/`bash` tool calls. Blocks destructive commands (rm -rf, fork bombs, force push, etc.) before execution. Companion to [content-guard](content-guard.md) and [channel-guard](channel-guard.md) — command-guard protects the **shell execution** surface.
 
 ## How it works
 
@@ -94,13 +94,13 @@ A pipe-to-shell match is only blocked if at least one pipe target is **not** in 
 
 ## Guard plugin comparison
 
-| | channel-guard | web-guard | file-guard | network-guard | command-guard |
+| | channel-guard | content-guard | file-guard | network-guard | command-guard |
 |---|---|---|---|---|---|
 | **Hook** | `message_received` | `before_tool_call` | `before_tool_call` | `before_tool_call` | `before_tool_call` |
-| **Protects** | Inbound channel messages | Outbound web fetches | File system | Network access | Shell execution |
-| **Method** | DeBERTa ML model | DeBERTa ML model | Deterministic patterns | Deterministic regex + glob | Regex patterns |
-| **Dependencies** | ~370MB ONNX model | ~370MB ONNX model | None | None | None |
-| **Latency** | ~100-500ms | ~100-500ms + fetch | <10ms | <5ms | <5ms |
+| **Protects** | Inbound channel messages | Inter-agent boundary | File system | Network access | Shell execution |
+| **Method** | DeBERTa ML model | LLM via OpenRouter | Deterministic patterns | Deterministic regex + glob | Regex patterns |
+| **Dependencies** | ~370MB ONNX model | OpenRouter API key | None | None | None |
+| **Latency** | ~100-500ms | ~500ms-2s | <10ms | <5ms | <5ms |
 
 ## Testing
 

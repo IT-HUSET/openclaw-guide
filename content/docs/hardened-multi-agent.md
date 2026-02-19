@@ -82,7 +82,7 @@ The **computer agent** does the actual work — full runtime access + browser au
 | Layer | What it stops | Enforcement |
 |-------|--------------|-------------|
 | channel-guard | Prompt injection from channels | Plugin hook (`message_received`) |
-| web-guard | Prompt injection from fetched web content | Plugin hook (`before_tool_call`) |
+| content-guard | Prompt injection in search agent results | Plugin hook (`before_tool_call`/`sessions_send`) |
 | file-guard | Read/write/delete of sensitive file paths | Plugin hook (`before_tool_call`) — deterministic |
 | network-guard | Network requests to non-allowlisted domains | Plugin hook (`before_tool_call`) — deterministic |
 | command-guard | Dangerous shell commands (rm -rf, fork bombs, etc.) | Plugin hook (`before_tool_call`) — deterministic |
@@ -324,7 +324,7 @@ Route all channels to main. The computer and search agents have no binding — u
 
 ### Plugin Configuration
 
-Enable all guard plugins — the hardened variant adds the three deterministic guards (file-guard, network-guard, command-guard) on top of the ML-based guards from the recommended config:
+Enable all guard plugins — the hardened variant adds the three deterministic guards (file-guard, network-guard, command-guard) on top of the probabilistic/LLM-based guards from the recommended config:
 
 ```json5
 {
@@ -334,9 +334,13 @@ Enable all guard plugins — the hardened variant adds the three deterministic g
         "enabled": true,
         "config": { "failOpen": false, "sensitivity": 0.5, "warnThreshold": 0.4, "blockThreshold": 0.8 }
       },
-      "web-guard": {
+      "content-guard": {
         "enabled": true,
-        "config": { "failOpen": false, "sensitivity": 0.5, "timeoutMs": 10000, "maxContentLength": 50000 }
+        "config": {
+          "model": "anthropic/claude-haiku-4-5",
+          "maxContentLength": 50000,
+          "timeoutMs": 15000
+        }
       },
       "file-guard": {
         // Path-based file protection — blocks read/write/delete of sensitive files.
@@ -377,7 +381,7 @@ Enable all guard plugins — the hardened variant adds the three deterministic g
 }
 ```
 
-> **Why add deterministic guards here?** The three deterministic guards complement the ML-based guards with hard, predictable enforcement. `file-guard` protects sensitive paths even if an agent has filesystem tools. `network-guard` provides application-level domain allowlisting that works alongside the firewall-level egress rules. `command-guard` blocks dangerous shell commands before they execute. All three are fast (<1ms), have zero false negatives for their configured patterns, and require no ML model. See the [extension docs](extensions/) for full configuration.
+> **Why add deterministic guards here?** The three deterministic guards complement the probabilistic/LLM-based guards with hard, predictable enforcement. `file-guard` protects sensitive paths even if an agent has filesystem tools. `network-guard` provides application-level domain allowlisting that works alongside the firewall-level egress rules. `command-guard` blocks dangerous shell commands before they execute. All three are fast (<1ms), have zero false negatives for their configured patterns, and require no ML model. See the [extension docs](extensions/) for full configuration.
 
 ---
 

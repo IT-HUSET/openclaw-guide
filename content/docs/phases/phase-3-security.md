@@ -23,7 +23,7 @@ What can go wrong with an AI agent that has tools?
 | **Node-pairing / remote execution** | Paired nodes expose `system.run` for remote code execution on macOS | Attacker runs arbitrary commands on paired machines |
 | **Platform escape** | Compromised agent breaks out of sandbox/VM | Access to host filesystem, other users' data, lateral movement |
 
-The fix isn't one setting — it's layered defense. Each setting below blocks a specific attack path. Mitigations fire at different points in the pipeline: **channel-guard** scans on message ingestion, **web-guard** on `web_fetch` calls, **tool policy** (`deny`/`allow`) on every tool call, and **SOUL.md/AGENTS.md** instructions influence every model turn. For maximum hardening, three additional deterministic guards are available: **file-guard** (path-based file protection), **network-guard** (application-level domain allowlisting), and **command-guard** (dangerous command blocking) — see [Hardened Multi-Agent](../hardened-multi-agent.md) or [Pragmatic Single Agent](../pragmatic-single-agent.md) for configuration.
+The fix isn't one setting — it's layered defense. Each setting below blocks a specific attack path. Mitigations fire at different points in the pipeline: **channel-guard** scans on message ingestion, **content-guard** on `sessions_send` calls (search→main boundary), **tool policy** (`deny`/`allow`) on every tool call, and **SOUL.md/AGENTS.md** instructions influence every model turn. For maximum hardening, three additional deterministic guards are available: **file-guard** (path-based file protection), **network-guard** (application-level domain allowlisting), and **command-guard** (dangerous command blocking) — see [Hardened Multi-Agent](../hardened-multi-agent.md) or [Pragmatic Single Agent](../pragmatic-single-agent.md) for configuration.
 
 > **Version note:** A token exfiltration vulnerability via Control UI (CVSS 8.8) was patched in 2026.1.29. Ensure you're on that version or later. See the [official security advisories](https://github.com/openclaw/openclaw/security/advisories) for the latest vulnerability information.
 >
@@ -69,7 +69,7 @@ Add these settings to `~/.openclaw/openclaw.json`. Each one is explained below.
   "plugins": {
     // Only plugins in this list are permitted to load.
     // A plugin in the list with "enabled": false is still blocked — code never executes.
-    "allow": ["whatsapp", "channel-guard", "web-guard"]
+    "allow": ["whatsapp", "channel-guard", "content-guard"]
   },
 
   "gateway": {
@@ -376,7 +376,7 @@ Full dedicated user setup is covered in [Phase 6: Deployment](phase-6-deployment
 
 Four deployment postures, trading off between simplicity, native OS access, host isolation, and internal sandboxing. The first three use multi-agent architecture (2 core agents: main + search, plus channel agents as configured, `sessions_send` delegation). They differ in the outer isolation boundary and internal sandboxing. The fourth trades multi-agent separation and Docker for simplicity and full native OS access.
 
-> **Want the simplest setup with full native OS access?** See [Pragmatic Single Agent](../pragmatic-single-agent.md) — a single unsandboxed agent hardened by all five guard plugins + OS-level isolation (non-admin user or VM). No Docker, no multi-agent delegation.
+> **Want the simplest setup with full native OS access?** See [Pragmatic Single Agent](../pragmatic-single-agent.md) — a two-agent setup (main + search) hardened by all five guard plugins + OS-level isolation (non-admin user or VM). Full native OS access, no Docker.
 
 > **Egress allowlisting:** The recommended 2-agent config runs the main agent on an egress-allowlisted Docker network — outbound traffic restricted to pre-approved hosts. See [egress setup](../hardened-multi-agent.md#step-1-verify-docker-network) for the walkthrough.
 
@@ -452,15 +452,15 @@ See [Phase 6: VM Isolation — Linux VMs](phase-6-deployment.md#vm-isolation-lin
 > - Need strongest isolation? → **VM: Linux VMs** (VM boundary + Docker inside)
 > - macOS-only host, no Docker? → **VM: macOS VMs**
 > - Simplest setup with good security? → **Docker isolation** (dedicated user + Docker sandboxing)
-> - Simplest setup with full native OS access? → **[Pragmatic Single Agent](../pragmatic-single-agent.md)** (one agent, guard plugins, no Docker)
+> - Simplest setup with full native OS access? → **[Pragmatic Single Agent](../pragmatic-single-agent.md)** (two agents, guard plugins, no Docker)
 
 |  | **[Pragmatic Single Agent](../pragmatic-single-agent.md)** | **Docker isolation** *(recommended)* | **VM: macOS VMs** | **VM: Linux VMs** |
 |--|---|---|---|---|
 | Host OS | macOS or Linux | macOS or Linux | macOS only | macOS or Linux |
-| Agents | 1 (main only) | 2+ (main + search) | 2+ (main + search) | 2+ (main + search) |
+| Agents | 2 (main + search) | 2+ (main + search) | 2+ (main + search) | 2+ (main + search) |
 | Gateways | 1 | 1 (multi-agent) — or [multi-gateway](../multi-gateway.md) | 1 — or 2 with [two-VM option](../multi-gateway.md#vm-variants) | 1 — [unlimited VMs](../multi-gateway.md#vm-variants) |
 | Isolation from host | Process-level (OS user) or VM | Process-level (OS user) | Kernel-level (VM) | Kernel-level (VM) |
-| Internal agent isolation | Guard plugins (no Docker, no agent separation) | Docker sandbox | Tool policy + SOUL.md (no Docker) | Docker sandbox |
+| Internal agent isolation | Guard plugins + tool policy (no Docker) | Docker sandbox | Tool policy + SOUL.md (no Docker) | Docker sandbox |
 | `read→exfiltrate` within platform | Open (guard plugins block known paths) | Closed (Docker roots filesystem) | Open within VM (only OpenClaw data at risk) | Closed (Docker roots filesystem) |
 | Privilege escalation within platform | Non-admin user, no sudo (or VM user) | `openclaw` user has no sudo | Standard user has no sudo + no GUI session | `openclaw` user has no sudo (docker group only) |
 | Native OS access | Full (macOS or Linux native) | No (Linux containers) | Full (macOS native inside VM) | No (Linux inside VM) |
@@ -500,7 +500,7 @@ For adding macOS-native tooling (Xcode, iOS Simulator, macOS apps) via Lume VMs,
   - **No deployment topology addresses this** — `sessions_send` is intra-process communication within the gateway. Docker, VMs, and OS user boundaries don't apply. The target agent's AGENTS.md instructions are the last line of defense.
   - See [Privileged Operation Delegation](phase-4-multi-agent.md#privileged-operation-delegation) for the delegation architecture (applicable when using dedicated channel agents).
 - **SOUL.md is soft** — model-level guardrails can be bypassed by sophisticated prompt injection. Tool policy (`deny`/`allow`) is the hard enforcement layer.
-- **Web content injection** — poisoned web pages can inject instructions into search results or browser content. The [web-guard plugin](phase-5-web-search.md#advanced-prompt-injection-guard) provides optional pre-fetch content scanning, but detection is probabilistic — tool policy remains the hard enforcement layer.
+- **Web content injection** — poisoned web pages can inject instructions into search results or browser content. The [content-guard plugin](phase-5-web-search.md#advanced-prompt-injection-guard) provides LLM-based injection scanning at the `sessions_send` boundary between search and main agents — tool policy remains the hard enforcement layer.
 - **Channel message injection** — adversarial messages from WhatsApp/Signal can attempt to hijack the receiving agent (main, or a dedicated channel agent if configured). Three defense layers apply:
   1. **channel-guard plugin** ([setup](phase-5-web-search.md#inbound-message-guard-channel-guard)) — primary defense, scans incoming messages with DeBERTa ONNX model. Probabilistic — false negatives are possible.
   2. **Dedicated channel agents (optional)** — secondary defense. If channels route to agents that deny `exec`/`process`, a successful injection can't execute commands directly. However, `sessions_send` to main bypasses this restriction (see dominant risk above). A real but narrow defense — blocks the direct attack path while the delegation path remains open.

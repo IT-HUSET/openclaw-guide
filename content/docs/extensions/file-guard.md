@@ -6,7 +6,7 @@ weight: 135
 
 [View source on GitHub](https://github.com/IT-HUSET/openclaw-guide/tree/main/extensions/file-guard/)
 
-Deterministic file protection plugin that intercepts file-access tool calls and enforces path-based, multi-level policies. Companion to [channel-guard](channel-guard.md), [web-guard](web-guard.md) — file-guard covers the **file system** attack surface using pattern matching instead of ML.
+Deterministic file protection plugin that intercepts file-access tool calls and enforces path-based, multi-level policies. Companion to [channel-guard](channel-guard.md), [content-guard](content-guard.md) — file-guard covers the **file system** attack surface using pattern matching instead of ML.
 
 ## How it works
 
@@ -164,12 +164,12 @@ Different agents can have additional protection rules:
 
 ## Guard plugin family
 
-| | channel-guard | web-guard | file-guard | network-guard | command-guard |
+| | channel-guard | content-guard | file-guard | network-guard | command-guard |
 |---|---|---|---|---|---|
 | **Hook** | `message_received` | `before_tool_call` | `before_tool_call` | `before_tool_call` | `before_tool_call` |
-| **Method** | DeBERTa ML | DeBERTa ML | Deterministic patterns | Deterministic regex + glob | Regex patterns |
-| **Protects** | Inbound channels | Web fetches | File system | Network access | Shell execution |
-| **Latency** | ~100-500ms | ~100-500ms + fetch | <10ms | <5ms | <5ms |
+| **Method** | DeBERTa ML | LLM via OpenRouter | Deterministic patterns | Deterministic regex + glob | Regex patterns |
+| **Protects** | Inbound channels | Inter-agent boundary | File system | Network access | Shell execution |
+| **Latency** | ~100-500ms | ~500ms-2s | <10ms | <5ms | <5ms |
 
 ## Testing
 

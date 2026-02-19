@@ -135,7 +135,7 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
   discovery: { mdns: { mode: "minimal" } },
 
   // Plugin allowlist
-  plugins: { allow: ["whatsapp", "channel-guard", "web-guard"] },
+  plugins: { allow: ["whatsapp", "channel-guard", "content-guard"] },
 
   // Logging
   logging: { redactSensitive: "tools" },
@@ -447,7 +447,7 @@ Features below require the listed version or later. Check yours with `openclaw -
 | Version | Feature | Details |
 |---------|---------|---------|
 | 2026.1.29 | Control UI token fix | Security vulnerability (CVSS 8.8) patched — update immediately. See [Phase 3](phases/phase-3-security.md) |
-| 2026.2.1 | `before_tool_call` hook | Required for [web-guard plugin](phases/phase-5-web-search.md#advanced-prompt-injection-guard) |
+| 2026.2.1 | `before_tool_call` hook | Required for [content-guard](phases/phase-5-web-search.md#advanced-prompt-injection-guard) and network-guard plugins |
 | 2026.2.3-1 | Security audit baseline | Version used in the [worked audit example](examples/security-audit.md) |
 | 2026.2.9 | xAI (Grok) provider | New [search provider option](phases/phase-5-web-search.md#search-providers) |
 | 2026.2.12 | Channel bindings regression | [#15176](https://github.com/openclaw/openclaw/pull/15176) — bindings to non-default agents broken. Not relevant for recommended 2-agent config (all channels route to main) |
@@ -463,7 +463,7 @@ Features below require the listed version or later. Check yours with `openclaw -
 | `whatsapp` | WhatsApp channel (bundled) | — |
 | `signal` | Signal channel (bundled) | — |
 | `googlechat` | Google Chat channel (bundled) | `GOOGLE_CHAT_SERVICE_ACCOUNT_FILE` |
-| `web-guard` | Pre-fetch prompt injection scanning for `web_fetch` | — (local ONNX model) |
+| `content-guard` | LLM-based injection scanning at sessions_send boundary (search→main) | `OPENROUTER_API_KEY` |
 | `channel-guard` | Inbound message injection scanning for WhatsApp/Signal/Google Chat | — (local ONNX model) |
 | `file-guard` | Path-based file access protection (no_access, read_only, no_delete) | — (deterministic) |
 | `network-guard` | Application-level domain allowlisting for network tool calls | — (deterministic, no model) |
@@ -471,7 +471,7 @@ Features below require the listed version or later. Check yours with `openclaw -
 | `image-gen` | Generate images from text prompts via OpenRouter | `OPENROUTER_API_KEY` |
 | `computer-use` | VM computer interaction (Lume) | — (WebSocket to cua-computer-server) |
 
-The `web-guard` plugin intercepts `web_fetch` calls, pre-fetches the URL, and scans content for prompt injection before the agent sees it. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing. Both use the same local DeBERTa ONNX model, are fail-closed by default (`failOpen: false`), and share the model cache. Both are included in the [recommended configuration](examples/config.md).
+The `content-guard` plugin intercepts `sessions_send` calls at the search→main trust boundary, classifying message content for prompt injection using an LLM (claude-haiku-4-5 via OpenRouter). The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing using a local DeBERTa ONNX model, fail-closed by default (`failOpen: false`). Both are included in the [recommended configuration](examples/config.md).
 
 The `file-guard`, `network-guard`, and `command-guard` plugins provide deterministic enforcement — no ML model, no external dependencies. `file-guard` enforces path-based file protection with three levels (no_access, read_only, no_delete). `network-guard` enforces application-level domain allowlisting for `web_fetch` and `exec` tool calls. `command-guard` blocks dangerous shell commands (rm -rf, fork bombs, force push, etc.) via regex. All three are included in the [hardened multi-agent](hardened-multi-agent.md) configuration and can optionally be added to any deployment. See [Phase 5](phases/phase-5-web-search.md#additional-hardening-guards) for overview and the [extension docs](extensions/) for full configuration.
 
@@ -481,7 +481,7 @@ Plugins can register handlers for these lifecycle hooks:
 
 | Hook | When it fires | Example use |
 |------|--------------|-------------|
-| `before_tool_call` | Before a tool executes | web-guard: pre-fetch + scan URLs |
+| `before_tool_call` | Before a tool executes | content-guard: classify sessions_send content |
 | `message_received` | Incoming channel message (WhatsApp/Signal/Google Chat) | channel-guard: scan for injection |
 | `llm_input` | Before prompt is sent to the model (added 2026.2.16) | Input logging, token counting, content filtering |
 | `llm_output` | After model response received (added 2026.2.16) | Output logging, response filtering, compliance checks |
@@ -494,11 +494,11 @@ The `computer-use` plugin registers 7 `vm_*` tools for controlling a macOS Lume 
 
 ### Plugin Installation
 
-Plugin directories must be named to match the **manifest ID** in `openclaw.plugin.json` (e.g., `web-guard/`, not `openclaw-web-guard/`). The `name` field in `package.json` should also match the manifest ID.
+Plugin directories must be named to match the **manifest ID** in `openclaw.plugin.json` (e.g., `content-guard/`, not `openclaw-content-guard/`). The `name` field in `package.json` should also match the manifest ID.
 
 **Manual installation** (recommended — `openclaw plugins install` may fail to resolve dependencies or link manifests correctly; see the [OpenClaw changelog](https://docs.openclaw.ai) for current plugin CLI status):
 ```bash
-cp -r extensions/web-guard ~/.openclaw/extensions/web-guard
+cp -r extensions/content-guard ~/.openclaw/extensions/content-guard
 cp -r extensions/channel-guard ~/.openclaw/extensions/channel-guard
 ```
 
@@ -516,13 +516,12 @@ openclaw plugins install --link /path/to/plugin
 {
   plugins: {
     entries: {
-      "web-guard": {
+      "content-guard": {
         enabled: true,
         config: {
-          failOpen: false,       // Block web_fetch if model unavailable
-          timeoutMs: 10000,      // Pre-fetch timeout
+          model: "anthropic/claude-haiku-4-5",
           maxContentLength: 50000, // Truncate content sent to model
-          sensitivity: 0.5       // Detection threshold (0.0–1.0)
+          timeoutMs: 15000,      // Classification timeout
         }
       },
       "channel-guard": {
