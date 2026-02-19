@@ -151,6 +151,20 @@ curl -fsSL https://openclaw.ai/install.sh | bash
 sudo -u openclaw openclaw --version
 ```
 
+### Build the sandbox image
+
+If using Docker sandboxing, build the sandbox image on the target. The image is not transferred in the backup — it must be built locally from the OpenClaw install:
+
+```bash
+cd $(npm root -g)/openclaw
+./scripts/sandbox-setup.sh
+
+# Verify
+docker run --rm openclaw-sandbox:bookworm-slim git --version
+```
+
+> If you use a custom sandbox image, see [Custom Sandbox Images: Multi-Machine Deployment](../custom-sandbox-images.md#multi-machine-deployment) — either push to a private registry or use `docker save`/`docker load` to transfer it.
+
 ---
 
 ## Step 3 — Transfer Data
@@ -567,6 +581,7 @@ tail -50 /Users/openclaw/.openclaw/logs/gateway.log
 - [ ] Google Chat messages get responses (if configured — check webhook delivery in GCP console)
 - [ ] Memory search works (`openclaw memory search <query>` — run `openclaw memory index` first if no results)
 - [ ] `openclaw security audit` returns no critical findings
+- [ ] Sandbox image built on target (`docker image inspect openclaw-sandbox:bookworm-slim` — if missing: `cd $(npm root -g)/openclaw && ./scripts/sandbox-setup.sh`)
 - [ ] Docker sandboxing active (if applicable — `docker ps` shows sandbox containers)
 - [ ] File permissions are correct (600/700 on sensitive files)
 - [ ] Gateway only listens on loopback

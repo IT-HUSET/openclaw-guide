@@ -10,26 +10,30 @@ The default sandbox image (`openclaw-sandbox:bookworm-slim`) covers most use cas
 
 ## Default Images
 
-OpenClaw ships three locally-built images (not published to any registry):
+OpenClaw provides setup scripts that build three images locally. **These images are not pre-built or published to any registry** — the default sandbox image (`openclaw-sandbox:bookworm-slim`) starts as raw `debian:bookworm-slim` with no extra packages until you run the setup script.
 
-| Image | Contents | Use case |
-|-------|----------|----------|
-| `openclaw-sandbox:bookworm-slim` | bash, curl, git, jq, python3, ripgrep, ca-certificates | Default for all agents |
-| `openclaw-sandbox-common:bookworm-slim` | Above + Node.js, npm, pnpm, Bun, Go, Rust, build-essential, Homebrew | Agents that need build tools |
-| `openclaw-sandbox-browser:bookworm-slim` | Chromium, xvfb, VNC/noVNC, websockify | Browser automation |
+{{< callout type="warning" >}}
+**You must build the sandbox image before enabling Docker sandboxing.** Agents that try to use tools like `git`, `curl`, or `python3` inside an unbuilt sandbox will fail immediately (`sh: 1: git: not found`).
+{{< /callout >}}
+
+```bash
+# From the openclaw package directory
+cd $(npm root -g)/openclaw
+./scripts/sandbox-setup.sh
+
+# Verify
+docker run --rm openclaw-sandbox:bookworm-slim git --version
+```
+
+| Image | Contents | Setup script |
+|-------|----------|--------------|
+| `openclaw-sandbox:bookworm-slim` | bash, curl, git, jq, python3, ripgrep, ca-certificates | `sandbox-setup.sh` |
+| `openclaw-sandbox-common:bookworm-slim` | Above + Node.js, npm, pnpm, Bun, Go, Rust, build-essential, Homebrew | `sandbox-common-setup.sh` |
+| `openclaw-sandbox-browser:bookworm-slim` | Chromium, xvfb, VNC/noVNC, websockify | `sandbox-browser-setup.sh` |
 
 > **Note:** `sandbox-common` is available in the repo (`scripts/sandbox-common-setup.sh`) but not yet covered in the [official sandboxing docs](https://docs.openclaw.ai/gateway/sandboxing).
 
 All images use `debian:bookworm-slim` base, run as non-root user `sandbox` (UID 1000), and default to `CMD ["sleep", "infinity"]`.
-
-Build any of them locally from the OpenClaw install directory:
-
-```bash
-# From the openclaw package directory
-./scripts/sandbox-setup.sh           # → openclaw-sandbox:bookworm-slim
-./scripts/sandbox-common-setup.sh    # → openclaw-sandbox-common:bookworm-slim
-./scripts/sandbox-browser-setup.sh   # → openclaw-sandbox-browser:bookworm-slim
-```
 
 ---
 

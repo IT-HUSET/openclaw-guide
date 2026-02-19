@@ -612,6 +612,26 @@ Docker provides an additional isolation layer for agents.
 
 > **Warning (bare Linux hosts):** Adding a user to the `docker` group grants effective root access on the host. For bare-metal Linux deployments, consider rootless Docker or Podman as alternatives.
 
+#### Build the sandbox image first
+
+The default sandbox image (`openclaw-sandbox:bookworm-slim`) is not pre-built — it must be built locally before enabling sandboxing. Without this, exec tool calls inside the sandbox fail immediately (`sh: 1: git: not found`):
+
+```bash
+cd $(npm root -g)/openclaw
+./scripts/sandbox-setup.sh
+
+# Verify
+docker run --rm openclaw-sandbox:bookworm-slim git --version
+```
+
+For agents that need additional tools (Node.js, Go, Rust, build tools), build the common image instead:
+
+```bash
+./scripts/sandbox-common-setup.sh   # → openclaw-sandbox-common:bookworm-slim
+```
+
+See [Custom Sandbox Images](../custom-sandbox-images.md) for details on all available images and custom image builds.
+
 ```json
 {
   "agents": {
@@ -670,6 +690,8 @@ This roots the main agent's filesystem inside Docker — it can no longer read `
 > **macOS with Docker Desktop or OrbStack:** Egress allowlisting via pf rules does not work — these tools run containers inside a Linux VM where the bridge interface is inaccessible to host-level pf. Options: (1) use a Linux VM deployment with `apply-rules-linux.sh` inside the VM, (2) use colima with bridged networking, or (3) accept no egress filtering and rely on tool policy as the primary defense.
 
 **Trade-off:** Host-native tools (Xcode, Homebrew binaries) are unavailable inside the container. For host-level automation (cron jobs, service management), see [Local Admin Agent](#optional-local-admin-agent) below. For an even more isolated architecture with a dedicated computer agent, see [Hardened Multi-Agent](../hardened-multi-agent.md).
+
+> **`exec host not allowed` error:** When `sandbox.mode: "all"` is active, some exec calls may fail with `exec host not allowed (requested gateway; configure tools.exec.host=sandbox to allow)`. This happens when the call targets the gateway host rather than the sandbox container. Add `"tools": { "exec": { "host": "sandbox" } }` to the agent config to route exec to the sandbox by default. The local admin agent (below) avoids this issue by running unsandboxed.
 
 ### Optional: Local Admin Agent
 

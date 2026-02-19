@@ -10,11 +10,12 @@ set -euo pipefail
 #   3. Installs OrbStack for Docker (if needed)
 #   4. Optionally installs signal-cli (for Signal channel)
 #   5. Installs OpenClaw (if needed)
-#   6. Plans gateway instances (single vs. multi)
-#   7. Creates dedicated non-admin user(s)
-#   8. Installs Playwright chromium (per user)
-#   9. Locks down admin home directory
-#  10. Enables macOS firewall
+#   6. Builds Docker sandbox image (openclaw-sandbox:bookworm-slim)
+#   7. Plans gateway instances (single vs. multi)
+#   8. Creates dedicated non-admin user(s)
+#   9. Installs Playwright chromium (per user)
+#  10. Locks down admin home directory
+#  11. Enables macOS firewall
 #
 # Single-instance mode (default): one `openclaw` user, one gateway, all channels.
 # Multi-instance mode: separate user per gateway for channel isolation.
@@ -161,9 +162,27 @@ else
 fi
 echo ""
 
-# ── Step 6: Instance planning ───────────────────────────────────
+# ── Step 6: Build sandbox image ─────────────────────────────────
 
-echo -e "${BOLD}--- Step 6: Instance planning ---${NC}"
+echo -e "${BOLD}--- Step 6: Build sandbox image ---${NC}"
+OC_PKG="$(npm root -g)/openclaw"
+SANDBOX_SCRIPT="$OC_PKG/scripts/sandbox-setup.sh"
+
+if docker image inspect openclaw-sandbox:bookworm-slim &>/dev/null; then
+    echo -e "${GREEN}Sandbox image already built (openclaw-sandbox:bookworm-slim)${NC}"
+elif [[ -f "$SANDBOX_SCRIPT" ]]; then
+    echo "Building openclaw-sandbox:bookworm-slim..."
+    bash "$SANDBOX_SCRIPT"
+    echo -e "${GREEN}Sandbox image built${NC}"
+else
+    echo -e "${YELLOW}sandbox-setup.sh not found at $OC_PKG/scripts/${NC}"
+    echo "Build manually after install: cd \$(npm root -g)/openclaw && ./scripts/sandbox-setup.sh"
+fi
+echo ""
+
+# ── Step 7: Instance planning ───────────────────────────────────
+
+echo -e "${BOLD}--- Step 7: Instance planning ---${NC}"
 echo ""
 
 if [[ -f "$INSTANCES_FILE" ]]; then
@@ -304,9 +323,9 @@ if [[ "${SKIP_PLANNING:-}" != "true" ]]; then
 fi
 echo ""
 
-# ── Step 7: Create dedicated user(s) ────────────────────────────
+# ── Step 8: Create dedicated user(s) ────────────────────────────
 
-echo -e "${BOLD}--- Step 7: Create dedicated user(s) ---${NC}"
+echo -e "${BOLD}--- Step 8: Create dedicated user(s) ---${NC}"
 
 for INST_USER in "${INSTANCE_USERS[@]}"; do
     if id "$INST_USER" &>/dev/null; then
@@ -334,9 +353,9 @@ for INST_USER in "${INSTANCE_USERS[@]}"; do
     echo ""
 done
 
-# ── Step 8: Install Playwright (per user) ────────────────────────
+# ── Step 9: Install Playwright (per user) ────────────────────────
 
-echo -e "${BOLD}--- Step 8: Install Playwright (chromium) ---${NC}"
+echo -e "${BOLD}--- Step 9: Install Playwright (chromium) ---${NC}"
 # Install as each user so browsers go to their cache directory.
 # The gateway runs as this user — Playwright needs to find chromium there.
 for INST_USER in "${INSTANCE_USERS[@]}"; do
@@ -349,9 +368,9 @@ done
 echo -e "${GREEN}Done${NC}"
 echo ""
 
-# ── Step 9: Lock down admin home ─────────────────────────────────
+# ── Step 10: Lock down admin home ─────────────────────────────────
 
-echo -e "${BOLD}--- Step 9: Lock down admin home directory ---${NC}"
+echo -e "${BOLD}--- Step 10: Lock down admin home directory ---${NC}"
 ADMIN_HOME="/Users/$(whoami)"
 CURRENT_PERMS=$(stat -f "%Lp" "$ADMIN_HOME")
 if [[ "$CURRENT_PERMS" == "700" ]]; then
@@ -369,9 +388,9 @@ echo "  - Mounted volumes are typically world-readable"
 echo "  On a dedicated machine with no personal data, these are non-issues."
 echo ""
 
-# ── Step 10: Enable macOS firewall ────────────────────────────────
+# ── Step 11: Enable macOS firewall ────────────────────────────────
 
-echo -e "${BOLD}--- Step 10: Enable macOS firewall ---${NC}"
+echo -e "${BOLD}--- Step 11: Enable macOS firewall ---${NC}"
 FW_STATE=$(sudo /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate 2>/dev/null | grep -c "enabled" || true)
 if [[ "$FW_STATE" -gt 0 ]]; then
     echo -e "${GREEN}Firewall already enabled${NC}"
@@ -398,6 +417,7 @@ echo "  Node.js:     $(node --version 2>/dev/null || echo 'not found')"
 echo "  Docker:      $(docker --version 2>/dev/null || echo 'not found')"
 echo "  OpenClaw:    $(openclaw --version 2>/dev/null || echo 'not found')"
 echo "  signal-cli:  $(command -v signal-cli &>/dev/null && echo 'installed' || echo 'not installed')"
+echo "  Sandbox img: $(docker image inspect openclaw-sandbox:bookworm-slim &>/dev/null && echo 'built' || echo 'NOT built — run sandbox-setup.sh')"
 echo "  Playwright:  chromium"
 echo "  Firewall:    enabled + stealth mode"
 echo ""

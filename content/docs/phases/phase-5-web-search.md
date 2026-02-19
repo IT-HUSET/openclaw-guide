@@ -506,7 +506,7 @@ openclaw plugins install -l ./extensions/channel-guard
 }
 ```
 
-- `sensitivity` — model confidence threshold (0.0–1.0, default 0.5). Lower = more aggressive.
+- `sensitivity` — model confidence threshold (0.0–1.0, default 0.5). Lower = more aggressive. **If you see false positives on legitimate messages** (instructional content, technical docs, how-to text), raise this to `0.85` before disabling channel-guard entirely.
 - `warnThreshold` / `blockThreshold` — control the three-tier response. Adjust based on your false positive tolerance.
 - `failOpen: false` (default) — block all messages when model unavailable. Fail-closed philosophy.
 - `logDetections` — log flagged messages (score + source channel + snippet) to the gateway console.
@@ -515,6 +515,7 @@ openclaw plugins install -l ./extensions/channel-guard
 
 - **Channel messages only** — the `message_received` hook fires for WhatsApp/Signal bridge messages. It does **not** fire for HTTP API requests or Control UI messages. This is by design — channel-guard protects the channel perimeter.
 - **Probabilistic** — DeBERTa achieves 95.5% F1 on evaluation data but may miss novel attack patterns. This is a defense-in-depth layer, not a guarantee.
+- **False positives on instructional content** — the model can flag legitimate messages containing step-by-step instructions, changelogs, or technical procedures. The default `sensitivity: 0.5` is relatively aggressive. If you're getting too many false positives, raise `sensitivity` to `0.7`–`0.85` rather than disabling the plugin.
 
 ---
 
