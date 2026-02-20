@@ -28,6 +28,8 @@ The fix isn't one setting — it's layered defense. Each setting below blocks a 
 > **Version note:** A token exfiltration vulnerability via Control UI (CVSS 8.8) was patched in 2026.1.29. Ensure you're on that version or later. See the [official security advisories](https://github.com/openclaw/openclaw/security/advisories) for the latest vulnerability information.
 >
 > **Version note (2026.2.16):** XSS hardening via Content Security Policy enforcement in the Control UI, and workspace path sanitization — agents can no longer use `../` traversal to escape their workspace root. Skill `targetDir` is now restricted to the workspace boundary.
+>
+> **Version note (2026.2.19):** Gateway now defaults to token auth with auto-generation — if `gateway.auth` is not configured, a token is auto-generated and persisted at startup. Explicit `gateway.auth.mode: "none"` is required for intentionally open setups and triggers a `gateway.http.no_auth` audit finding. Gateway fails startup if `hooks.token` matches `gateway.auth.token`. Plugin and hook path containment enforced via realpath checks (traversal and symlink escape blocked). SSRF hardened for IPv6 transition addresses (NAT64, 6to4, Teredo) and strict IPv4 literals. Browser URL navigation routed through SSRF-guarded validation by default (`browser.ssrfPolicy`).
 
 ---
 
@@ -110,7 +112,7 @@ openclaw doctor --generate-gateway-token
 
 For now, export it in your shell (`export OPENCLAW_GATEWAY_TOKEN=<token>`). For production, store it in the service plist or environment file — see [Phase 6](phase-6-deployment.md#secrets-management). Don't put it in `openclaw.json` directly.
 
-> **Auth is fail-closed by default.** If no token or password is configured, the gateway refuses WebSocket connections. Even on loopback, auth is recommended.
+> **Token auth by default (2026.2.19+).** If `gateway.auth` is not configured, the gateway auto-generates and persists a `gateway.auth.token` at startup — connections require this token. To explicitly open the gateway without auth, set `gateway.auth.mode: "none"`. This triggers a `gateway.http.no_auth` audit finding: WARN when bound to loopback, CRITICAL when remote-accessible. Even on loopback, explicit token auth (as shown above) is recommended.
 
 > **Fail-closed channels:** Some channel bridges (e.g., LINE as of 2026.2.16) are fail-closed — if webhook signature verification fails, the message is silently dropped rather than passed to the agent. This is the preferred security posture for any channel integration. WhatsApp and Signal use their own transport-level encryption; Google Chat relies on GCP service account verification.
 
@@ -523,6 +525,7 @@ openclaw security audit
 
 Review the output. Common findings:
 - `WARN` about `trustedProxies` — safe to ignore if you're not behind a reverse proxy. **Do not** add `trustedProxies` preemptively — without a proxy, the gateway ignores `X-Forwarded-For` entirely (safest). Setting it tells the gateway to trust XFF headers from those IPs; any local process on the host — any user, any service — can then forge client IPs in gateway requests
+- `WARN`/`CRITICAL` for `gateway.http.no_auth` — fires when `gateway.auth.mode: "none"`. WARN on loopback, CRITICAL when remote-accessible (2026.2.19+). Only relevant if you explicitly set `mode: "none"` — the gateway defaults to token auth with auto-generation, so this finding should not appear in standard deployments following this guide
 - `INFO` about attack surface — shows which tools and access modes are enabled
 
 For a deeper check against a running gateway:
