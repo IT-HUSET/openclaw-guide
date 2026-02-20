@@ -33,7 +33,7 @@ The solution: **isolate web search into a dedicated agent**. The search agent ha
 ### Search Delegation
 
 ```
-Main Agent (exec, browser, web_fetch — egress-allowlisted network)
+Main Agent (exec, browser — egress-allowlisted network)
     │
     └─ sessions_send("search for X")
             ▼
@@ -43,7 +43,7 @@ Main Agent (exec, browser, web_fetch — egress-allowlisted network)
        Brave/Perplexity API → results → Main Agent
 ```
 
-The main agent has browser and web_fetch directly (on the egress-allowlisted `openclaw-egress` Docker network). Only `web_search` is delegated to the search agent — this isolates the web search API interaction and untrusted search results from the main agent's filesystem and exec tools.
+`web_search` and `web_fetch` are both delegated to the search agent — this isolates web access and untrusted results from the main agent's filesystem and exec tools. Main has browser directly (for browser automation on the egress-allowlisted `openclaw-egress` Docker network) but no direct web fetch.
 
 The search agent has no persistent memory — each request is stateless. This is intentional: search agents don't need conversation history.
 
@@ -93,7 +93,7 @@ Block `web_search` on each agent that shouldn't have it — **not** in global `t
 }
 ```
 
-Only deny tools globally that **no** agent should ever have. `web_search` is denied on the main agent individually (in its per-agent config), rather than globally, so the search agent can use it via its `allow` list. The main agent keeps `web_fetch` and `browser` directly (on the egress-allowlisted network).
+Only deny tools globally that **no** agent should ever have. `web_search` and `web_fetch` are denied on the main agent individually (in its per-agent config), rather than globally, so the search agent can use them via its `allow` list. Main keeps `browser` directly (on the egress-allowlisted network) for browser automation — all web content fetching goes through the search agent.
 
 ### 2. Create the search agent directories
 
@@ -160,12 +160,11 @@ Add to `openclaw.json`:
   "agents": {
     "list": [
       {
-        // Main agent — has exec, browser, web_fetch directly.
-        // web_search denied — delegated to search agent.
+        // Main agent — web_search and web_fetch denied, both delegated to search agent.
         "id": "main",
         "tools": {
-          "allow": ["group:runtime", "group:fs", "group:sessions", "memory_search", "memory_get", "message", "browser", "web_fetch"],
-          "deny": ["web_search", "canvas", "group:automation"]
+          "allow": ["group:runtime", "group:fs", "group:sessions", "memory_search", "memory_get", "message", "browser"],
+          "deny": ["web_search", "web_fetch", "canvas", "group:automation"]
         },
         "subagents": { "allowAgents": ["search"] }
       },
@@ -184,7 +183,7 @@ Add to `openclaw.json`:
 ```
 
 Key points:
-- Main agent denies `web_search` — all web searches go through the isolated search agent. Main keeps `web_fetch` and `browser` (on egress-allowlisted network) for direct page fetching and browser automation
+- Main agent denies both `web_search` and `web_fetch` — all web access goes through the isolated search agent. Main keeps `browser` (on egress-allowlisted network) for browser automation only
 - The search agent has both `allow` and `deny` lists — the `allow` list is the effective restriction (only these tools are available), while the `deny` list provides defense-in-depth by explicitly blocking dangerous tools even if `allow` is misconfigured
 - `search` agent has `web_search` and `web_fetch` via its `allow` list. No filesystem tools — eliminates any data exfiltration risk
 - `search` agent has `sessions_send` and `session_status` — to respond and check status
@@ -192,6 +191,8 @@ Key points:
 - Search agent runs unsandboxed — workaround for [#9857](https://github.com/openclaw/openclaw/issues/9857). Sandboxing is desired for defense-in-depth but not required since the search agent has no filesystem or exec tools
 
 > **No Docker?** The search agent runs unsandboxed by default — tool deny/allow lists provide the primary isolation. The main agent's sandbox and egress allowlist are where Docker matters. See [Phase 6: Docker Sandboxing](phase-6-deployment.md#docker-sandboxing) for setup.
+
+> **Sandbox tool policy:** If the main agent is sandboxed (`mode: "all"` or `"non-main"`), WhatsApp DM sessions run sandboxed and are subject to a separate sandbox tool allow list. The default sandbox allow list does **not** include `message`, `browser`, `memory_search`, or `memory_get` — so those tools are silently unavailable in channel sessions unless you add `tools.sandbox.tools.allow`. The [recommended config](../examples/config.md) includes this with the full list. See [Reference: Default Sandbox Tool Allow List](../reference.md#default-sandbox-tool-allow-list) for the full list and config syntax.
 
 > **Why per-agent deny, not global?** Global `tools.deny` overrides agent-level `tools.allow` — a tool denied globally cannot be re-enabled on any agent. Web tools must be denied per-agent so the search agent's `allow` list works. `deny` always wins over `allow` at the *same* level — so adding `web_search` to both `allow` and `deny` on the search agent would deny it. See [Reference: Tool Policy Precedence](../reference.md#tool-policy-precedence) for details.
 
@@ -421,6 +422,8 @@ Search Agent processes web content
 ```
 
 > **Note:** content-guard covers both `web_search` results and `web_fetch` page content in one scan — it intercepts the full payload the search agent sends back to main, not individual tool calls.
+
+> **Trust boundary:** content-guard only protects the `sessions_send` boundary (search → main). If the main agent still has `web_fetch` in its allow list, it can fetch URLs directly — bypassing content-guard entirely. When content-guard is deployed, remove `web_fetch` from main's allow list and add it to `deny`. All web content should flow through the search agent → content-guard → main pipeline.
 
 ### Install
 

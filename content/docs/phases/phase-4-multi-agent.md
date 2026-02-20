@@ -246,7 +246,7 @@ If this agent should use different API keys (e.g., separate billing), edit the c
         "id": "main",
         "default": true,
         "workspace": "~/.openclaw/workspaces/main",
-        "sandbox": { "mode": "off" }  // Phase 6 recommends "all" — see Sandbox the Main Agent
+        "sandbox": { "mode": "off" }  // Phase 6 recommends "non-main" — see Sandbox the Main Agent
       },
       {
         "id": "whatsapp",
@@ -265,13 +265,13 @@ If this agent should use different API keys (e.g., separate billing), edit the c
 
 > ⚠️ **Temporary Configuration**
 > `sandbox.mode: "off"` disables all sandboxing — suitable for initial setup but **not production**.
-> This leaves the read→exfiltrate path open. Harden to `mode: "all"` in [Phase 6](phase-6-deployment.md#sandbox-the-main-agent) before production use.
+> This leaves the read→exfiltrate path open. Harden to `mode: "non-main"` in [Phase 6](phase-6-deployment.md#sandbox-the-main-agent) before production use.
 
 > **Note:** `canvas` and `gateway` are denied per-agent here (not globally) because global deny overrides any agent-level allow. Per-agent deny is safer when different agents have different tool needs — it avoids accidentally blocking tools that another agent legitimately requires.
 
 Key design decisions:
 - **`maxConcurrent: 4`** limits parallel tool executions per agent — useful as both a performance and cost control. Lower values reduce token burn from runaway agents
-- **Main agent** starts with `sandbox.mode: "off"` for initial setup — [Phase 6](phase-6-deployment.md#sandbox-the-main-agent) recommends hardening to `mode: "all"` for production, which roots main inside Docker while preserving workspace access
+- **Main agent** starts with `sandbox.mode: "off"` for initial setup — [Phase 6](phase-6-deployment.md#sandbox-the-main-agent) recommends hardening to `mode: "non-main"` for production, which sandboxes channel sessions in Docker while leaving the operator's Control UI session on-host
 - **Channel agents** deny `exec` and `process` — the most dangerous tools for a channel-facing agent. They delegate privileged operations to main via `sessions_send` (see [Privileged Operation Delegation](#privileged-operation-delegation))
 - **`subagents.allowAgents`** includes `"main"` — allows channel agents to reach the main agent for delegation, plus `search` for web search
 - **Channel agents** inherit the default sandbox (`non-main`) — Docker runs with no network, preventing exfiltration via any remaining tools
@@ -398,7 +398,14 @@ Use group shorthands to deny/allow entire categories:
 > ```json
 > { "action": "send", "channel": "whatsapp", "target": "120363XXXX@g.us", "message": "..." }
 > ```
-> `sessions_send` is for agent-to-agent delegation (ask another agent to do work). Its announce step is model-driven — the target agent decides whether to post to the channel — and consistently produces `ANNOUNCE_SKIP` for instrumental delegation tasks. Add `group:messaging` to the agent's tool allow list.
+> `sessions_send` is for agent-to-agent delegation (ask another agent to do work). Its announce step is model-driven — the target agent decides whether to post to the channel — and consistently produces `ANNOUNCE_SKIP` for instrumental delegation tasks. Add `group:messaging` (or `"message"`) to the agent's tool allow list.
+>
+> **Three gates control `message` tool availability** — all three must pass:
+> 1. **Agent tool policy** — `message` or `group:messaging` must be in `tools.allow`
+> 2. **Sandbox tool policy** — if the session is sandboxed, `message` must be in `tools.sandbox.tools.allow` (it is NOT in the default sandbox allow list)
+> 3. **`disableMessageTool` flag** — set automatically on cron isolated jobs with delivery configured; not relevant for normal sessions
+>
+> Gate 2 is the non-obvious one: **WhatsApp DM sessions are always non-main sessions** (key = `agent:main:whatsapp:dm:...`), so they're sandboxed with `mode: "non-main"` or `"all"`. Even if the agent policy allows `message`, it's blocked in a DM session unless the sandbox tool allow list includes it. See [Reference: Default Sandbox Tool Allow List](../reference.md#default-sandbox-tool-allow-list) and the config examples, which include `tools.sandbox.tools.allow` with `message`.
 
 Example — a read-only agent:
 ```json

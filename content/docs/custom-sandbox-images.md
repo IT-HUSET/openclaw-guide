@@ -205,7 +205,7 @@ For images used across both architectures, build a multi-arch manifest with `doc
         "id": "main",
         "default": true,
         "sandbox": {
-          "mode": "all",
+          "mode": "non-main",
           "scope": "agent",
           "workspaceAccess": "rw",
           "docker": {

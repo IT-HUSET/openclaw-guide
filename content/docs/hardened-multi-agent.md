@@ -4,14 +4,14 @@ description: "Optional: Add a dedicated computer agent for exec isolation on top
 weight: 87
 ---
 
-The [recommended configuration](examples/config.md) runs two core agents: **main** (sandboxed with Docker on egress-allowlisted network, with exec + browser + web_fetch) and **search** (web search only, no filesystem). This provides strong isolation for most deployments.
+The [recommended configuration](examples/config.md) runs two core agents: **main** (sandboxed with Docker on egress-allowlisted network, with exec + browser; web access delegated to search) and **search** (web search only, no filesystem). This provides strong isolation for most deployments.
 
 This page covers an optional hardened variant: **separating exec into a dedicated computer agent** for deployments where the channel-facing agent should not have execution capability directly. This adds exec-isolation at the cost of an extra agent and configuration complexity.
 
 **What changes from the recommended 2-agent setup:**
 | | Recommended (2-agent) | Hardened (3-agent) |
 |---|---|---|
-| **Main agent** | Exec + browser + web_fetch, egress-allowlisted | No exec, no browser, no web — delegates to computer |
+| **Main agent** | Exec + browser, egress-allowlisted (web delegated to search) | No exec, no browser, no web — delegates to computer |
 | **Computer agent** | _(does not exist)_ | Exec + browser, egress-allowlisted network |
 | **Search agent** | Unchanged | Unchanged (unsandboxed in both) |
 
@@ -277,7 +277,7 @@ Starting from the [recommended 2-agent config](examples/config.md), you need to:
 | Computer denies `message` | Can't send to channels directly — results flow back through `sessions_send` |
 | Computer on `openclaw-egress` (upgraded from default `none`) | Outbound for npm/git/browser/etc., but only to allowlisted hosts |
 | Main on `network: none` (downgraded from egress-allowlisted) | Zero outbound — even if fully compromised, no exfiltration path |
-| All agents `sandbox.mode: "all"` | Every session sandboxed, not just non-main |
+| Main + computer `sandbox.mode: "all"` | Every session sandboxed (including Control UI). Differs from recommended config (`non-main`): intentional here because main has no exec/web anyway, and `all` ensures even the operator's Control UI session has no network when combined with `docker.network: "none"`. |
 
 > **Why separate browser from computer?** We don't. The computer agent has the `browser` tool directly. Since computer already has `exec` + network, it could install Playwright and run browser automation anyway — giving it the tool explicitly is honest about the threat model and avoids the security hole of running a separate browser agent on `network: host`. See [Browser Separation](#browser-separation-why-computer-gets-the-browser-tool) for the full rationale.
 

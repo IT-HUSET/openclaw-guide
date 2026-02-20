@@ -180,7 +180,7 @@
       "selfChatMode": false,
       "allowFrom": ["+46XXXXXXXXX"], // REPLACE with real number — placeholder causes silent message drops
       "groupPolicy": "allowlist",
-      "groups": { "*": { "requireMention": true } },
+      "groups": { "*": { "requireMention": true } }, // Bug #11758: broken on WhatsApp (LID transition) — use false + mentionPatterns as workaround
       "mediaMaxMb": 50,
       "debounceMs": 0
     }

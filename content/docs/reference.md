@@ -51,11 +51,11 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
 |-------|-------|
 | `group:runtime` | `exec`, `bash`, `process` |
 | `group:fs` | `read`, `write`, `edit`, `apply_patch` |
-| `group:sessions` | `sessions_list`, `sessions_history`, `sessions_send`, `sessions_spawn`, `session_status` |
+| `group:sessions` | `sessions_list`, `sessions_history`, `sessions_send`, `sessions_spawn`, `subagents`, `session_status` |
 | `group:memory` | `memory_search`, `memory_get` |
 | `group:web` | `web_search`, `web_fetch` |
 | `group:ui` | `browser`, `canvas` |
-| `group:automation` | `cron`, `gateway` |
+| `group:automation` | `cron`, `gateway` — can be used individually: deny `gateway` while keeping `cron` for conversational job management |
 | `group:messaging` | `message` |
 | `group:nodes` | `nodes` |
 | `group:openclaw` | All built-in tools |
@@ -240,11 +240,50 @@ See [Session Management](sessions.md) for the full deep-dive on session keys, li
 
 | Mode | Behavior |
 |------|----------|
-| `off` | All tools run on host |
-| `non-main` | Only non-main sessions sandboxed |
-| `all` | Everything sandboxed |
+| `off` | No sandboxing — all sessions run on host |
+| `non-main` | Only the `agent:<id>:main` session runs unsandboxed; all other sessions sandboxed |
+| `all` | Every session sandboxed |
 
-For detailed sandbox architecture, container lifecycle, and config options, see [Architecture — Docker Sandbox Architecture](architecture.md#docker-sandbox-architecture). For egress-allowlisted custom Docker networks, see [Hardened Multi-Agent](hardened-multi-agent.md).
+Any other value (e.g. `"tools"`) is **invalid** — causes config validation failure and a gateway crash loop.
+
+**What counts as "non-main":** WhatsApp DMs, group sessions, cron runs, and subagent sessions all have session keys that don't match `agent:<id>:main`. They are all sandboxed with `mode: "non-main"`. Only the Control UI / CLI main session runs unsandboxed.
+
+### Default Sandbox Tool Allow List
+
+When a session is sandboxed, a separate tool policy applies — **distinct from and in addition to** the agent-level tool policy.
+
+**Default allow:** `exec`, `process`, `read`, `write`, `edit`, `apply_patch`, `image`, `sessions_list`, `sessions_history`, `sessions_send`, `sessions_spawn`, `subagents`, `session_status`
+
+**Implicitly denied** (not in default allow): `message`, `browser`, `memory_search`, `memory_get`, `web_search`, `web_fetch`, `agents_list`
+
+The default allow list is a **closed set** — a tool not listed is denied in sandboxed sessions, even if the agent-level policy allows it.
+
+To add `message`, `browser`, or memory tools to sandboxed sessions (e.g., so a WhatsApp DM session can send to groups or access memory), override the allow list. This config goes at the global `tools` level (applies to all agents) or per-agent under `agents.list[].tools.sandbox.tools`:
+
+```json
+{
+  "tools": {
+    "sandbox": {
+      "tools": {
+        "allow": [
+          "exec", "process", "read", "write", "edit", "apply_patch", "image",
+          "sessions_list", "sessions_history", "sessions_send", "sessions_spawn",
+          "subagents", "session_status",
+          "message", "browser",
+          "memory_search", "memory_get"
+        ]
+      }
+    }
+  }
+}
+```
+
+**Gotchas:**
+- `tools.sandbox.tools.alsoAllow` does **not** work with the default policy (`mergeAlsoAllowPolicy()` requires an explicit base `allow` array). Must use `allow` with the full list.
+- `sandbox.tools` at agent level is **invalid** config. Correct path: `agents.list[].tools.sandbox.tools` (under the agent's `tools` key).
+- Verify with: `openclaw sandbox explain --agent <id> --session "<session-key>"`
+
+For sandbox architecture, container lifecycle, and config options, see [Architecture — Docker Sandbox Architecture](architecture.md#docker-sandbox-architecture).
 
 ### Sandbox Scope & Access Guide
 
@@ -254,7 +293,7 @@ Different agents need different sandbox configurations. Here's when to use each 
 |----------|---------|-------------------|--------|-----------|
 | Channel agents (whatsapp, signal) | `agent` | `rw` | `non-main` | Need workspace for memory writes; sandbox provides network isolation |
 | Search agent | — | — | `off` | No filesystem tools; tool policy provides isolation. Unsandboxed to avoid [#9857](https://github.com/openclaw/openclaw/issues/9857) |
-| Main agent ([recommended](examples/config.md)) | `agent` | `rw` | `all` | Full exec + browser + web_fetch, `network: "openclaw-egress"` with [egress allowlisting](hardened-multi-agent.md) |
+| Main agent ([recommended](examples/config.md)) | `agent` | `rw` | `non-main` | Channel sessions sandboxed on `network: "openclaw-egress"`; Control UI session on host (operator trusted). See [egress allowlisting](hardened-multi-agent.md) |
 | Main agent (unsandboxed) | — | — | `off` | Operator interface; full host access (no Docker isolation) |
 | Computer (optional [hardened variant](hardened-multi-agent.md)) | `agent` | `rw` | `all` | Separate exec + browser agent, `network: "openclaw-egress"` |
 | Ephemeral tasks | `session` | `none` | `all` | Container destroyed when session ends; no persistent state |
@@ -299,6 +338,57 @@ OpenClaw applies tool restrictions in an 8-layer cascade:
 | 8 | Subagent tool policy | `tools.subagents.tools` |
 
 **Critical:** Global deny (layer 3) overrides agent-level allow (layer 5). A tool in `tools.deny` **cannot** be re-enabled by an agent's `tools.allow`. For tools needed by some agents but not others (e.g., `web_search` for a search agent), deny per-agent instead of globally. See [Phase 5](phases/phase-5-web-search.md) for the correct isolation pattern.
+
+**HTTP API tool restrictions:** When sessions are created via the HTTP API (`/api/v1/chat/completions`), OpenClaw additionally denies `sessions_spawn`, `sessions_send`, `gateway`, and `whatsapp_login` — regardless of agent tool policy. This is a platform-level safety fence for external API callers. It does not apply to embedded agent sessions (session key `agent:<id>:main`). Override with `gateway.tools.allow` if needed.
+
+---
+
+## Cron Jobs
+
+### `sessionTarget`
+
+Controls how the cron job executes.
+
+| Value | Behavior |
+|-------|----------|
+| `"isolated"` | Fresh throwaway session per run. Agent receives a prompt, executes it, returns a response. Supports channel delivery via `delivery`. |
+| `"main"` | Injects a short event into the agent's existing main session (`agent:<id>:main`). Appended to the ongoing conversation — agent has full prior context. Only supports `delivery.mode: "webhook"`. |
+
+Use `"isolated"` for tasks ("search for news and write a report") — each run starts clean. Session key: `agent:main:cron:<job-id>:run:<uuid>`.
+
+Use `"main"` for reminders and nudges ("you have a meeting in 10 minutes") — the event lands in the agent's running session with full context. Requires `payload.kind: "systemEvent"` with a `text` field.
+
+### `wakeMode`
+
+| Value | Behavior |
+|-------|----------|
+| `"now"` | Triggers an immediate heartbeat — job runs right away |
+| `"next-heartbeat"` | Queues for the agent's next scheduled heartbeat cycle |
+
+With `heartbeat.every: "30m"`, `"next-heartbeat"` can delay up to 30 minutes. Use `"now"` for time-sensitive jobs; `"next-heartbeat"` for jobs where a delay is acceptable.
+
+### `delivery`
+
+| Mode | Behavior |
+|------|----------|
+| `"announce"` | Agent's final response delivered to a channel. Requires `delivery.to` (e.g. WhatsApp group JID). Agent can reply `ANNOUNCE_SKIP` to suppress. |
+| `"none"` | Job runs silently — no delivery. |
+| `"webhook"` | POST result to an HTTP URL. Works with both `isolated` and `main`. |
+
+When `delivery` is configured on isolated jobs, the runtime appends delivery instructions and **disables the `message` tool** (`disableMessageTool: true`) to prevent duplicate sends. The agent should not call `message` directly — the runtime delivers the final response automatically.
+
+`delivery.bestEffort: true` — suppresses errors if delivery fails (e.g. WhatsApp disconnected).
+
+### Cron and `group:automation`
+
+`group:automation` expands to `["cron", "gateway"]`. These can be allowed/denied individually:
+
+```json
+{ "deny": ["gateway"] }          // deny gateway only — keeps cron for conversational job management
+{ "allow": [..., "cron"] }       // allow cron explicitly in an allowlist config
+```
+
+Alternatives to the `cron` tool for job management: Control UI (web), `openclaw cron create/list/edit` CLI, or direct edit of `cron/jobs.json`.
 
 ---
 
@@ -357,69 +447,75 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 
 4. **Global `deny` overrides agent-level `allow`** — a tool in `tools.deny` cannot be re-enabled at the agent level. For tools needed by some agents (e.g., `web_search`), deny per-agent instead of globally.
 
-5. **`group:ui` deny includes `browser`** — if an agent allows `browser` but denies `group:ui`, browser is silently disabled. Deny `canvas` individually instead when browser should remain available.
+5. **`profile: "full"` means no restrictions** — `tools.profile: "full"` expands to an empty allow/deny set, bypassing all profile-level filtering entirely. Unlike `"coding"` (which includes a curated allow list), `"full"` is a footgun: every tool is reachable unless explicitly denied. Prefer explicit `tools.allow` lists over `"full"` when you need broad access.
 
-6. **`exec` allowlists don't catch shell builtins** — allowlists match resolved binary paths only. Shell builtins (`cd`, `export`, `source`) bypass the check entirely. `echo` is both a shell builtin and a standalone binary (`/bin/echo`) — behavior differs between them, and the builtin version varies by shell. If this matters, deny `exec` at the agent level.
+6. **`group:ui` deny includes `browser`** — if an agent allows `browser` but denies `group:ui`, browser is silently disabled. Deny `canvas` individually instead when browser should remain available.
+
+7. **`exec` allowlists don't catch shell builtins** — allowlists match resolved binary paths only. Shell builtins (`cd`, `export`, `source`) bypass the check entirely. `echo` is both a shell builtin and a standalone binary (`/bin/echo`) — behavior differs between them, and the builtin version varies by shell. If this matters, deny `exec` at the agent level.
 
 ### Agents & Sessions
 
-7. **Never share `agentDir` between agents** — causes auth collisions and session corruption.
+8. **Never share `agentDir` between agents** — causes auth collisions and session corruption.
 
-8. **`MEMORY.md` loads in main sessions only** (not groups or shared contexts) — don't put security-critical instructions there.
+9. **`MEMORY.md` loads in main sessions only** (not groups or shared contexts) — don't put security-critical instructions there.
 
-9. **Binding precedence is most-specific wins** — a peer-level binding beats a channel-level one.
+10. **Binding precedence is most-specific wins** — a peer-level binding beats a channel-level one.
 
-10. **`elevated` mode is per-session, not permanent** — but `tools.elevated.enabled: false` blocks it globally.
+11. **`elevated` mode is per-session, not permanent** — but `tools.elevated.enabled: false` blocks it globally.
 
-11. **Session transcripts contain full message history and tool output** — treat them as sensitive. Prune regularly if retention isn't needed.
+12. **Session transcripts contain full message history and tool output** — treat them as sensitive. Prune regularly if retention isn't needed.
 
 ### Channels
 
-12. **Signal linked devices see everything** — the primary phone gets all bot messages. No filtering possible.
+13. **Signal linked devices see everything** — the primary phone gets all bot messages. No filtering possible.
 
-13. **`pairing` codes expire after 1 hour** with max 3 pending per channel.
+14. **`pairing` codes expire after 1 hour** with max 3 pending per channel.
 
-14. **`requireMention` must be inside the `groups` object, not at channel root** — placing it at `channels.whatsapp.requireMention` causes a Zod validation error. Correct: `channels.whatsapp.groups: { "*": { requireMention: true } }`. On Signal, also configure `mentionPatterns` in `agents.list[].groupChat.mentionPatterns` (no native @mention support). On Google Chat, set `botUser` in the channel config for reliable mention detection in spaces.
+15. **`requireMention` must be inside the `groups` object, not at channel root** — placing it at `channels.whatsapp.requireMention` causes a Zod validation error. Correct: `channels.whatsapp.groups: { "*": { requireMention: true } }`. On Signal, also configure `mentionPatterns` in `agents.list[].groupChat.mentionPatterns` (no native @mention support). On Google Chat, set `botUser` in the channel config for reliable mention detection in spaces.
 
-15. **Google Chat DMs ignore agent bindings** ([#9198](https://github.com/openclaw/openclaw/issues/9198)) — DMs always route to the default agent regardless of `bindings` config. Space (group) routing works correctly. Critical for multi-agent setups.
+16. **Google Chat DMs ignore agent bindings** ([#9198](https://github.com/openclaw/openclaw/issues/9198)) — DMs always route to the default agent regardless of `bindings` config. Space (group) routing works correctly. Critical for multi-agent setups.
 
-16. **Google Chat requires both channel config and plugin** — missing either `channels.googlechat` or `plugins.entries.googlechat.enabled: true` causes a 405 error on the webhook endpoint.
+17. **Google Chat requires both channel config and plugin** — missing either `channels.googlechat` or `plugins.entries.googlechat.enabled: true` causes a 405 error on the webhook endpoint.
 
-17. **Google Chat per-space rate limit is 60/min** (1 write/sec) — the 600/min figure in some documentation applies only to data import operations, not normal messaging.
+18. **Google Chat per-space rate limit is 60/min** (1 write/sec) — the 600/min figure in some documentation applies only to data import operations, not normal messaging.
 
-18. **Placeholder `allowFrom` values cause silent message drops** — `allowFrom: ["+46XXXXXXXXX"]` or any non-matching number silently drops all incoming messages with no error or log warning. Always replace placeholders with real phone numbers.
+19. **Placeholder `allowFrom` values cause silent message drops** — `allowFrom: ["+46XXXXXXXXX"]` or any non-matching number silently drops all incoming messages with no error or log warning. Always replace placeholders with real phone numbers.
 
-19. **Empty env vars cause config validation failure** — `${BRAVE_API_KEY}` as an empty string triggers `EX_CONFIG` (exit 78). Use a non-empty placeholder like `"not-configured"` for optional keys not yet provisioned.
+20. **Empty env vars cause config validation failure** — `${BRAVE_API_KEY}` as an empty string triggers `EX_CONFIG` (exit 78). Use a non-empty placeholder like `"not-configured"` for optional keys not yet provisioned.
 
 ### Sandbox & Docker
 
-20. **Sandbox image must be built before use** — the default `openclaw-sandbox:bookworm-slim` is raw `debian:bookworm-slim` with no packages. Run `cd $(npm root -g)/openclaw && ./scripts/sandbox-setup.sh` before enabling Docker sandboxing. Without this, all exec calls inside the sandbox fail (`sh: 1: git: not found`).
+21. **Sandbox tool policy is a separate layer from agent tool policy** — even if an agent allows `message` or `browser`, those tools are blocked in sandboxed sessions unless explicitly listed in `tools.sandbox.tools.allow`. The default sandbox allow list does not include `message`, `browser`, `memory_search`, `memory_get`, or `web_fetch`. WhatsApp DM sessions (and all non-main sessions) are sandboxed with `mode: "non-main"` or `"all"`. Use `tools.sandbox.tools.allow` with the full list including any tools your sandboxed sessions need. `alsoAllow` does not work with the default policy — must specify the complete `allow` list.
 
-21. **`exec host not allowed` when sandboxed** — with `sandbox.mode: "all"`, exec calls that target the gateway host fail with `exec host not allowed (requested gateway; configure tools.exec.host=sandbox to allow)`. Add `"tools": { "exec": { "host": "sandbox" } }` to the agent config to route exec to the sandbox by default. Host-level tasks (cron, gateway control) need an unsandboxed agent — see the [local admin agent pattern](phases/phase-6-deployment.md#optional-local-admin-agent).
+22. **Sandbox image must be built before use** — the default `openclaw-sandbox:bookworm-slim` is raw `debian:bookworm-slim` with no packages. Run `cd $(npm root -g)/openclaw && ./scripts/sandbox-setup.sh` before enabling Docker sandboxing. Without this, all exec calls inside the sandbox fail (`sh: 1: git: not found`).
 
-22. **Sandbox `network: "none"` blocks package installs** — `setupCommand` requires `network: "bridge"` and `readOnlyRoot: false`, which weakens sandbox isolation. Prefer [custom images](custom-sandbox-images.md) for production — tools are pre-installed, so secure defaults are preserved.
+23. **`exec host not allowed` when sandboxed** — exec calls targeting the gateway host fail with `exec host not allowed (requested gateway; configure tools.exec.host=sandbox to allow)`. Add `"tools": { "exec": { "host": "sandbox" } }` to route exec to the sandbox container by default. With `mode: "non-main"` (recommended), this only affects sandboxed sessions (channel DMs/groups/cron) — the Control UI session runs on host and exec goes to host naturally. With `mode: "all"`, the Control UI session is also sandboxed and all exec calls hit this. Prefer `mode: "non-main"` — the operator's Control UI session should run on host.
 
-23. **Bind mounts pierce sandbox filesystem** — always use `:ro` suffix. Never bind `docker.sock`.
+24. **Sandbox `network: "none"` blocks package installs** — `setupCommand` requires `network: "bridge"` and `readOnlyRoot: false`, which weakens sandbox isolation. Prefer [custom images](custom-sandbox-images.md) for production — tools are pre-installed, so secure defaults are preserved.
+
+25. **Bind mounts pierce sandbox filesystem** — always use `:ro` suffix. Never bind `docker.sock`.
 
 ### Cron
 
-24. **`--announce` (delivery mode) requires a channel** — creating a cron job with `openclaw cron add --announce` but no `--channel` succeeds at creation time, but every run fails at the delivery step with `cron delivery target is missing`. The error repeats every run and clutters logs. Always pair `--announce` with `--channel <whatsapp|signal>` (and a peer if required by your dmPolicy). If there is nothing to report, have the agent reply `ANNOUNCE_SKIP` to suppress delivery.
+26. **`delivery.to` not `delivery.target`** — the cron delivery destination field is `delivery.to` (e.g. a WhatsApp group JID). The field `delivery.target` does not exist — using it silently delivers to the wrong destination (DM instead of group). Always use `delivery.to`.
+
+27. **`--announce` (delivery mode) requires a channel** — creating a cron job with `openclaw cron add --announce` but no `--channel` succeeds at creation time, but every run fails at the delivery step with `cron delivery target is missing`. The error repeats every run and clutters logs. Always pair `--announce` with `--channel <whatsapp|signal>` (and a peer if required by your dmPolicy). If there is nothing to report, have the agent reply `ANNOUNCE_SKIP` to suppress delivery.
 
 ### Config & Gateway
 
-25. **`gateway.mode` is required** — the gateway refuses to start unless `gateway.mode: "local"` is set in config. Use `--allow-unconfigured` for ad-hoc/dev runs.
+28. **`gateway.mode` is required** — the gateway refuses to start unless `gateway.mode: "local"` is set in config. Use `--allow-unconfigured` for ad-hoc/dev runs.
 
-26. **Config validation is strict** — unknown keys, malformed types, or invalid values cause the gateway to refuse to start. Run `openclaw doctor` to diagnose.
+29. **Config validation is strict** — unknown keys, malformed types, or invalid values cause the gateway to refuse to start. Run `openclaw doctor` to diagnose.
 
-27. **Environment variable substitution only matches `[A-Z_][A-Z0-9_]*`** — lowercase vars won't resolve. Missing vars throw errors at config load.
+30. **Environment variable substitution only matches `[A-Z_][A-Z0-9_]*`** — lowercase vars won't resolve. Missing vars throw errors at config load.
 
-28. **`openclaw gateway stop/restart` works with LaunchAgent but not LaunchDaemon** — OpenClaw's built-in gateway commands (`openclaw gateway stop`, `openclaw gateway restart`) manage LaunchAgents (`gui/<uid>` domain) and systemd user services. The default LaunchAgent setup works with these commands. If you use the hardened **LaunchDaemon** alternative (`system` domain) or systemd **system** service, these commands won't find it — use `launchctl bootout`/`bootstrap` or `systemctl restart` directly. Additionally, `KeepAlive: true` (launchd) or `Restart=always` (systemd) causes the service manager to immediately respawn a killed process, which can race with OpenClaw's own restart logic.
+31. **`openclaw gateway stop/restart` works with LaunchAgent but not LaunchDaemon** — OpenClaw's built-in gateway commands (`openclaw gateway stop`, `openclaw gateway restart`) manage LaunchAgents (`gui/<uid>` domain) and systemd user services. The default LaunchAgent setup works with these commands. If you use the hardened **LaunchDaemon** alternative (`system` domain) or systemd **system** service, these commands won't find it — use `launchctl bootout`/`bootstrap` or `systemctl restart` directly. Additionally, `KeepAlive: true` (launchd) or `Restart=always` (systemd) causes the service manager to immediately respawn a killed process, which can race with OpenClaw's own restart logic.
 
 ### Plugins
 
-29. **Plugin changes require a gateway restart** — plugin source files (`.ts`) are loaded at startup. Config hot-reload does NOT reload plugins. After updating a plugin in `~/.openclaw/extensions/`, restart the gateway.
+32. **Plugin changes require a gateway restart** — plugin source files (`.ts`) are loaded at startup. Config hot-reload does NOT reload plugins. After updating a plugin in `~/.openclaw/extensions/`, restart the gateway.
 
-30. **Broken tool results poison session history** — if a plugin returns malformed content blocks (wrong format, missing fields), the broken entry persists in the session `.jsonl` file. Every subsequent message replays it, causing the same error even after the plugin is fixed. **Fix:** delete the affected session file. Identify it by grepping for the error pattern, then remove:
+33. **Broken tool results poison session history** — if a plugin returns malformed content blocks (wrong format, missing fields), the broken entry persists in the session `.jsonl` file. Every subsequent message replays it, causing the same error even after the plugin is fixed. **Fix:** delete the affected session file. Identify it by grepping for the error pattern, then remove:
 
     ```bash
     # Find sessions with broken image blocks (example)
@@ -427,25 +523,25 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
     # Delete the affected session file — next message creates a fresh one
     ```
 
-31. **Image content blocks are model-visible only** — tool result image blocks let the LLM see the image but are NOT forwarded as media to channels. To deliver images via WhatsApp/Signal/Google Chat, include a `MEDIA:<path>` directive in a text content block. OpenClaw's `splitMediaFromOutput()` scans text for these directives and attaches matching files as media.
+34. **Image content blocks are model-visible only** — tool result image blocks let the LLM see the image but are NOT forwarded as media to channels. To deliver images via WhatsApp/Signal/Google Chat, include a `MEDIA:<path>` directive in a text content block. OpenClaw's `splitMediaFromOutput()` scans text for these directives and attaches matching files as media.
 
-32. **OpenClaw uses a flat image content block format** — `{type: "image", data: "<base64>", mimeType: "image/png"}`. This differs from the Anthropic API format (`{type: "image", source: {type: "base64", media_type, data}}`). Plugins must use the flat format; OpenClaw converts to API format before sending to the LLM.
+35. **OpenClaw uses a flat image content block format** — `{type: "image", data: "<base64>", mimeType: "image/png"}`. This differs from the Anthropic API format (`{type: "image", source: {type: "base64", media_type, data}}`). Plugins must use the flat format; OpenClaw converts to API format before sending to the LLM.
 
-33. **`plugins.allow` and `enabled: false` are independent checks** — both must pass for a plugin to load. A plugin in `plugins.allow` with `"enabled": false` is fully blocked: the file is never imported, `register()` is never called. Check precedence: `deny` → `allow` → `enabled`. You can safely pre-populate `plugins.allow` with trusted plugin IDs and control which ones actually load via `enabled`.
+36. **`plugins.allow` and `enabled: false` are independent checks** — both must pass for a plugin to load. A plugin in `plugins.allow` with `"enabled": false` is fully blocked: the file is never imported, `register()` is never called. Check precedence: `deny` → `allow` → `enabled`. You can safely pre-populate `plugins.allow` with trusted plugin IDs and control which ones actually load via `enabled`.
 
-34. **Plugin tools are available by default** — enabling a plugin that registers tools (image-gen → `generate_image`, computer-use → `vm_*`) makes those tools callable by any agent not blocking them. Agents using `tools.allow` are safe (unlisted tools are blocked). Agents using only `tools.deny` must explicitly deny plugin tools they shouldn't have.
+37. **Plugin tools are available by default** — enabling a plugin that registers tools (image-gen → `generate_image`, computer-use → `vm_*`) makes those tools callable by any agent not blocking them. Agents using `tools.allow` are safe (unlisted tools are blocked). Agents using only `tools.deny` must explicitly deny plugin tools they shouldn't have.
 
-35. **Plugin-generated temp files accumulate** — plugins that save images via `MEDIA:` pattern write to `$TMPDIR`. macOS clears `/tmp` on reboot, but long-running servers accumulate files. Consider a cron job: `find /tmp/openclaw-image-gen -mtime +1 -delete`.
+38. **Plugin-generated temp files accumulate** — plugins that save images via `MEDIA:` pattern write to `$TMPDIR`. macOS clears `/tmp` on reboot, but long-running servers accumulate files. Consider a cron job: `find /tmp/openclaw-image-gen -mtime +1 -delete`.
 
 ### Memory
 
-36. **Remote memory search providers need a separate API key** — the embedding key (e.g., `OPENAI_API_KEY` for OpenAI embeddings) is not the same as your AI provider key (`ANTHROPIC_API_KEY`). Both must be set.
+39. **Remote memory search providers need a separate API key** — the embedding key (e.g., `OPENAI_API_KEY` for OpenAI embeddings) is not the same as your AI provider key (`ANTHROPIC_API_KEY`). Both must be set.
 
-37. **Local memory search requires native build approval** — run `npx pnpm approve-builds` then `npx pnpm rebuild node-llama-cpp` (from the OpenClaw install directory). Without this, `memory_search` falls back to a remote provider (if configured) or returns no results.
+40. **Local memory search requires native build approval** — run `npx pnpm approve-builds` then `npx pnpm rebuild node-llama-cpp` (from the OpenClaw install directory). Without this, `memory_search` falls back to a remote provider (if configured) or returns no results.
 
-38. **Memory search auto-reindexes on provider/model change** — OpenClaw tracks the embedding provider, model, and chunking params in the index. Changing any of these triggers an automatic reindex. Run `openclaw memory index` to force an immediate rebuild.
+41. **Memory search auto-reindexes on provider/model change** — OpenClaw tracks the embedding provider, model, and chunking params in the index. Changing any of these triggers an automatic reindex. Run `openclaw memory index` to force an immediate rebuild.
 
-39. **Daily memory files are auto-loaded for today + yesterday only** — older files are only accessible via `memory_search`. If search isn't configured, the agent can't recall anything beyond yesterday.
+42. **Daily memory files are auto-loaded for today + yesterday only** — older files are only accessible via `memory_search`. If search isn't configured, the agent can't recall anything beyond yesterday.
 
 ---
 

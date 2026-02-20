@@ -63,6 +63,21 @@
     // Disable elevated mode — prevents sandbox escape
     "elevated": { "enabled": false },
 
+    // Sandbox tool policy — the default allow list excludes message and memory tools.
+    // WhatsApp DMs and all non-main sessions are sandboxed with mode:"non-main".
+    // alsoAllow does NOT work with the default policy — must provide the full allow list.
+    "sandbox": {
+      "tools": {
+        "allow": [
+          "exec", "process", "read", "write", "edit", "apply_patch", "image",
+          "sessions_list", "sessions_history", "sessions_send", "sessions_spawn",
+          "subagents", "session_status",
+          "message",
+          "memory_search", "memory_get"
+        ]
+      }
+    },
+
     // Web search provider config (accessible only to agents that allow the tool)
     "web": {
       "search": {
@@ -160,7 +175,7 @@
         "default": true,
         "workspace": "/Users/openclaw/.openclaw/workspaces/main",
         "tools": {
-          "deny": ["web_search", "web_fetch", "browser"]
+          "deny": ["web_search", "web_fetch", "browser", "nodes"]
         },
         "subagents": { "allowAgents": ["search"] }
       },
@@ -197,7 +212,7 @@
       "selfChatMode": false,
       "allowFrom": ["+46XXXXXXXXX"], // REPLACE with real number — placeholder causes silent message drops
       "groupPolicy": "allowlist",
-      "groups": { "*": { "requireMention": true } },
+      "groups": { "*": { "requireMention": true } }, // Bug #11758: broken on WhatsApp (LID transition) — use false + mentionPatterns as workaround
       "mediaMaxMb": 50,
       "debounceMs": 0
     }

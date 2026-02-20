@@ -203,7 +203,7 @@ Picks up topics from `research-queue.md` every Monday and researches them autono
     kind: "agentTurn",
     message: "Process the research queue. Check knowledge/research-queue.md for pending topics. For each pending item: research it thoroughly using web search (delegate to search agent), write findings to the appropriate knowledge/ subdirectory, update research-log.md, and mark the item completed in the queue. Send me a summary of what you researched and key findings."
   },
-  delivery: { mode: "channel", channel: "whatsapp" }
+  delivery: { mode: "announce", channel: "whatsapp" }
 }
 ```
 
@@ -221,7 +221,7 @@ Reviews vault entries for staleness and refreshes the 3 most outdated (>30 days 
     kind: "agentTurn",
     message: "Run a knowledge vault freshness check. Scan files in knowledge/ for STALE markers and for entries where 'Last researched' is older than 30 days. Pick the 3 most outdated entries and refresh them: search the web for current information, update the files with new findings (keep the old research for history), and remove STALE markers. Send me a summary of what was refreshed and what changed."
   },
-  delivery: { mode: "channel", channel: "whatsapp" }
+  delivery: { mode: "announce", channel: "whatsapp" }
 }
 ```
 
@@ -239,7 +239,7 @@ Searches for breaking news on topics you're tracking. Edit the message with your
     kind: "agentTurn",
     message: "Check for notable developments on my tracked topics. Search the web for recent news (last 7 days) on: [EDIT: list your topics here, e.g. 'home automation Matter standard', 'solar panel inverter technology', 'OpenClaw releases']. Only report if there's something genuinely new — no updates = no message. If you find something notable, update the relevant knowledge/ file and send me a brief alert with what changed and why it matters."
   },
-  delivery: { mode: "channel", channel: "whatsapp" }
+  delivery: { mode: "announce", channel: "whatsapp" }
 }
 ```
 
@@ -257,7 +257,7 @@ Checks pricing for products tagged `[TRACK-PRICE]` in vault files. Alerts on dro
     kind: "agentTurn",
     message: "Check prices for products tagged [TRACK-PRICE] in knowledge/products/. For each, search the web for current pricing, compare to the price recorded in the file, and update the file. Only message me if a price dropped more than 15% or if a product is newly on sale. Include the old price, new price, and where to buy."
   },
-  delivery: { mode: "channel", channel: "whatsapp" }
+  delivery: { mode: "announce", channel: "whatsapp" }
 }
 ```
 

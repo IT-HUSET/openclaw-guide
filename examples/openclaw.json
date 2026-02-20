@@ -73,6 +73,22 @@
     // Disable elevated mode globally — prevents sandbox escape
     "elevated": { "enabled": false },
 
+    // Sandbox tool policy — the default allow list excludes message, browser, and memory tools.
+    // WhatsApp DMs and all non-main sessions are sandboxed even with mode:"non-main".
+    // alsoAllow does NOT work with the default policy — must provide the full allow list.
+    // Verify: openclaw sandbox explain --agent <id> --session "<session-key>"
+    "sandbox": {
+      "tools": {
+        "allow": [
+          "exec", "process", "read", "write", "edit", "apply_patch", "image",
+          "sessions_list", "sessions_history", "sessions_send", "sessions_spawn",
+          "subagents", "session_status",
+          "message", "browser",
+          "memory_search", "memory_get"
+        ]
+      }
+    },
+
     // Web search provider config (accessible only to agents that allow web_search)
     "web": {
       "search": {
@@ -160,8 +176,9 @@
     "list": [
       {
         // MAIN AGENT — channel-facing, full exec + browser on egress-allowlisted network
-        // Sandboxed with Docker on openclaw-egress — outbound restricted to pre-approved hosts.
-        // Has exec, browser, and filesystem tools. Denies web_search (delegated to search).
+        // mode:"non-main" — Control UI/HTTP API session runs on host (operator trusted);
+        // all channel sessions (WhatsApp DMs, groups, cron) sandboxed in Docker on openclaw-egress.
+        // web_search and web_fetch denied — all web content goes through search agent + content-guard.
         // IMPORTANT: Create network FIRST: docker network create openclaw-egress
         // Gateway startup will fail if network doesn't exist.
         // See scripts/network-egress/ for egress allowlisting setup.
@@ -170,8 +187,8 @@
         "workspace": "/Users/openclaw/.openclaw/workspaces/main",
         "agentDir": "/Users/openclaw/.openclaw/agents/main/agent",
         "tools": {
-          "allow": ["group:runtime", "group:fs", "group:sessions", "memory_search", "memory_get", "message", "browser", "web_fetch"],
-          "deny": ["web_search", "canvas", "group:automation"],
+          "allow": ["group:runtime", "group:fs", "group:sessions", "memory_search", "memory_get", "message", "browser"],
+          "deny": ["web_search", "web_fetch", "canvas", "group:automation"],
           "elevated": { "enabled": false }
         },
         "subagents": { "allowAgents": ["search"] },
@@ -180,7 +197,7 @@
           "mentionPatterns": ["@openclaw", "hey openclaw"]
         },
         "sandbox": {
-          "mode": "all",
+          "mode": "non-main",
           "scope": "agent",
           "workspaceAccess": "rw",
           "docker": { "network": "openclaw-egress" }
@@ -203,25 +220,6 @@
         },
         "subagents": { "allowAgents": [] }
       }
-
-      // --- OPTIONAL: Local admin agent (host management) ---
-      // Unsandboxed agent for cron jobs, service management, workspace file updates,
-      // and host-level tasks. Shares main's workspace for consistent personality/context.
-      // Only reachable via Control UI — no channel binding, no agent delegation path.
-      // Uncomment to enable. Create agentDir before starting.
-      //
-      // ,{
-      //   "id": "local-admin",
-      //   "workspace": "/Users/openclaw/.openclaw/workspaces/main",
-      //   "agentDir": "/Users/openclaw/.openclaw/agents/local-admin/agent",
-      //   "tools": {
-      //     "allow": ["group:fs", "group:runtime", "group:automation", "memory_search", "memory_get"],
-      //     "deny": ["group:web", "browser", "message"],
-      //     "elevated": { "enabled": false }
-      //   },
-      //   "subagents": { "allowAgents": [] }
-      //   // No sandbox block — runs directly on host as openclaw user
-      // }
 
       // --- OPTIONAL: Dedicated channel agents (defense-in-depth) ---
       // Uncomment to route channels to restricted agents instead of main.
@@ -283,7 +281,7 @@
       "selfChatMode": false,
       "allowFrom": ["+46XXXXXXXXX"], // REPLACE with real number — placeholder causes silent message drops
       "groupPolicy": "allowlist",
-      "groups": { "*": { "requireMention": true } },
+      "groups": { "*": { "requireMention": true } }, // Bug #11758: broken on WhatsApp (LID transition) — use false + mentionPatterns as workaround
       "mediaMaxMb": 50,
       "debounceMs": 0
     },

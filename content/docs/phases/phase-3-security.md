@@ -331,6 +331,7 @@ Restrict access to sensitive files:
 
 ```bash
 chmod 700 ~/.openclaw
+chmod 700 ~/.openclaw/*/          # Subdirectories default to 755 — tighten to 700
 chmod 600 ~/.openclaw/openclaw.json
 chmod 600 ~/.openclaw/agents/*/agent/auth-profiles.json
 chmod -R 600 ~/.openclaw/credentials/whatsapp/default/*

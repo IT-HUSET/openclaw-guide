@@ -186,7 +186,7 @@ Evaluate each area using the collected data:
 - [ ] Service setup matches claimed posture (Docker, VM, or guard-plugin-only)
 - [ ] Secrets stored in plist `EnvironmentVariables` or `/etc/openclaw/secrets.env` — not in shell rc files, not hardcoded in config
 - [ ] If Docker: `openclaw-egress` network exists with outbound restrictions
-- [ ] If Docker: main agent has `sandbox.mode: "all"` and `network: "openclaw-egress"`
+- [ ] If Docker: main agent has `sandbox.mode: "non-main"` and `network: "openclaw-egress"`
 - [ ] If Docker: no bind mounts to sensitive host paths, no `--network host`
 - [ ] If VM (macOS): gateway runs inside a dedicated VM, not on the host; VM user is non-admin with auto-login
 - [ ] If VM (Linux): Docker inside the VM has egress restrictions (`openclaw-egress` network); VM user is in `docker` group with no `sudo`

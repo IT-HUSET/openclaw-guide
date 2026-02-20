@@ -218,7 +218,6 @@ describe("plugin before_tool_call", () => {
           list: [
             { id: "main", default: true },
             { id: "search" },
-            { id: "local-admin" },
           ],
         },
         plugins: {
