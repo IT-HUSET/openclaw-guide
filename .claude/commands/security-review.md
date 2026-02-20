@@ -128,6 +128,7 @@ Evaluate each area using the collected data:
 ### 1. Version & Known Vulnerabilities
 - [ ] Version ≥ 2026.1.29 (Control UI token CVE — critical, update immediately if not)
 - [ ] Version ≥ 2026.2.16 (XSS hardening, workspace path sanitization, dangerous Docker config rejection)
+- [ ] Version ≥ 2026.2.19 (gateway auth auto-generation, plugin/hook path containment, IPv6 SSRF hardening)
 - [ ] Version compared against guide baseline (`.guide-version`)
 
 ### 2. Security Baseline (Phase 3)

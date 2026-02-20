@@ -10,8 +10,12 @@ Review and implement any necessary updates to this documentation guide based on 
 1. Read `.changelog-diff.md` — these are new OpenClaw release notes since the last reviewed version.
 2. Read `CLAUDE.md` for guide structure and content descriptions.
 3. For each release entry, determine if it affects any documented content (see criteria below).
-4. For entries that affect the guide, spot-check the relevant doc files to understand current content, then make the necessary edits directly. Only edit files under `content/docs/`, `examples/`, `scripts/`, or `.guide-version` — do not touch `.github/`, `extensions/`, `CLAUDE.md`, or any infrastructure/config files.
+4. For entries that affect the guide, spot-check the relevant doc files to understand current content, then make the necessary edits directly. Only edit files under `content/docs/`, `examples/`, `scripts/`, `.claude/commands/`, or `.guide-version` — do not touch `.github/`, `extensions/`, `CLAUDE.md`, or any other infrastructure/config files.
 5. Update `.guide-version` to `{{NEW_VERSION}}` (always, whether or not content changes were made).
+6. Always update these version references to `{{NEW_VERSION}}` as mechanical housekeeping (regardless of content changes):
+   - `content/docs/_index.md` — the "last reviewed against **OpenClaw X.Y.Z**" callout
+   - `content/docs/hardened-multi-agent.md` — the "OpenClaw X.Y.Z+ recommended (guide baseline version)" prerequisite line
+   - If the release includes security fixes: add a new `- [ ] Version ≥ {{NEW_VERSION}} (…)` checklist item to `.claude/commands/security-review.md` under "Version & Known Vulnerabilities", describing the relevant security changes in ≤ 10 words
 
 ## What affects the guide
 

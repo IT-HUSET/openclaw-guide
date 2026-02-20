@@ -4,7 +4,7 @@
 
 # OpenClaw Guide
 
-A pragmatic, security-first guide to [OpenClaw](https://docs.openclaw.ai) — the AI agent platform that connects LLMs to messaging channels (WhatsApp, Signal, Slack, etc.) with tools, memory, and multi-agent routing.
+A pragmatic, security-first guide to [OpenClaw](https://docs.openclaw.ai) — the AI agent platform that connects LLMs to messaging channels (WhatsApp, Signal, Slack, etc.) with tools, memory, and multi-agent routing. Aims to be a cleaner on-ramp than the official docs, with a stronger focus on security hardening. OpenClaw is evolving rapidly — this guide may lag behind or contain inaccuracies. When in doubt, check the [official docs](https://docs.openclaw.ai).
 
 **Live site:** [IT-HUSET.github.io/openclaw-guide](https://IT-HUSET.github.io/openclaw-guide/)
 

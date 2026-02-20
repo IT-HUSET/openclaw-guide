@@ -6,7 +6,7 @@ cascade:
 ---
 
 {{< callout type="info" >}}
-This guide was last reviewed against **OpenClaw 2026.2.14**. If you're running a newer version, some details may have changed — check the [changelog](https://github.com/openclaw/openclaw/blob/main/CHANGELOG.md).
+This guide was last reviewed against **OpenClaw 2026.2.19**. If you're running a newer version, some details may have changed — check the [changelog](https://github.com/openclaw/openclaw/blob/main/CHANGELOG.md).
 {{< /callout >}}
 
 Start with [Phase 1]({{< relref "phases/phase-1-getting-started" >}}) and work through each phase in order — each builds on the previous.

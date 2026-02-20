@@ -66,7 +66,7 @@ Primarily documentation (Markdown + annotated JSON config examples), plus TypeSc
 - **VM: Linux VMs:** single Linux VM with Docker inside, dedicated user (docker group, no sudo), multi-agent gateway. macOS or Linux hosts. No VM count limit
 - **Multi-gateway options:** profiles (`--profile` flag, simplest), multi-user (separate OS users), VM variants (one VM per channel)
 - Official docs: https://docs.openclaw.ai
-- **Guide baseline version:** stored in `.guide-version` (currently 2026.2.14). The changelog review workflow (`.github/workflows/changelog-review.yml`) runs weekly to detect drift
+- **Guide baseline version:** stored in `.guide-version` (currently 2026.2.19). The changelog review workflow (`.github/workflows/changelog-review.yml`) runs weekly to detect drift
 
 ## Testing
 
@@ -180,7 +180,12 @@ When updating the guide for a new OpenClaw version:
 2. For each entry, check: does it change config options, CLI flags, behavior, or security posture documented in the guide?
 3. Update affected docs
 4. Bump `.guide-version` to the reviewed version
-5. Check "Pending Cleanup" below for version-gated TODOs that may now be resolved
+5. Update the version string in these files to match the new `.guide-version` (always, regardless of content changes):
+   - `content/docs/_index.md` — "last reviewed against" callout
+   - `content/docs/hardened-multi-agent.md` — "guide baseline version" prerequisite line
+   - `CLAUDE.md` — "Guide baseline version: stored in `.guide-version` (currently ...)" in Key Context
+   - `.claude/commands/security-review.md` — add a new "Version ≥ X" checklist item if the release includes security fixes
+6. Check "Pending Cleanup" below for version-gated TODOs that may now be resolved
 
 ### Custom sandbox image sync
 `scripts/custom-sandbox/Dockerfile` is a standalone image that mirrors the structure of the upstream `Dockerfile.sandbox` (in `openclaw/openclaw`). When reviewing a new OpenClaw version, also check:
