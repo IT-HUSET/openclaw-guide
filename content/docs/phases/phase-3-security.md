@@ -164,6 +164,8 @@ The `groups` keys double as a group allowlist: if a group JID appears as a key, 
 
 **Always set `requireMention: true` explicitly.** Without it, the agent may respond to every group message or ignore @mentions entirely. Setting it ensures the agent listens for @mentions and ignores non-directed messages.
 
+> **Known bug — WhatsApp #11758:** `requireMention` detection is currently broken on WhatsApp due to the LID transition (`mentionedJids` arrive in `@lid` format but are compared against `selfJid` in `@s.whatsapp.net` format). Workaround: set `"requireMention": false` and rely on `mentionPatterns` at the agent level, or accept that the agent responds to all group messages.
+
 On WhatsApp, mention detection uses native @mention data (`mentionedJids`). On Signal, there's no native @mention — use `mentionPatterns` regex instead. See [Reference — Group Policy & Mention Gating](../reference.md#group-policy--mention-gating) for full config details and common patterns.
 
 ---

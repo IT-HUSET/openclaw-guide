@@ -25,12 +25,12 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
 | `canvas` | Interactive artifact rendering |
 | `sessions_list` | List active sessions |
 | `sessions_history` | Read session history |
-| `sessions_send` | Send message to another agent's session |
+| `sessions_send` | Delegate work to another agent's session (agent-to-agent); NOT for message relay — use `message` with explicit `target` instead |
 | `sessions_spawn` | Spawn background sub-agent task |
 | `session_status` | Check session status |
 | `memory_search` | Semantic/hybrid search across memory files. Requires `memorySearch` config. See [Phase 2](phases/phase-2-memory.md) |
 | `memory_get` | Retrieve a specific memory entry by date or path |
-| `message` | Send messages to channels |
+| `message` | Send messages to channels. With explicit `target` (JID/phone/channel ID), sends directly to any chat regardless of current session — the right tool for proactive group delivery |
 | `cron` | Schedule recurring tasks |
 | `gateway` | Gateway control (restart, config, status) |
 | `nodes` | Remote node operations |
@@ -480,7 +480,7 @@ Features below require the listed version or later. Check yours with `openclaw -
 | `image-gen` | Generate images from text prompts via OpenRouter | `OPENROUTER_API_KEY` |
 | `computer-use` | VM computer interaction (Lume) | — (WebSocket to cua-computer-server) |
 
-The `content-guard` plugin intercepts `sessions_send` calls at the search→main trust boundary, classifying message content for prompt injection using an LLM (claude-haiku-4-5 via OpenRouter). The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing using a local DeBERTa ONNX model, fail-closed by default (`failOpen: false`). Both are included in the [recommended configuration](examples/config.md).
+The `content-guard` plugin intercepts `sessions_send` calls at the search→main trust boundary, classifying message content for prompt injection using an LLM (claude-haiku-4-5 via OpenRouter). It identifies search-agent traffic by the `params.sessionKey` of the `sessions_send` call (sessions targeting `agent:search:*`); all other `sessions_send` calls (e.g. proactive group delivery) are skipped without scanning. Note: `event.agentId` is not populated by the runtime for `before_tool_call` events — rely on `params.sessionKey` for caller identification. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing using a local DeBERTa ONNX model, fail-closed by default (`failOpen: false`). Both are included in the [recommended configuration](examples/config.md).
 
 The `file-guard`, `network-guard`, and `command-guard` plugins provide deterministic enforcement — no ML model, no external dependencies. `file-guard` enforces path-based file protection with three levels (no_access, read_only, no_delete). `network-guard` enforces application-level domain allowlisting for `web_fetch` and `exec` tool calls. `command-guard` blocks dangerous shell commands (rm -rf, fork bombs, force push, etc.) via regex. All three are included in the [hardened multi-agent](hardened-multi-agent.md) configuration and can optionally be added to any deployment. See [Phase 5](phases/phase-5-web-search.md#additional-hardening-guards) for overview and the [extension docs](extensions/) for full configuration.
 

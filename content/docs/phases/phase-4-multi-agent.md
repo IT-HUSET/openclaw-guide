@@ -394,6 +394,12 @@ Use group shorthands to deny/allow entire categories:
 | `group:automation` | `cron`, `gateway` |
 | `group:messaging` | `message` |
 
+> **Proactive group delivery:** To send a message to a WhatsApp group from within an agent run (e.g. instructed via DM), use the `message` tool with an explicit `target` — not `sessions_send`. With a `target` specified, the `message` tool sends directly to any JID regardless of the current session context:
+> ```json
+> { "action": "send", "channel": "whatsapp", "target": "120363XXXX@g.us", "message": "..." }
+> ```
+> `sessions_send` is for agent-to-agent delegation (ask another agent to do work). Its announce step is model-driven — the target agent decides whether to post to the channel — and consistently produces `ANNOUNCE_SKIP` for instrumental delegation tasks. Add `group:messaging` to the agent's tool allow list.
+
 Example — a read-only agent:
 ```json
 {
@@ -577,6 +583,8 @@ Use `sessions_send` when you need the result before continuing. Use `sessions_sp
 
 - Reply `REPLY_SKIP` to end the reply exchange early when you have what you need
 - Reply `ANNOUNCE_SKIP` during the announce step for instrumental tasks that don't need a user-facing message
+
+> **Known bug — #14046:** The announce step has a timing race where a stale history read can cause `ANNOUNCE_SKIP` to be ignored and the message delivered anyway. PR #15383 is open but not yet merged.
 ```
 
 ### Search agent — AGENTS.md
