@@ -21,16 +21,16 @@ layout: hextra-home
 {{< /hextra/hero-headline >}}
 
 {{< hextra/hero-subtitle style="margin-bottom:1.5rem" >}}
-  A progressive, security-first guide to deploying and hardening&nbsp;<br class="sm:block hidden" />OpenClaw — from single agent to production multi-agent setup.
+  This is sort of a guide to the **[guide](https://docs.openclaw.ai)**, with the aim of providing a somewhat cleaner path to getting started and with a stronger focus on security hardening best practices. It's not meant to replace the official docs, but rather to complement them with a more practical, security-focused walkthrough of deploying OpenClaw.
 {{< /hextra/hero-subtitle >}}
 
 {{< hextra/hero-button text="Get Started!" link="docs/phases/phase-1-getting-started" >}}
 
-{{< callout type="warning" >}}
+{{< callout type="error" >}}
 **REMEMBER:** _Only use OpenClaw in a dedicated, isolated environment and take necessary security precautions. This is a powerful tool that can cause real damage if misused or left unsecured._
 {{< /callout >}}
-{{< callout type="info" >}}
-**NOTE:** This guide is a work in progress, with the goal of keeping it up-to-date with the latest OpenClaw releases and roadmap. It will evolve as OpenClaw develops, but the core principles of security-first, progressive learning, and practical application will remain constant.
+{{< callout type="warning" >}}
+**NOTE:** This guide is a _**work in progress**_ that attempts to track the latest OpenClaw releases as best as possible. OpenClaw has many rough edges, lots of open issues and is evolving rapidly, so this guide may contain inaccuracies, outdated info, or incomplete sections. If in doubt, see the <u>**[official docs](https://docs.openclaw.ai)**</u>.
 {{< /callout >}}
 
 <div style="margin-top:1rem"></div>
