@@ -86,11 +86,16 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
         // temporalDecay: { enabled: true, halfLifeDays: 30 },
         cache: { enabled: true, maxEntries: 50000 }
       },
-      compaction: { memoryFlush: { enabled: true, softThresholdTokens: 4000 } },
+      compaction: {
+        memoryFlush: { enabled: true, softThresholdTokens: 4000 },
+        // reserveTokens: 8000,        // Reserve tokens for post-compaction response (added 2026.2.21)
+        // keepRecentTokens: 8000,     // Preserve recent context across compaction (added 2026.2.21)
+      },
       subagents: {
         maxConcurrent: 8,
-        // maxSpawnDepth: 3,           // Max nesting depth for nested sub-agents (added 2026.2.16)
+        // maxSpawnDepth: 3,           // Max nesting depth for nested sub-agents; default 2 as of 2026.2.21 (added 2026.2.16)
         // maxChildrenPerAgent: 10,    // Max concurrent children per parent agent (added 2026.2.16)
+        // announceTimeoutMs: 60000,   // Announce call timeout in ms (added 2026.2.22)
       }
     },
     list: [{
@@ -111,7 +116,10 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
     profile: "full",   // Shorthand: "minimal" | "coding" | "messaging" | "full"
     deny: [],
     elevated: { enabled: false },
-    exec: { host: "sandbox" },  // Route exec to sandbox container (when sandbox.mode: "all")
+    exec: {
+      host: "sandbox",  // Route exec to sandbox container (when sandbox.mode: "all")
+      // safeBinTrustedDirs: ["/usr/local/bin"],  // Trusted dirs for safeBins path resolution (added 2026.2.22)
+    },
     web: { search: { enabled: true, provider: "brave", apiKey: "..." } },
     agentToAgent: { enabled: false, allow: [], maxPingPongTurns: 2 }
   },
@@ -124,6 +132,7 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
 
   // Channel config
   channels: {
+    // modelByChannel: { "whatsapp": "claude-sonnet-4-5", "signal": "..." },  // Per-channel model overrides (added 2026.2.21)
     whatsapp: { dmPolicy: "pairing", allowFrom: [], groupPolicy: "allowlist", groups: { "*": { requireMention: true } } },
     signal: { enabled: true, account: "+...", cliPath: "signal-cli", dmPolicy: "pairing" },
     googlechat: { enabled: true, serviceAccountFile: "...", audienceType: "app-url", audience: "https://..." }
@@ -139,7 +148,10 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
   plugins: { allow: ["whatsapp", "channel-guard", "content-guard"] },
 
   // Logging
-  logging: { redactSensitive: "tools" },
+  logging: {
+    redactSensitive: "tools",
+    // maxFileBytes: 524288000,        // Log file size cap before writes suppressed; default 500 MB (added 2026.2.22)
+  },
 
   // Cron — scheduled tasks (added 2026.2.16: webhookToken, notify)
   cron: {
@@ -558,6 +570,9 @@ Features below require the listed version or later. Check yours with `openclaw -
 | 2026.2.12 | Channel bindings regression | [#15176](https://github.com/openclaw/openclaw/pull/15176) — bindings to non-default agents broken. Not relevant for recommended 2-agent config (all channels route to main) |
 | 2026.2.15 | `sessions_spawn` sandbox bug | [#9857](https://github.com/openclaw/openclaw/issues/9857) — `sessions_spawn` breaks when both agents are sandboxed with per-agent tools. Workaround: run search agent unsandboxed |
 | 2026.2.16 | Security hardening + plugin hooks + subagent limits | CSP enforcement, workspace path sanitization, `web_fetch` response size cap (`tools.web.fetch.maxResponseBytes`, default 5 MB), dangerous Docker config rejection, `llm_input`/`llm_output` plugin hooks, `maxSpawnDepth`/`maxChildrenPerAgent` for nested subagents, Unicode-aware FTS, timezone-aware memory dates, per-agent QMD scoping, Telegram token auto-redaction |
+| 2026.2.19 | Gateway auth auto-generation, hook/plugin path containment, SSRF hardening | See [Phase 3](phases/phase-3-security.md) version note |
+| 2026.2.21 | Shell exec env injection blocking, sandbox browser hardening, Tailscale auth scoping | See [Phase 3](phases/phase-3-security.md) version note |
+| 2026.2.22 | Exec safeBin path pinning, `openclaw config get` redaction, group policy fail-closed | See [Phase 3](phases/phase-3-security.md) version note |
 
 ---
 
