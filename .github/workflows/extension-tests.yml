@@ -1,0 +1,48 @@
+# CI: runs unit tests for each extension on PRs that touch extensions/.
+#
+# All tests are self-contained (mock-based or bundled models) — no API keys needed.
+# channel-guard downloads a ~370 MB ONNX model on first run; node_modules cache
+# prevents re-downloading on subsequent runs.
+
+name: Extension Tests
+
+on:
+  pull_request:
+    paths:
+      - 'extensions/**'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        extension:
+          - channel-guard
+          - command-guard
+          - computer-use
+          - content-guard
+          - file-guard
+          - image-gen
+          - network-guard
+
+    name: ${{ matrix.extension }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: extensions/${{ matrix.extension }}/node_modules
+          key: ${{ runner.os }}-${{ matrix.extension }}-${{ hashFiles(format('extensions/{0}/package.json', matrix.extension)) }}
+
+      - name: Install and test
+        working-directory: extensions/${{ matrix.extension }}
+        run: |
+          npm install
+          npm test

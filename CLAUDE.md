@@ -14,6 +14,7 @@ Primarily documentation (Markdown + annotated JSON config examples), plus TypeSc
 - `hugo.yaml` — Hugo configuration (theme, menus, params)
 - `go.mod` — Hugo module dependencies (Hextra theme)
 - `.github/workflows/hugo.yml` — GitHub Actions workflow for Hugo build + GitHub Pages deploy
+- `.github/workflows/extension-tests.yml` — Matrix CI running unit tests for all 7 extensions on PRs touching `extensions/`
 - `content/_index.md` — Landing page
 - `content/docs/_index.md`, `content/docs/phases/_index.md`, `content/docs/recipes/_index.md`, `content/docs/examples/_index.md`, `content/docs/extensions/_index.md` — Section index pages
 
@@ -163,16 +164,21 @@ The child instance launches a headless Chrome via the `chrome-devtools` MCP serv
 ### Version tracking
 The guide tracks the OpenClaw version it was last reviewed against in `.guide-version`. This is referenced by both the changelog review workflow and the docs index page.
 
-### Automated changelog review
+### Automated changelog review + improvement
 `.github/workflows/changelog-review.yml` runs twice weekly (Monday + Thursday 9:00 UTC) and on manual dispatch:
 1. Fetches the upstream changelog from `openclaw/openclaw`
 2. Extracts entries newer than `.guide-version`
-3. Runs Claude Code (Sonnet) to analyze whether any entries affect the guide
-4. Opens a GitHub issue labeled `changelog-review` if updates are needed
+3. Runs Claude Code (Sonnet, 80 turns) in two passes:
+   - **Pass 1:** Changelog-driven updates — edits docs, examples, scripts, and extensions to match the new version
+   - **Pass 2:** Improvement scan — resolves version-gated cleanup TODOs, fixes correctness/consistency/test coverage issues revealed by the update
+4. Opens a PR labeled `changelog-review`, auto-merges once required checks pass
 
-The analysis prompt lives at `.github/prompts/changelog-review.md`.
+The prompt lives at `.github/prompts/changelog-review.md`. Claude has Bash access for `npm test` (extension verification) and `hugo` (build verification).
 
-**Setup:** Install the [Claude GitHub App](https://github.com/apps/claude), then run `claude setup-token` locally and add the output as `CLAUDE_CODE_OAUTH_TOKEN` repo secret.
+**Setup:** Install the [Claude GitHub App](https://github.com/apps/claude), then run `claude setup-token` locally and add the output as `CLAUDE_CODE_OAUTH_TOKEN` repo secret. Enable **Allow auto-merge** in repo Settings → General for unattended PR merging.
+
+### Extension CI
+`.github/workflows/extension-tests.yml` runs on PRs touching `extensions/` and on manual dispatch. Matrix strategy tests all 7 extensions independently (`fail-fast: false`). Uses `node_modules` cache keyed on `package.json` hash — important for channel-guard's ~370 MB ONNX model.
 
 ### Manual review procedure
 When updating the guide for a new OpenClaw version:

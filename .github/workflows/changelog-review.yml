@@ -84,6 +84,11 @@ jobs:
             echo 'ENDOFPROMPT'
           } >> "$GITHUB_ENV"
 
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.has_updates == 'true' && steps.existing.outputs.skip != 'true'
+        with:
+          node-version: 22
+
       - name: Analyze and implement with Claude Code
         if: steps.check.outputs.has_updates == 'true' && steps.existing.outputs.skip != 'true'
         id: implement
@@ -94,8 +99,8 @@ jobs:
           prompt: ${{ env.REVIEW_PROMPT }}
           claude_args: |
             --model sonnet
-            --max-turns 40
-            --allowedTools "Read,Glob,Grep,Edit,Write"
+            --max-turns 80
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(npm install *),Bash(npm test *),Bash(npx *),Bash(cd extensions/*),Bash(hugo *)"
             --json-schema '{"type":"object","properties":{"needs_update":{"type":"boolean"},"summary":{"type":"string"}},"required":["needs_update","summary"]}'
 
       - name: Commit and open PR
@@ -136,9 +141,13 @@ jobs:
             echo "$SUMMARY"
           } > /tmp/pr-body.md
 
-          gh pr create \
+          PR_URL=$(gh pr create \
             --title "Guide update: OpenClaw ${LAST} → ${LATEST}" \
             --label "changelog-review" \
             --body-file /tmp/pr-body.md \
             --base main \
-            --head "$BRANCH"
+            --head "$BRANCH")
+
+          # Auto-merge once required checks pass (needs "Allow auto-merge" in repo settings).
+          # Falls back to immediate merge if no branch protection / auto-merge not enabled.
+          gh pr merge --auto --squash "$PR_URL" || gh pr merge --squash "$PR_URL"
