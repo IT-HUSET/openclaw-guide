@@ -106,6 +106,8 @@ Follow the interactive prompts to:
 2. Enter your API key
 3. Configure basic settings (default model, workspace location, gateway port)
 
+> **Tool profile default (2026.3.2+):** New installs default to `tools.profile: "messaging"` — a narrower tool set focused on communication. To enable coding/execution tools, add `"tools": { "profile": "coding" }` to your config or set it during setup. Existing installs are unaffected.
+
 ---
 
 ## Start the Gateway

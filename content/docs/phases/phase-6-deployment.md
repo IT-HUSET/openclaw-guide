@@ -90,6 +90,8 @@ Keep `openclaw.json` secrets-free — use `${ENV_VAR}` references in config, sto
 > **Empty env vars cause startup failure.** If a `${VAR}` reference resolves to an empty string, the gateway exits with `EX_CONFIG` (exit 78). For optional keys not yet provisioned (e.g., `BRAVE_API_KEY` when using Perplexity instead), use a non-empty placeholder like `"not-configured"` rather than leaving the variable empty or unset.
 >
 > **Version note (2026.2.16):** Telegram bot tokens are now auto-redacted from gateway logs (same mechanism as `redactSensitive: "tools"` for other secrets).
+>
+> **External Secrets Management (2026.2.26+):** OpenClaw now supports a dedicated `openclaw secrets` workflow for centralized credential management. This lets you store secrets outside your config entirely — using a secrets provider or vault — and reference them via `SecretRef` placeholders in config. Key commands: `openclaw secrets audit` (find hardcoded secrets), `openclaw secrets configure` (set up provider), `openclaw secrets apply` (write SecretRefs to config), `openclaw secrets reload` (activate at runtime without restart). See [official docs](https://docs.openclaw.ai) for provider-specific setup. The `${ENV_VAR}` method documented below remains fully supported.
 
 ### GitHub token setup
 
@@ -304,7 +306,7 @@ Then either migrate from your personal user (below) or create a fresh config:
 sudo -u openclaw openclaw setup
 ```
 
-> **Do not use `openclaw onboard --install-daemon` or `openclaw gateway install`** — these install a LaunchAgent with label `bot.molt.gateway` under the current user. We create our own LaunchAgent (label `ai.openclaw.gateway`) under the dedicated `openclaw` user, with explicit secrets and path control. The `disable-launchagent` marker prevents OpenClaw from auto-installing its own plist.
+> **Do not use `openclaw onboard --install-daemon` or `openclaw gateway install`** — these install a LaunchAgent with label `ai.openclaw.gateway` under the current user. We create our own LaunchAgent (label `ai.openclaw.gateway`) under the dedicated `openclaw` user, with explicit secrets and path control. The `disable-launchagent` marker prevents OpenClaw from auto-installing its own plist.
 >
 > The `ProgramArguments` in the plist must match where OpenClaw is actually installed. The "Verify paths" step before creating the plist covers this.
 
@@ -376,7 +378,7 @@ A LaunchDaemon runs in the `system` domain — starts at boot before any user lo
 | Agent persistence via LaunchAgents | Blocked (no `gui/<uid>` domain) | Possible |
 | When to use | Dedicated headless service account (most deployments) | Personal Mac or VM with auto-login |
 
-> **Label convention:** OpenClaw's built-in service installer (`openclaw gateway install`) uses the label `bot.molt.gateway`. We use `ai.openclaw.gateway` for the manual plist to avoid conflicts. The `disable-launchagent` marker prevents OpenClaw from auto-installing its own plist.
+> **Label convention:** OpenClaw's built-in service installer (`openclaw gateway install`) uses the label `ai.openclaw.gateway`. Our manual plist also uses `ai.openclaw.gateway` — they share the same label. The `disable-launchagent` marker prevents OpenClaw from auto-installing its own plist and conflicting with ours.
 
 #### Create the plist
 
@@ -403,6 +405,8 @@ sudo tee /Library/LaunchDaemons/ai.openclaw.gateway.plist > /dev/null << 'PLIST'
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>Umask</key>
+    <integer>63</integer>
     <key>ProgramArguments</key>
     <array>
       <string>/opt/homebrew/bin/node</string>
@@ -444,6 +448,8 @@ sudo tee /Library/LaunchDaemons/ai.openclaw.gateway.plist > /dev/null << 'PLIST'
 </plist>
 PLIST
 ```
+
+> **`Umask` key:** `<integer>63</integer>` is octal `077` — owner-only permissions for all gateway-created files (sessions, transcripts, etc.). Without this, npm upgrades can reset the process umask to the system default (`022`), making files group/world-readable. Added in OpenClaw 2026.3.2's auto-generated plists; apply manually to existing plists.
 
 #### If using Docker (OrbStack)
 
@@ -534,6 +540,8 @@ sudo -u openclaw tee /Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.pl
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>Umask</key>
+    <integer>63</integer>
     <key>ProgramArguments</key>
     <array>
       <string>/opt/homebrew/bin/node</string>
@@ -913,6 +921,8 @@ sudo -u openclaw tee /Users/openclaw/Library/LaunchAgents/ai.openclaw.gateway.pl
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>Umask</key>
+    <integer>63</integer>
     <key>ProgramArguments</key>
     <array>
       <string>/opt/homebrew/bin/node</string>
