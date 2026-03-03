@@ -166,7 +166,7 @@
         "maxConcurrent": 8,
         "model": "anthropic/claude-sonnet-4-5",
         "thinking": "low",
-        // "maxSpawnDepth": 3,          // Max nesting depth for nested sub-agents (2026.2.16+)
+        // "maxSpawnDepth": 2,          // Max nesting depth for nested sub-agents; default changed from 3→2 in 2026.2.21
         // "maxChildrenPerAgent": 10    // Max concurrent children per parent agent (2026.2.16+)
       }
       // NOTE: No default sandbox block — each agent defines its own sandbox explicitly.
@@ -291,6 +291,7 @@
       "dmPolicy": "pairing",
       "allowFrom": ["+46XXXXXXXXX"], // REPLACE with real number — placeholder causes silent message drops
       "groupPolicy": "allowlist",
+      "groups": { "*": { "requireMention": true } },
       "mediaMaxMb": 8
     },
     "googlechat": {

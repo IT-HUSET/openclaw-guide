@@ -93,7 +93,7 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
       },
       subagents: {
         maxConcurrent: 8,
-        // maxSpawnDepth: 3,           // Max nesting depth for nested sub-agents; default 2 as of 2026.2.21 (added 2026.2.16)
+        // maxSpawnDepth: 2,           // Max nesting depth for nested sub-agents; default 2 as of 2026.2.21 (added 2026.2.16)
         // maxChildrenPerAgent: 10,    // Max concurrent children per parent agent (added 2026.2.16)
         // announceTimeoutMs: 60000,   // Announce call timeout in ms (added 2026.2.22)
       }
