@@ -114,6 +114,25 @@ jobs:
           NEEDS_UPDATE=$(echo "$ANALYSIS" | jq -r '.needs_update')
           SUMMARY=$(echo "$ANALYSIS" | jq -r '.summary')
 
+          # Prepend changelog entry
+          DATE=$(date -u +%Y-%m-%d)
+          HEADER="## ${DATE} — OpenClaw ${LAST} → ${LATEST}"
+          if [ "$NEEDS_UPDATE" = "true" ]; then
+            BODY=$(echo "$SUMMARY" | sed 's/^/- /' | sed 's/^- - /- /')
+          else
+            BODY="- Version bump only — no guide content changes needed"
+          fi
+          # Insert after the 4-line file header (title + blank + description + blank)
+          {
+            head -4 CHANGELOG.md
+            echo ""
+            echo "$HEADER"
+            echo ""
+            echo "$BODY"
+            tail -n +5 CHANGELOG.md
+          } > /tmp/changelog-new.md
+          mv /tmp/changelog-new.md CHANGELOG.md
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 

@@ -58,4 +58,4 @@ Include any improvement findings in the `summary` output alongside changelog cha
 Return JSON matching the provided schema:
 
 - `needs_update`: true if any guide content files were changed (not counting `.guide-version`)
-- `summary`: markdown string — if `needs_update` is true, describe what was changed and why (with affected file paths); if false, a 1-2 sentence summary of what was in the releases
+- `summary`: if `needs_update` is true, a bullet list (one `- ` prefixed line per change) describing what was changed and why — these lines are inserted directly into `CHANGELOG.md`, so keep them concise and user-facing (no file paths). If false, a 1-2 sentence summary of what was in the releases
