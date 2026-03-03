@@ -358,10 +358,12 @@ setup_instance() {
     fi
 
     # -- Check for conflicting built-in LaunchAgent --
-    local builtin_agent="$home_dir/Library/LaunchAgents/bot.molt.gateway.plist"
+    # Note: OpenClaw's built-in installer now uses ai.openclaw.gateway (same label as ours).
+    # The disable-launchagent marker prevents it from auto-installing, so conflicts are rare.
+    local builtin_agent="$home_dir/Library/LaunchAgents/ai.openclaw.gateway.plist"
     if [[ -f "$builtin_agent" ]]; then
-        echo -e "${YELLOW}WARNING: Built-in LaunchAgent (bot.molt.gateway) found at $builtin_agent${NC}"
-        echo "  This may conflict — remove it: rm '$builtin_agent'"
+        echo -e "${YELLOW}WARNING: Built-in LaunchAgent (ai.openclaw.gateway) found at $builtin_agent${NC}"
+        echo "  This may conflict with the script-managed plist — remove it: rm '$builtin_agent'"
     fi
 
     # -- Create directory tree --
@@ -659,6 +661,8 @@ MEMEOF
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>Umask</key>
+    <integer>63</integer>
     <key>ProgramArguments</key>
     <array>
       <string>${NODE_PATH}</string>

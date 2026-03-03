@@ -44,6 +44,20 @@ The fix isn't one setting — it's layered defense. Each setting below blocks a 
 > - **Shell env hardening** — `SHELLOPTS`, `PS4`, `HOME`, `ZDOTDIR` blocked in exec env sanitizers
 > - **New audit findings** — `security.exposure.open_groups_with_runtime_or_fs` and `gateway.nodes.allow_commands_dangerous`
 > - **SSRF expansion** — blocking extended to benchmarking 198.18.0.0/15, TEST-NET, multicast, reserved/broadcast IPv4 ranges
+>
+> **Version note (2026.2.23–2026.2.25):**
+> - **SSRF policy key rename (breaking)** — `browser.ssrfPolicy.allowPrivateNetwork` renamed to `browser.ssrfPolicy.dangerouslyAllowPrivateNetwork`. Run `openclaw doctor --fix` to migrate automatically
+> - **Exec obfuscation detection** — obfuscated commands are now detected before exec allowlist decisions and require explicit approval
+> - **Config snapshot redaction** — sensitive dynamic catchall keys (e.g., `env.*`, `skills.entries.*.env.*`) are redacted in `config.get` snapshots
+> - **Exec trusted dirs hardened** — default safe-bin trusted directories limited to immutable system paths (`/bin`, `/usr/bin`); Homebrew and user bin paths require explicit `tools.exec.safeBinTrustedDirs` opt-in
+>
+> **Version note (2026.2.26–2026.3.2):**
+> - **ACP sandbox bypass fix** — `sessions_spawn` with `runtime="acp"` is now rejected from sandboxed sessions; `sandbox="require"` also rejected for ACP runtime
+> - **Gateway WebSocket security** — plaintext `ws://` is loopback-only by default; non-loopback private-network WebSocket requires `OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1`
+> - **Workspace FS hardening** — hardlinked workspace aliases rejected in `workspaceOnly` boundary checks; `@`-prefixed path escape attempts blocked
+> - **LaunchAgent file permissions** — generated gateway LaunchAgent plists now include `Umask=077` (octal 077) so gateway-created state files default to owner-only permissions; update manually-created plists (see [Phase 6](phase-6-deployment.md))
+> - **Plugin HTTP auth required** — plugin route registration now requires explicit `auth` field; affects custom extensions using `api.registerHttpHandler` (removed — migrate to `api.registerHttpRoute`)
+> - **Multi-platform reaction auth** — Signal, Discord, Slack, and Telegram reaction events now require authorization before enqueueing, consistent with normal message policy
 
 ---
 

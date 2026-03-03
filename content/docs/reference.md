@@ -328,6 +328,19 @@ Paths are relative to the including file. Nested includes supported (up to 10 le
 
 Config is **strictly validated** — unknown keys, malformed types, or invalid values cause the gateway to refuse to start. Run `openclaw doctor` to diagnose, `openclaw doctor --fix` to auto-repair.
 
+Use `openclaw config validate` (added in 2026.3.2) to check the config file before starting the gateway:
+
+```bash
+openclaw config validate              # Human-readable output
+openclaw config validate --json       # Machine-readable JSON with error details
+```
+
+Use `openclaw config file` (added in 2026.3.1) to print the active config file path:
+
+```bash
+openclaw config file                  # Prints e.g. /Users/openclaw/.openclaw/openclaw.json
+```
+
 ### Environment Files
 
 OpenClaw reads `.env` files (non-overriding) from: CWD `.env` → `~/.openclaw/.env` → config `env` block. Alternative to putting secrets in plist/systemd env vars.
@@ -573,6 +586,10 @@ Features below require the listed version or later. Check yours with `openclaw -
 | 2026.2.19 | Gateway auth auto-generation, hook/plugin path containment, SSRF hardening | See [Phase 3](phases/phase-3-security.md) version note |
 | 2026.2.21 | Shell exec env injection blocking, sandbox browser hardening, Tailscale auth scoping | See [Phase 3](phases/phase-3-security.md) version note |
 | 2026.2.22 | Exec safeBin path pinning, `openclaw config get` redaction, group policy fail-closed | See [Phase 3](phases/phase-3-security.md) version note |
+| 2026.2.23 | `browser.ssrfPolicy.dangerouslyAllowPrivateNetwork` (breaking rename), HSTS support, exec obfuscation detection, `openclaw sessions cleanup` with disk-budget controls | See [Phase 3](phases/phase-3-security.md) version note |
+| 2026.2.26 | `openclaw secrets` workflow (`audit`, `configure`, `apply`, `reload`), `openclaw agents bindings/bind/unbind` | External secrets management — see [Phase 6](phases/phase-6-deployment.md#secrets-management-all-methods) |
+| 2026.3.1 | Gateway health endpoints (`/health`, `/healthz`, `/ready`, `/readyz`), `agents.*.heartbeat.lightContext` | Health endpoints useful for Docker/Kubernetes health checks |
+| 2026.3.2 | `openclaw config validate`, `tools.profile: "messaging"` new default, `pdf` tool, Telegram streaming defaults to `partial`, LaunchAgent `Umask` key | See [Phase 3](phases/phase-3-security.md) version note for security details |
 
 ---
 
@@ -702,6 +719,9 @@ openclaw doctor --generate-gateway-token    # Generate a secure token
 openclaw security audit                     # Security scan
 openclaw security audit --deep              # Deep scan (requires running gateway)
 openclaw security audit --fix               # Auto-apply safe guardrails
+openclaw config validate                    # Validate config file before startup (2026.3.2+)
+openclaw config validate --json             # Machine-readable validation output
+openclaw config file                        # Print active config file path (2026.3.1+)
 
 # Memory
 openclaw memory status                      # Index size, provider, last indexed
@@ -710,10 +730,24 @@ openclaw memory status --deep --index       # Reindex if store is dirty
 openclaw memory index                       # Build/rebuild search index
 openclaw memory index --agent <id>          # Rebuild index for specific agent
 openclaw memory search "<query>"            # Search memory from terminal
+openclaw memory search --query "<query>"    # Equivalent long-form (2026.2.24+)
 
 # Session management
 openclaw sessions list                      # List active sessions
 openclaw sessions reset                     # Reset all sessions
+openclaw sessions cleanup                   # Clean up disk + orphaned sessions (2026.2.23+)
+openclaw sessions cleanup --fix-missing     # Prune store entries with missing transcripts (2026.2.26+)
+
+# Agent routing
+openclaw agents bindings                    # List account-scoped route bindings (2026.2.26+)
+openclaw agents bind <agent> <channel>      # Bind an agent to a channel account
+openclaw agents unbind <agent> <channel>    # Remove a channel binding
+
+# Secrets management (2026.2.26+)
+openclaw secrets audit                      # Find hardcoded secrets in config
+openclaw secrets configure                  # Configure secrets provider
+openclaw secrets apply                      # Write SecretRefs to config
+openclaw secrets reload                     # Activate secrets snapshot without restart
 
 # Pairing
 openclaw pairing list <channel>             # List pending pairing requests
