@@ -74,6 +74,7 @@ chmod 600 ~/.openclaw/credentials/googlechat/service-account.json
 3. Enable **Interactive features**
 4. Under **Functionality**: check **Join spaces and group conversations**
 5. Under **Connection settings**: select **HTTP endpoint URL**
+   - GCP will display a read-only **Service Account Email** below the radio button (e.g., `service-205049784124@gcp-sa-gsuiteaddons.iam.gserviceaccount.com`). This is Google's internal signing account and is purely informational — it does not need to be configured in OpenClaw.
 6. Under **Triggers**: select **Use a common HTTP endpoint URL for all triggers** and set to your gateway's public webhook URL (e.g., `https://<node>.ts.net/googlechat`)
 7. Under **Visibility**: check **Make this Chat app available to specific people and groups in \<Your Domain\>** and add your email (type it into the text field and press Enter)
 8. Click **Save**
@@ -233,6 +234,7 @@ For production, use `serviceAccountFile` or the env var — keeps secrets out of
 | `actions.reactions` | `false` | Enable reactions (requires user OAuth — see known issues) |
 | `typingIndicator` | `"message"` | Typing indicator: `"none"`, `"message"`, `"reaction"` |
 | `mediaMaxMb` | `20` | Max attachment size in MB |
+| `dangerouslyAllowNameMatching` | `false` | Allow email/name matching in `dm.allowFrom` — use only until you have the user's stable sender ID from logs |
 
 ---
 
@@ -265,8 +267,8 @@ For production, use `serviceAccountFile` or the env var — keeps secrets out of
 
 5. Run diagnostics:
    ```bash
-   openclaw doctor                       # Config issues
-   openclaw channels status --probe      # Auth + connectivity check
+   openclaw doctor                 # Config issues
+   openclaw status --deep          # Full health check including channel probe + security audit
    ```
 
 ---
@@ -275,6 +277,7 @@ For production, use `serviceAccountFile` or the env var — keeps secrets out of
 
 | Issue | Impact | Status |
 |-------|--------|--------|
+| **OIDC token 401 regression** ([#35095](https://github.com/openclaw/openclaw/issues/35095)) — **affects 2026.3.2** | The new GCP Console creates Chat apps that issue Google ID tokens (`iss: accounts.google.com`, signed by `/oauth2/v3/certs`) instead of service account JWTs (`iss: chat@system.gserviceaccount.com`). OpenClaw 2026.3.2 verifies against the wrong key set, returning 401 for every webhook. Fix in PR [#35204](https://github.com/openclaw/openclaw/pull/35204). Once fixed, `audienceType: "app-url"` with the webhook URL is correct. | Fix pending |
 | **OAuth limitations** ([#9764](https://github.com/openclaw/openclaw/issues/9764)) | Service account auth can't do reactions, media uploads, or proactive DMs. These require user OAuth (not yet supported). | Open |
 | **Per-space rate limit** | 1 write/sec (60/min standard). The 600/min figure in some docs applies only to data import operations. | By design |
 
@@ -409,11 +412,17 @@ Set `botUser` to the app's user resource name:
 
 Find the bot's user ID in gateway logs or via the Google Chat API.
 
+### 401 Unauthorized on every message (new GCP Console setup)
+
+If every message returns 401 despite `audience` matching the webhook URL exactly, you are likely hitting the OIDC token regression ([#35095](https://github.com/openclaw/openclaw/issues/35095)) that affects 2026.3.2 when the app was created via the new GCP Console.
+
+To confirm: temporarily capture an incoming webhook request and decode the JWT's `iss` claim. If `iss` is `"https://accounts.google.com"` (not `"chat@system.gserviceaccount.com"`), your app issues OIDC ID tokens and you need the fixed version. **Fix is in PR #35204 — wait for the next release.**
+
 ### Auth errors
 
 - **"audience mismatch"** — your `audience` config doesn't match the webhook URL in GCP Console
 - **"token verification failed"** — wrong service account file or the Chat API isn't enabled
-- Run `openclaw channels status --probe` for detailed auth diagnostics
+- Run `openclaw status --deep` for detailed channel health diagnostics
 
 ---
 
