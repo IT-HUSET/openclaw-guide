@@ -498,49 +498,47 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 
 15. **`requireMention` must be inside the `groups` object, not at channel root** — placing it at `channels.whatsapp.requireMention` causes a Zod validation error. Correct: `channels.whatsapp.groups: { "*": { requireMention: true } }`. On Signal, also configure `mentionPatterns` in `agents.list[].groupChat.mentionPatterns` (no native @mention support). On Google Chat, set `botUser` in the channel config for reliable mention detection in spaces.
 
-16. **Google Chat DMs ignore agent bindings** ([#9198](https://github.com/openclaw/openclaw/issues/9198)) — DMs always route to the default agent regardless of `bindings` config. Space (group) routing works correctly. Critical for multi-agent setups.
+16. **Google Chat requires both channel config and plugin** — missing either `channels.googlechat` or `plugins.entries.googlechat.enabled: true` causes a 405 error on the webhook endpoint.
 
-17. **Google Chat requires both channel config and plugin** — missing either `channels.googlechat` or `plugins.entries.googlechat.enabled: true` causes a 405 error on the webhook endpoint.
+17. **Google Chat per-space rate limit is 60/min** (1 write/sec) — the 600/min figure in some documentation applies only to data import operations, not normal messaging.
 
-18. **Google Chat per-space rate limit is 60/min** (1 write/sec) — the 600/min figure in some documentation applies only to data import operations, not normal messaging.
+18. **Placeholder `allowFrom` values cause silent message drops** — `allowFrom: ["+46XXXXXXXXX"]` or any non-matching number silently drops all incoming messages with no error or log warning. Always replace placeholders with real phone numbers.
 
-19. **Placeholder `allowFrom` values cause silent message drops** — `allowFrom: ["+46XXXXXXXXX"]` or any non-matching number silently drops all incoming messages with no error or log warning. Always replace placeholders with real phone numbers.
-
-20. **Empty env vars cause config validation failure** — `${BRAVE_API_KEY}` as an empty string triggers `EX_CONFIG` (exit 78). Use a non-empty placeholder like `"not-configured"` for optional keys not yet provisioned.
+19. **Empty env vars cause config validation failure** — `${BRAVE_API_KEY}` as an empty string triggers `EX_CONFIG` (exit 78). Use a non-empty placeholder like `"not-configured"` for optional keys not yet provisioned.
 
 ### Sandbox & Docker
 
-21. **Sandbox tool policy is a separate layer from agent tool policy** — even if an agent allows `message` or `browser`, those tools are blocked in sandboxed sessions unless explicitly listed in `tools.sandbox.tools.allow`. The default sandbox allow list does not include `message`, `browser`, `memory_search`, `memory_get`, or `web_fetch`. WhatsApp DM sessions (and all non-main sessions) are sandboxed with `mode: "non-main"` or `"all"`. Use `tools.sandbox.tools.allow` with the full list including any tools your sandboxed sessions need. `alsoAllow` does not work with the default policy — must specify the complete `allow` list.
+20. **Sandbox tool policy is a separate layer from agent tool policy** — even if an agent allows `message` or `browser`, those tools are blocked in sandboxed sessions unless explicitly listed in `tools.sandbox.tools.allow`. The default sandbox allow list does not include `message`, `browser`, `memory_search`, `memory_get`, or `web_fetch`. WhatsApp DM sessions (and all non-main sessions) are sandboxed with `mode: "non-main"` or `"all"`. Use `tools.sandbox.tools.allow` with the full list including any tools your sandboxed sessions need. `alsoAllow` does not work with the default policy — must specify the complete `allow` list.
 
-22. **Sandbox image must be built before use** — the default `openclaw-sandbox:bookworm-slim` is raw `debian:bookworm-slim` with no packages. Run `cd $(npm root -g)/openclaw && ./scripts/sandbox-setup.sh` before enabling Docker sandboxing. Without this, all exec calls inside the sandbox fail (`sh: 1: git: not found`).
+21. **Sandbox image must be built before use** — the default `openclaw-sandbox:bookworm-slim` is raw `debian:bookworm-slim` with no packages. Run `cd $(npm root -g)/openclaw && ./scripts/sandbox-setup.sh` before enabling Docker sandboxing. Without this, all exec calls inside the sandbox fail (`sh: 1: git: not found`).
 
-23. **`exec host not allowed` when sandboxed** — exec calls targeting the gateway host fail with `exec host not allowed (requested gateway; configure tools.exec.host=sandbox to allow)`. Add `"tools": { "exec": { "host": "sandbox" } }` to route exec to the sandbox container by default. With `mode: "non-main"` (recommended), this only affects sandboxed sessions (channel DMs/groups/cron) — the Control UI session runs on host and exec goes to host naturally. With `mode: "all"`, the Control UI session is also sandboxed and all exec calls hit this. Prefer `mode: "non-main"` — the operator's Control UI session should run on host.
+22. **`exec host not allowed` when sandboxed** — exec calls targeting the gateway host fail with `exec host not allowed (requested gateway; configure tools.exec.host=sandbox to allow)`. Add `"tools": { "exec": { "host": "sandbox" } }` to route exec to the sandbox container by default. With `mode: "non-main"` (recommended), this only affects sandboxed sessions (channel DMs/groups/cron) — the Control UI session runs on host and exec goes to host naturally. With `mode: "all"`, the Control UI session is also sandboxed and all exec calls hit this. Prefer `mode: "non-main"` — the operator's Control UI session should run on host.
 
-24. **Sandbox `network: "none"` blocks package installs** — `setupCommand` requires `network: "bridge"` and `readOnlyRoot: false`, which weakens sandbox isolation. Prefer [custom images](custom-sandbox-images.md) for production — tools are pre-installed, so secure defaults are preserved.
+23. **Sandbox `network: "none"` blocks package installs** — `setupCommand` requires `network: "bridge"` and `readOnlyRoot: false`, which weakens sandbox isolation. Prefer [custom images](custom-sandbox-images.md) for production — tools are pre-installed, so secure defaults are preserved.
 
-25. **Bind mounts pierce sandbox filesystem** — always use `:ro` suffix. Never bind `docker.sock`.
+24. **Bind mounts pierce sandbox filesystem** — always use `:ro` suffix. Never bind `docker.sock`.
 
 ### Cron
 
-26. **`delivery.to` not `delivery.target`** — the cron delivery destination field is `delivery.to` (e.g. a WhatsApp group JID). The field `delivery.target` does not exist — using it silently delivers to the wrong destination (DM instead of group). Always use `delivery.to`.
+25. **`delivery.to` not `delivery.target`** — the cron delivery destination field is `delivery.to` (e.g. a WhatsApp group JID). The field `delivery.target` does not exist — using it silently delivers to the wrong destination (DM instead of group). Always use `delivery.to`.
 
-27. **`--announce` (delivery mode) requires a channel** — creating a cron job with `openclaw cron add --announce` but no `--channel` succeeds at creation time, but every run fails at the delivery step with `cron delivery target is missing`. The error repeats every run and clutters logs. Always pair `--announce` with `--channel <whatsapp|signal>` (and a peer if required by your dmPolicy). If there is nothing to report, have the agent reply `ANNOUNCE_SKIP` to suppress delivery.
+26. **`--announce` (delivery mode) requires a channel** — creating a cron job with `openclaw cron add --announce` but no `--channel` succeeds at creation time, but every run fails at the delivery step with `cron delivery target is missing`. The error repeats every run and clutters logs. Always pair `--announce` with `--channel <whatsapp|signal>` (and a peer if required by your dmPolicy). If there is nothing to report, have the agent reply `ANNOUNCE_SKIP` to suppress delivery.
 
 ### Config & Gateway
 
-28. **`gateway.mode` is required** — the gateway refuses to start unless `gateway.mode: "local"` is set in config. Use `--allow-unconfigured` for ad-hoc/dev runs.
+27. **`gateway.mode` is required** — the gateway refuses to start unless `gateway.mode: "local"` is set in config. Use `--allow-unconfigured` for ad-hoc/dev runs.
 
-29. **Config validation is strict** — unknown keys, malformed types, or invalid values cause the gateway to refuse to start. Run `openclaw doctor` to diagnose.
+28. **Config validation is strict** — unknown keys, malformed types, or invalid values cause the gateway to refuse to start. Run `openclaw doctor` to diagnose.
 
-30. **Environment variable substitution only matches `[A-Z_][A-Z0-9_]*`** — lowercase vars won't resolve. Missing vars throw errors at config load.
+29. **Environment variable substitution only matches `[A-Z_][A-Z0-9_]*`** — lowercase vars won't resolve. Missing vars throw errors at config load.
 
-31. **`openclaw gateway stop/restart` works with LaunchAgent but not LaunchDaemon** — OpenClaw's built-in gateway commands (`openclaw gateway stop`, `openclaw gateway restart`) manage LaunchAgents (`gui/<uid>` domain) and systemd user services. The default LaunchAgent setup works with these commands. If you use the hardened **LaunchDaemon** alternative (`system` domain) or systemd **system** service, these commands won't find it — use `launchctl bootout`/`bootstrap` or `systemctl restart` directly. Additionally, `KeepAlive: true` (launchd) or `Restart=always` (systemd) causes the service manager to immediately respawn a killed process, which can race with OpenClaw's own restart logic.
+30. **`openclaw gateway stop/restart` works with LaunchAgent but not LaunchDaemon** — OpenClaw's built-in gateway commands (`openclaw gateway stop`, `openclaw gateway restart`) manage LaunchAgents (`gui/<uid>` domain) and systemd user services. The default LaunchAgent setup works with these commands. If you use the hardened **LaunchDaemon** alternative (`system` domain) or systemd **system** service, these commands won't find it — use `launchctl bootout`/`bootstrap` or `systemctl restart` directly. Additionally, `KeepAlive: true` (launchd) or `Restart=always` (systemd) causes the service manager to immediately respawn a killed process, which can race with OpenClaw's own restart logic.
 
 ### Plugins
 
-32. **Plugin changes require a gateway restart** — plugin source files (`.ts`) are loaded at startup. Config hot-reload does NOT reload plugins. After updating a plugin in `~/.openclaw/extensions/`, restart the gateway.
+31. **Plugin changes require a gateway restart** — plugin source files (`.ts`) are loaded at startup. Config hot-reload does NOT reload plugins. After updating a plugin in `~/.openclaw/extensions/`, restart the gateway.
 
-33. **Broken tool results poison session history** — if a plugin returns malformed content blocks (wrong format, missing fields), the broken entry persists in the session `.jsonl` file. Every subsequent message replays it, causing the same error even after the plugin is fixed. **Fix:** delete the affected session file. Identify it by grepping for the error pattern, then remove:
+32. **Broken tool results poison session history** — if a plugin returns malformed content blocks (wrong format, missing fields), the broken entry persists in the session `.jsonl` file. Every subsequent message replays it, causing the same error even after the plugin is fixed. **Fix:** delete the affected session file. Identify it by grepping for the error pattern, then remove:
 
     ```bash
     # Find sessions with broken image blocks (example)
@@ -548,19 +546,19 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
     # Delete the affected session file — next message creates a fresh one
     ```
 
-34. **Image content blocks are model-visible only** — tool result image blocks let the LLM see the image but are NOT forwarded as media to channels. To deliver images via WhatsApp/Signal/Google Chat, include a `MEDIA:<path>` directive in a text content block. OpenClaw's `splitMediaFromOutput()` scans text for these directives and attaches matching files as media.
+33. **Image content blocks are model-visible only** — tool result image blocks let the LLM see the image but are NOT forwarded as media to channels. To deliver images via WhatsApp/Signal/Google Chat, include a `MEDIA:<path>` directive in a text content block. OpenClaw's `splitMediaFromOutput()` scans text for these directives and attaches matching files as media.
 
-35. **OpenClaw uses a flat image content block format** — `{type: "image", data: "<base64>", mimeType: "image/png"}`. This differs from the Anthropic API format (`{type: "image", source: {type: "base64", media_type, data}}`). Plugins must use the flat format; OpenClaw converts to API format before sending to the LLM.
+34. **OpenClaw uses a flat image content block format** — `{type: "image", data: "<base64>", mimeType: "image/png"}`. This differs from the Anthropic API format (`{type: "image", source: {type: "base64", media_type, data}}`). Plugins must use the flat format; OpenClaw converts to API format before sending to the LLM.
 
-36. **`plugins.allow` and `enabled: false` are independent checks** — both must pass for a plugin to load. A plugin in `plugins.allow` with `"enabled": false` is fully blocked: the file is never imported, `register()` is never called. Check precedence: `deny` → `allow` → `enabled`. You can safely pre-populate `plugins.allow` with trusted plugin IDs and control which ones actually load via `enabled`.
+35. **`plugins.allow` and `enabled: false` are independent checks** — both must pass for a plugin to load. A plugin in `plugins.allow` with `"enabled": false` is fully blocked: the file is never imported, `register()` is never called. Check precedence: `deny` → `allow` → `enabled`. You can safely pre-populate `plugins.allow` with trusted plugin IDs and control which ones actually load via `enabled`.
 
-37. **Plugin tools are available by default** — enabling a plugin that registers tools (image-gen → `generate_image`, computer-use → `vm_*`) makes those tools callable by any agent not blocking them. Agents using `tools.allow` are safe (unlisted tools are blocked). Agents using only `tools.deny` must explicitly deny plugin tools they shouldn't have.
+36. **Plugin tools are available by default** — enabling a plugin that registers tools (image-gen → `generate_image`, computer-use → `vm_*`) makes those tools callable by any agent not blocking them. Agents using `tools.allow` are safe (unlisted tools are blocked). Agents using only `tools.deny` must explicitly deny plugin tools they shouldn't have.
 
-38. **Plugin-generated temp files accumulate** — plugins that save images via `MEDIA:` pattern write to `$TMPDIR`. macOS clears `/tmp` on reboot, but long-running servers accumulate files. Consider a cron job: `find /tmp/openclaw-image-gen -mtime +1 -delete`.
+37. **Plugin-generated temp files accumulate** — plugins that save images via `MEDIA:` pattern write to `$TMPDIR`. macOS clears `/tmp` on reboot, but long-running servers accumulate files. Consider a cron job: `find /tmp/openclaw-image-gen -mtime +1 -delete`.
 
 ### Memory
 
-39. **Remote memory search providers need a separate API key** — the embedding key (e.g., `OPENAI_API_KEY` for OpenAI embeddings) is not the same as your AI provider key (`ANTHROPIC_API_KEY`). Both must be set.
+38. **Remote memory search providers need a separate API key** — the embedding key (e.g., `OPENAI_API_KEY` for OpenAI embeddings) is not the same as your AI provider key (`ANTHROPIC_API_KEY`). Both must be set.
 
 40. **Local memory search requires native build approval** — run `npx pnpm approve-builds` then `npx pnpm rebuild node-llama-cpp` (from the OpenClaw install directory). Without this, `memory_search` falls back to a remote provider (if configured) or returns no results.
 
