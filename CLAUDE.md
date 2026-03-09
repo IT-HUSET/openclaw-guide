@@ -207,7 +207,6 @@ Version-specific content that should be removed when the referenced fix lands:
 - **openclaw#9857** (sessions_spawn sandbox bug): Search agent runs unsandboxed as workaround. When fixed, re-enable sandbox on search agent (`"sandbox": { "mode": "all", "scope": "agent", "workspaceAccess": "none" }`) in both config examples and update all docs that note the workaround. Grep for `#9857` to find all references.
 - **openclaw#11758** (requireMention broken on WhatsApp — LID transition): `mentionedJids` arrive in `@lid` format but are compared against `selfJid` in `@s.whatsapp.net` format, so mention detection always fails. Workaround noted in `phase-3-security.md`. When fixed, remove the workaround callout and restore confidence in `requireMention: true` for WhatsApp groups.
 - **openclaw#14046** (ANNOUNCE_SKIP timing race in sessions_send A2A): Target agent returns `ANNOUNCE_SKIP` but message is still delivered due to stale history read. PR #15383 open. Note added in `phase-4-multi-agent.md`. When fixed, remove the bug callout.
-- **openclaw#35095** (Google Chat OIDC token 401): New GCP Console setup issues OIDC ID tokens (`iss: accounts.google.com`) instead of service account JWTs. OpenClaw 2026.3.2 verifies against the wrong key set → 401 on every webhook. Fix in PR #35204. When fixed, remove the Known Issues entry and the 401 troubleshooting section in `content/docs/google-chat.md`. Grep for `#35095` to find all references.
 
 
 ---

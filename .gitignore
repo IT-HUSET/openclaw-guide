@@ -21,6 +21,9 @@ docs/plans/
 # Cowork docs
 cowork/
 
+# Local machine-specific Claude context
+CLAUDE.local.md
+
 # Env files
 .env
 .env.local

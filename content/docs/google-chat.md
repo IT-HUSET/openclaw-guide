@@ -33,6 +33,7 @@ Key differences from WhatsApp/Signal:
 - **Service account auth** — no QR code or CLI linking; uses a GCP service account JSON key
 - **Audience verification** — two modes: `app-url` (webhook URL) or `project-number` (GCP project number)
 - **Space-based sessions** — session keys use `agent:<agentId>:googlechat:dm:<spaceId>` or `agent:<agentId>:googlechat:group:<spaceId>`
+- **Threaded replies** — in spaces (group chats), replies are always posted in the thread of the original message. No config option to post top-level instead (OpenClaw limitation — the Google Chat API does support it via `messageReplyOption`).
 - **Plugin required** — `plugins.entries.googlechat.enabled: true` must be set (WhatsApp/Signal also need their plugin enabled)
 
 ---
@@ -277,7 +278,7 @@ For production, use `serviceAccountFile` or the env var — keeps secrets out of
 
 | Issue | Impact | Status |
 |-------|--------|--------|
-| **OIDC token 401 regression** ([#35095](https://github.com/openclaw/openclaw/issues/35095)) — **affects 2026.3.2** | The new GCP Console creates Chat apps that issue Google ID tokens (`iss: accounts.google.com`, signed by `/oauth2/v3/certs`) instead of service account JWTs (`iss: chat@system.gserviceaccount.com`). OpenClaw 2026.3.2 verifies against the wrong key set, returning 401 for every webhook. Fix in PR [#35204](https://github.com/openclaw/openclaw/pull/35204). Once fixed, `audienceType: "app-url"` with the webhook URL is correct. | Fix pending |
+| **OIDC token 401 regression** ([#35095](https://github.com/openclaw/openclaw/issues/35095)) — **affects 2026.3.2–2026.3.7** | The new GCP Console creates Chat apps that issue Google ID tokens (`iss: accounts.google.com`, signed by `/oauth2/v3/certs`) instead of service account JWTs (`iss: chat@system.gserviceaccount.com`). OpenClaw 2026.3.2–2026.3.7 verifies against the wrong key set, returning 401 for every webhook. Fixed in [#35204](https://github.com/openclaw/openclaw/pull/35204) — **upgrade to 2026.3.8+**. With the fix, `audienceType: "app-url"` with the webhook URL is correct. | Fixed in 2026.3.8 |
 | **OAuth limitations** ([#9764](https://github.com/openclaw/openclaw/issues/9764)) | Service account auth can't do reactions, media uploads, or proactive DMs. These require user OAuth (not yet supported). | Open |
 | **Per-space rate limit** | 1 write/sec (60/min standard). The 600/min figure in some docs applies only to data import operations. | By design |
 
@@ -416,7 +417,7 @@ Find the bot's user ID in gateway logs or via the Google Chat API.
 
 If every message returns 401 despite `audience` matching the webhook URL exactly, you are likely hitting the OIDC token regression ([#35095](https://github.com/openclaw/openclaw/issues/35095)) that affects 2026.3.2 when the app was created via the new GCP Console.
 
-To confirm: temporarily capture an incoming webhook request and decode the JWT's `iss` claim. If `iss` is `"https://accounts.google.com"` (not `"chat@system.gserviceaccount.com"`), your app issues OIDC ID tokens and you need the fixed version. **Fix is in PR #35204 — wait for the next release.**
+To confirm: temporarily capture an incoming webhook request and decode the JWT's `iss` claim. If `iss` is `"https://accounts.google.com"` (not `"chat@system.gserviceaccount.com"`), your app issues OIDC ID tokens. **Upgrade to OpenClaw 2026.3.8+** (fix shipped in [#35204](https://github.com/openclaw/openclaw/pull/35204)).
 
 ### Auth errors
 
