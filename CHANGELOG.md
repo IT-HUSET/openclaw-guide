@@ -3,6 +3,16 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-03-09 — OpenClaw 2026.3.2 → 2026.3.8
+
+- Updated Brave Search plan name from "Data for Search" to "Search" (plan was renamed upstream; free tier includes $5/month credits)
+- Added `brave.mode: "llm-context"` opt-in config to Phase 5 web search — calls Brave's LLM Context endpoint and returns grounding snippets with source metadata
+- Added `agents.defaults.compaction.postCompactionSections` config option to Phase 2 compaction docs — lets deployments choose which AGENTS.md sections are re-injected after compaction
+- Added `openclaw backup create` / `openclaw backup verify` CLI commands to Phase 7 migration as the recommended backup method, alongside the existing manual tar approach
+- Added `OPENCLAW_EXTENSIONS` build arg documentation to Custom Sandbox Images — pre-bakes bundled extension npm dependencies into Docker images for faster, more reproducible container starts
+- Added Version ≥ 2026.3.7 security checklist item to `/security-review`: ACP `/acp spawn` sandbox bypass via command-path was closed
+- Bumped guide version to 2026.3.8 across `.guide-version`, docs index callout, and hardened-multi-agent prerequisite line
+
 ## 2026-03-03
 
 ### Guide updated for OpenClaw 2026.2.22 → 2026.3.2

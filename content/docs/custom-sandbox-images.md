@@ -245,6 +245,20 @@ openclaw sandbox recreate --agent main      # specific agent
 openclaw sandbox recreate --all --force      # skip confirmation
 ```
 
+### Pre-baking extension dependencies
+
+For container deployments, you can bake selected bundled extension npm dependencies into the image using the `OPENCLAW_EXTENSIONS` build arg. This avoids downloading them at gateway startup, improving startup time and reproducibility:
+
+```bash
+# Build image with content-guard and channel-guard deps pre-installed
+docker build \
+  --build-arg OPENCLAW_EXTENSIONS="content-guard,channel-guard" \
+  -f Dockerfile.sandbox \
+  -t my-sandbox:latest .
+```
+
+This is most useful when running multiple containers from the same image — each container starts faster because extension deps are already present.
+
 ---
 
 ## Multi-Machine Deployment
