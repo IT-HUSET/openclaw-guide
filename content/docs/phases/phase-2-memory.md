@@ -344,7 +344,10 @@ When the context window fills up, OpenClaw compacts the conversation to free spa
           softThresholdTokens: 4000,
           systemPrompt: "Session nearing compaction. Store durable memories now.",
           prompt: "Write any lasting notes to memory/YYYY-MM-DD.md; reply with NO_REPLY if nothing to store."
-        }
+        },
+        // Optional: choose which AGENTS.md sections are re-injected after compaction.
+        // Defaults to the documented pair; override only if your AGENTS.md uses custom section names.
+        postCompactionSections: ["Safety", "Memory Guidelines"]
       }
     }
   }

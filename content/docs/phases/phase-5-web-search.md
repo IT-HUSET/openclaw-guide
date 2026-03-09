@@ -215,8 +215,26 @@ Key points:
 
 **Brave Search** (recommended — free tier available):
 1. Create account at https://brave.com/search/api/
-2. Choose "Data for Search" plan
+2. Choose the **Search** plan (free tier includes $5/month credits)
 3. Set `BRAVE_API_KEY` in `~/.openclaw/.env`
+
+**Brave LLM Context mode** (opt-in, returns grounding snippets with source metadata instead of raw results):
+```json
+{
+  "tools": {
+    "web": {
+      "search": {
+        "enabled": true,
+        "provider": "brave",
+        "apiKey": "${BRAVE_API_KEY}",
+        "brave": {
+          "mode": "llm-context"
+        }
+      }
+    }
+  }
+}
+```
 
 **Perplexity** (AI-synthesized answers):
 ```json

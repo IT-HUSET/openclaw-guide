@@ -134,6 +134,7 @@ Evaluate each area using the collected data:
 - [ ] Version ≥ 2026.2.25 (gateway WebSocket origin checks, operator pairing bypass fix, ACP permission hardening, reaction auth enforcement across Signal/Discord/Slack/Telegram)
 - [ ] Version ≥ 2026.2.26 (node exec approval hardening, plugin channel HTTP auth bypass fix, sandbox path alias guard)
 - [ ] Version ≥ 2026.3.2 (ACP sandbox bypass fix, ws:// loopback-only default, LaunchAgent Umask hardening, plugin HTTP auth required)
+- [ ] Version ≥ 2026.3.7 (ACP /acp spawn sandbox bypass via command-path closed)
 - [ ] Version compared against guide baseline (`.guide-version`)
 
 ### 2. Security Baseline (Phase 3)

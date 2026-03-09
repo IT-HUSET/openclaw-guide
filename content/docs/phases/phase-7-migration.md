@@ -51,6 +51,21 @@ sudo systemctl stop openclaw-gateway
 
 ### Create a backup
 
+**Option A: Built-in backup CLI** (recommended — includes manifest and verification):
+
+```bash
+# Full backup (config + workspaces + credentials)
+sudo -u openclaw bash -c 'cd /Users/openclaw && HOME=/Users/openclaw openclaw backup create'
+
+# Config-only backup (no workspace/memory files)
+sudo -u openclaw bash -c 'cd /Users/openclaw && HOME=/Users/openclaw openclaw backup create --only-config'
+
+# Verify a backup archive before transferring
+sudo -u openclaw bash -c 'HOME=/Users/openclaw openclaw backup verify openclaw-backup-*.tar.gz'
+```
+
+**Option B: Manual tar** (works without the gateway installed):
+
 ```bash
 # Full .openclaw directory backup
 sudo tar czf openclaw-backup-$(date +%Y%m%d).tar.gz -C /Users/openclaw .openclaw
@@ -59,7 +74,7 @@ sudo tar czf openclaw-backup-$(date +%Y%m%d).tar.gz -C /Users/openclaw .openclaw
 sudo tar czf openclaw-backup-$(date +%Y%m%d).tar.gz -C /home/openclaw .openclaw
 ```
 
-> **Session files can be large.** If you don't need conversation history, exclude them: `--exclude='.openclaw/agents/*/sessions'`. Memory files (in workspaces) are separate and much smaller.
+> **Session files can be large.** If you don't need conversation history, exclude them with `--no-include-workspace` (CLI) or `--exclude='.openclaw/agents/*/sessions'` (tar). Memory files (in workspaces) are separate and much smaller.
 
 ### Export secrets inventory
 
