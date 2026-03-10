@@ -599,14 +599,14 @@ Features below require the listed version or later. Check yours with `openclaw -
 | `signal` | Signal channel (bundled) | — |
 | `googlechat` | Google Chat channel (bundled) | `GOOGLE_CHAT_SERVICE_ACCOUNT_FILE` |
 | `content-guard` | LLM-based injection scanning at sessions_send boundary (search→main) | `OPENROUTER_API_KEY` |
-| `channel-guard` | Inbound message injection scanning for WhatsApp/Signal/Google Chat | — (local ONNX model) |
+| `channel-guard` | Inbound message injection scanning for WhatsApp/Signal/Google Chat | `OPENROUTER_API_KEY` |
 | `file-guard` | Path-based file access protection (no_access, read_only, no_delete) | — (deterministic) |
 | `network-guard` | Application-level domain allowlisting for network tool calls | — (deterministic, no model) |
 | `command-guard` | Regex-based dangerous command blocking | — (no external deps) |
 | `image-gen` | Generate images from text prompts via OpenRouter | `OPENROUTER_API_KEY` |
 | `computer-use` | VM computer interaction (Lume) | — (WebSocket to cua-computer-server) |
 
-The `content-guard` plugin intercepts `sessions_send` calls at the search→main trust boundary, classifying message content for prompt injection using an LLM (claude-haiku-4-5 via OpenRouter). It identifies search-agent traffic by the `params.sessionKey` of the `sessions_send` call (sessions targeting `agent:search:*`); all other `sessions_send` calls (e.g. proactive group delivery) are skipped without scanning. Note: `event.agentId` is not populated by the runtime for `before_tool_call` events — rely on `params.sessionKey` for caller identification. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing using a local DeBERTa ONNX model, fail-closed by default (`failOpen: false`). Both are included in the [recommended configuration](examples/config.md).
+The `content-guard` plugin intercepts `sessions_send` calls at the search→main trust boundary, classifying message content for prompt injection using an LLM (claude-haiku-4-5 via OpenRouter). It identifies search-agent traffic by the `params.sessionKey` of the `sessions_send` call (sessions targeting `agent:search:*`); all other `sessions_send` calls (e.g. proactive group delivery) are skipped without scanning. Note: `event.agentId` is not populated by the runtime for `before_tool_call` events — rely on `params.sessionKey` for caller identification. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing using an OpenRouter LLM classifier with warn/block thresholds, fail-closed by default (`failOpen: false`). Both are included in the [recommended configuration](examples/config.md).
 
 The `file-guard`, `network-guard`, and `command-guard` plugins provide deterministic enforcement — no ML model, no external dependencies. `file-guard` enforces path-based file protection with three levels (no_access, read_only, no_delete). `network-guard` enforces application-level domain allowlisting for `web_fetch` and `exec` tool calls. `command-guard` blocks dangerous shell commands (rm -rf, fork bombs, force push, etc.) via regex. All three are included in the [hardened multi-agent](hardened-multi-agent.md) configuration and can optionally be added to any deployment. See [Phase 5](phases/phase-5-web-search.md#additional-hardening-guards) for overview and the [extension docs](extensions/) for full configuration.
 
@@ -662,8 +662,10 @@ openclaw plugins install --link /path/to/plugin
       "channel-guard": {
         enabled: true,
         config: {
-          failOpen: false,       // Block messages if model unavailable
-          sensitivity: 0.5,      // Detection threshold (0.0–1.0)
+          model: "anthropic/claude-haiku-4-5",
+          maxContentLength: 10000,
+          timeoutMs: 10000,
+          failOpen: false,       // Block messages if classifier unavailable
           warnThreshold: 0.4,    // Score to inject advisory
           blockThreshold: 0.8    // Score to hard-block message
         }

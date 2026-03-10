@@ -23,7 +23,7 @@ A pragmatic, security-first guide to [OpenClaw](https://docs.openclaw.ai) — th
 ### Probabilistic Guards (recommended baseline)
 
 - [`extensions/content-guard/`](extensions/content-guard/) — LLM-based injection scanning (claude-haiku-4-5 via OpenRouter) at the `sessions_send` boundary between search and main agents. Covers both `web_search` results and `web_fetch` content. Requires `OPENROUTER_API_KEY`. See [Phase 5 — content-guard](https://IT-HUSET.github.io/openclaw-guide/docs/phases/phase-5-web-search/#advanced-prompt-injection-guard).
-- [`extensions/channel-guard/`](extensions/channel-guard/) — Scans inbound WhatsApp/Signal/Google Chat messages for prompt injection using a local DeBERTa ONNX model (~370 MB, downloaded on first use). Three-tier response: pass, warn, or block. No API keys. See [Phase 5 — channel-guard](https://IT-HUSET.github.io/openclaw-guide/docs/phases/phase-5-web-search/#inbound-message-guard-channel-guard).
+- [`extensions/channel-guard/`](extensions/channel-guard/) — Scans inbound WhatsApp/Signal/Google Chat messages for prompt injection using an OpenRouter LLM classifier (default `anthropic/claude-haiku-4-5`). Three-tier response: pass, warn, or block. Requires `OPENROUTER_API_KEY`. See [Phase 5 — channel-guard](https://IT-HUSET.github.io/openclaw-guide/docs/phases/phase-5-web-search/#inbound-message-guard-channel-guard).
 
 ### Deterministic Guards (hardened deployments)
 

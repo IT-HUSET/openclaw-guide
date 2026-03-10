@@ -332,7 +332,14 @@ Enable all guard plugins — the hardened variant adds the three deterministic g
     "entries": {
       "channel-guard": {
         "enabled": true,
-        "config": { "failOpen": false, "sensitivity": 0.5, "warnThreshold": 0.4, "blockThreshold": 0.8 }
+        "config": {
+          "model": "anthropic/claude-haiku-4-5",
+          "maxContentLength": 10000,
+          "timeoutMs": 10000,
+          "failOpen": false,
+          "warnThreshold": 0.4,
+          "blockThreshold": 0.8
+        }
       },
       "content-guard": {
         "enabled": true,

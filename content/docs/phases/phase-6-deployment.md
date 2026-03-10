@@ -85,7 +85,7 @@ Keep `openclaw.json` secrets-free — use `${ENV_VAR}` references in config, sto
 | Brave search key | `BRAVE_API_KEY` | Referenced as `${BRAVE_API_KEY}` in config |
 | OpenRouter key | `OPENROUTER_API_KEY` | If using Perplexity via OpenRouter |
 | GitHub token | `GITHUB_TOKEN` | Fine-grained PAT — see [GitHub token setup](#github-token-setup) below |
-| *(channel-guard uses local ONNX model — no API key needed; content-guard requires OPENROUTER_API_KEY)* | | See [plugin setup](phase-5-web-search.md#advanced-prompt-injection-guard) |
+| *(channel-guard and content-guard both require OPENROUTER_API_KEY)* | | See [plugin setup](phase-5-web-search.md#advanced-prompt-injection-guard) |
 
 > **Empty env vars cause startup failure.** If a `${VAR}` reference resolves to an empty string, the gateway exits with `EX_CONFIG` (exit 78). For optional keys not yet provisioned (e.g., `BRAVE_API_KEY` when using Perplexity instead), use a non-empty placeholder like `"not-configured"` rather than leaving the variable empty or unset.
 >
@@ -1334,7 +1334,7 @@ OPENCLAW_GATEWAY_TOKEN=your-gateway-token
 ANTHROPIC_API_KEY=sk-ant-...
 BRAVE_API_KEY=BSA...
 GITHUB_TOKEN=github_pat_...
-# channel-guard uses local ONNX model — no API key needed; content-guard requires OPENROUTER_API_KEY
+# channel-guard and content-guard both require OPENROUTER_API_KEY
 EOF
 sudo chmod 600 /etc/openclaw/secrets.env
 sudo chown root:root /etc/openclaw/secrets.env

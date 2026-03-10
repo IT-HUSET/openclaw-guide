@@ -261,8 +261,10 @@
       "channel-guard": {
         "enabled": true,
         "config": {
+          "model": "anthropic/claude-haiku-4-5",
+          "maxContentLength": 10000,
+          "timeoutMs": 10000,
           "failOpen": false,
-          "sensitivity": 0.5,
           "warnThreshold": 0.4,
           "blockThreshold": 0.8
         }

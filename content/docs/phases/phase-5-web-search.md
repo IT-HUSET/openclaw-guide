@@ -490,7 +490,7 @@ Other OpenClaw security plugins worth evaluating:
 
 ## Inbound Message Guard (channel-guard)
 
-Channel messages from WhatsApp and Signal are another injection surface — adversarial users can craft prompts to manipulate channel agents. The [`channel-guard`](../extensions/channel-guard.md) plugin uses a local DeBERTa ONNX model, applied to incoming messages via the `message_received` hook. Compare: content-guard guards inter-agent communication (`sessions_send`); channel-guard guards the inbound channel perimeter (`message_received`).
+Channel messages from WhatsApp and Signal are another injection surface — adversarial users can craft prompts to manipulate channel agents. The [`channel-guard`](../extensions/channel-guard.md) plugin uses an OpenRouter LLM classifier, applied to incoming messages via the `message_received` hook. Compare: content-guard guards inter-agent communication (`sessions_send`); channel-guard guards the inbound channel perimeter (`message_received`).
 
 **Three-tier response:**
 
@@ -515,7 +515,9 @@ openclaw plugins install -l ./extensions/channel-guard
       "channel-guard": {
         "enabled": true,
         "config": {
-          "sensitivity": 0.5,
+          "model": "anthropic/claude-haiku-4-5",
+          "maxContentLength": 10000,
+          "timeoutMs": 10000,
           "warnThreshold": 0.4,
           "blockThreshold": 0.8,
           "failOpen": false,
@@ -527,7 +529,8 @@ openclaw plugins install -l ./extensions/channel-guard
 }
 ```
 
-- `sensitivity` — model confidence threshold (0.0–1.0, default 0.5). Lower = more aggressive. **If you see false positives on legitimate messages** (instructional content, technical docs, how-to text), raise this to `0.85` before disabling channel-guard entirely.
+- `model` — OpenRouter model to use for classification. Default: `anthropic/claude-haiku-4-5`.
+- `maxContentLength` / `timeoutMs` — cap per-request classification chunk size and request timeout.
 - `warnThreshold` / `blockThreshold` — control the three-tier response. Adjust based on your false positive tolerance.
 - `failOpen: false` (default) — block all messages when model unavailable. Fail-closed philosophy.
 - `logDetections` — log flagged messages (score + source channel + snippet) to the gateway console.
@@ -535,8 +538,8 @@ openclaw plugins install -l ./extensions/channel-guard
 ### Scope and limitations
 
 - **Channel messages only** — the `message_received` hook fires for WhatsApp/Signal bridge messages. It does **not** fire for HTTP API requests or Control UI messages. This is by design — channel-guard protects the channel perimeter.
-- **Probabilistic** — DeBERTa achieves 95.5% F1 on evaluation data but may miss novel attack patterns. This is a defense-in-depth layer, not a guarantee.
-- **False positives on instructional content** — the model can flag legitimate messages containing step-by-step instructions, changelogs, or technical procedures. The default `sensitivity: 0.5` is relatively aggressive. If you're getting too many false positives, raise `sensitivity` to `0.7`–`0.85` rather than disabling the plugin.
+- **Probabilistic** — LLM classification may still miss novel patterns or produce false positives. This is defense-in-depth, not a guarantee.
+- **Tuning** — if warnings/blocks are too aggressive, increase `warnThreshold`/`blockThreshold` rather than disabling the plugin.
 
 ---
 

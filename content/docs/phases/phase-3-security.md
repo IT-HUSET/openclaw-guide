@@ -535,7 +535,7 @@ For adding macOS-native tooling (Xcode, iOS Simulator, macOS apps) via Lume VMs,
 - **SOUL.md is soft** — model-level guardrails can be bypassed by sophisticated prompt injection. Tool policy (`deny`/`allow`) is the hard enforcement layer.
 - **Web content injection** — poisoned web pages can inject instructions into search results or browser content. The [content-guard plugin](phase-5-web-search.md#advanced-prompt-injection-guard) provides LLM-based injection scanning at the `sessions_send` boundary between search and main agents — tool policy remains the hard enforcement layer.
 - **Channel message injection** — adversarial messages from WhatsApp/Signal can attempt to hijack the receiving agent (main, or a dedicated channel agent if configured). Three defense layers apply:
-  1. **channel-guard plugin** ([setup](phase-5-web-search.md#inbound-message-guard-channel-guard)) — primary defense, scans incoming messages with DeBERTa ONNX model. Probabilistic — false negatives are possible.
+  1. **channel-guard plugin** ([setup](phase-5-web-search.md#inbound-message-guard-channel-guard)) — primary defense, scans incoming messages with an OpenRouter LLM classifier. Probabilistic — false negatives are possible.
   2. **Dedicated channel agents (optional)** — secondary defense. If channels route to agents that deny `exec`/`process`, a successful injection can't execute commands directly. However, `sessions_send` to main bypasses this restriction (see dominant risk above). A real but narrow defense — blocks the direct attack path while the delegation path remains open.
   3. **Docker/VM sandboxing** — tertiary, limits blast radius of any successful attack to the container/VM.
 

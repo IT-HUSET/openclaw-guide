@@ -1,16 +1,16 @@
 ---
 title: "channel-guard"
-description: "OpenClaw plugin that scans incoming WhatsApp/Signal/Google Chat messages for prompt injection using a local DeBERTa ONNX model."
+description: "OpenClaw plugin that scans incoming WhatsApp/Signal/Google Chat messages for prompt injection using an OpenRouter LLM."
 weight: 132
 ---
 
 [View source on GitHub](https://github.com/IT-HUSET/openclaw-guide/tree/main/extensions/channel-guard/)
 
-Scans incoming channel messages (WhatsApp, Signal, Google Chat) for prompt injection using a local DeBERTa ONNX model. Companion to [content-guard](content-guard.md) which scans content at the inter-agent sessions_send boundary — channel-guard protects the **inbound message** surface instead.
+Scans incoming channel messages (WhatsApp, Signal, Google Chat) for prompt injection using an OpenRouter-hosted LLM. Companion to [content-guard](content-guard.md) which scans content at the inter-agent sessions_send boundary — channel-guard protects the **inbound message** surface instead.
 
 ## How it works
 
-Hooks into `message_received` (fires when a channel message arrives, before the agent processes it) and runs the message text through [ProtectAI/deberta-v3-base-prompt-injection-v2](https://huggingface.co/protectai/deberta-v3-base-prompt-injection-v2).
+Hooks into `message_received` (fires when a channel message arrives, before the agent processes it) and classifies message text with an LLM via OpenRouter (default model: `anthropic/claude-haiku-4-5`).
 
 **Three-tier response based on detection score:**
 
@@ -23,11 +23,10 @@ Hooks into `message_received` (fires when a channel message arrives, before the 
 ## Install
 
 ```bash
-cd extensions/channel-guard
-npm install
+openclaw plugins install -l ./extensions/channel-guard
 ```
 
-The DeBERTa ONNX model (~370MB, fp32) downloads automatically on first use and is cached locally.
+Requires `OPENROUTER_API_KEY` (or `openRouterApiKey` in plugin config).
 
 ## Configuration
 
@@ -41,7 +40,9 @@ Add to your `openclaw.json`:
       "channel-guard": {
         "enabled": true,
         "config": {
-          "sensitivity": 0.5,     // Model threshold for INJECTION label
+          "model": "anthropic/claude-haiku-4-5",
+          "maxContentLength": 10000,
+          "timeoutMs": 10000,
           "warnThreshold": 0.4,   // Score to trigger warning
           "blockThreshold": 0.8,  // Score to hard-block
           "failOpen": false,      // Block when model unavailable
@@ -57,11 +58,14 @@ Add to your `openclaw.json`:
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `sensitivity` | number | 0.5 | Model confidence threshold (0-1). Lower = more aggressive |
+| `openRouterApiKey` | string | `$OPENROUTER_API_KEY` | OpenRouter API key. Falls back to env var |
+| `model` | string | `anthropic/claude-haiku-4-5` | LLM model for classification |
+| `maxContentLength` | number | 10000 | Max chars per classifier request (longer text is scanned in sequential chunks) |
+| `timeoutMs` | number | 10000 | API request timeout in ms |
+| `sensitivity` | number | - | Deprecated. Legacy compatibility only; used as `warnThreshold` fallback |
 | `warnThreshold` | number | 0.4 | Score above which to inject warning |
 | `blockThreshold` | number | 0.8 | Score above which to hard-block |
 | `failOpen` | boolean | false | Allow messages when model unavailable |
-| `cacheDir` | string | - | ONNX model cache directory |
 | `logDetections` | boolean | true | Log flagged messages to gateway console |
 
 ## Testing
@@ -70,7 +74,7 @@ Add to your `openclaw.json`:
 npm test
 ```
 
-Tests use the real DeBERTa model (first run downloads it). Timeout is 120s to accommodate model loading.
+Tests use mocked HTTP responses (no API key required).
 
 ## Architecture
 
@@ -80,7 +84,7 @@ WhatsApp/Signal/Google Chat message
         v
   +-----------------+
   | message_        |
-  | received        |--> DeBERTa ONNX classifier
+  | received        |--> OpenRouter LLM classifier
   | hook            |         |
   +-----------------+         v
         |          score < 0.4 --> pass
@@ -99,11 +103,11 @@ WhatsApp/Signal/Google Chat message
 | **Intercepts** | `sessions_send` | Inbound channel messages |
 | **Protects** | Inter-agent sessions_send boundary | Inbound channel messages |
 | **Threat** | Poisoned web content crossing agent boundary | Adversarial user messages |
-| **Model** | LLM (OpenRouter) | DeBERTa ML |
+| **Model** | LLM (OpenRouter) | LLM (OpenRouter) |
 
 ## Limitations
 
 - **Channel messages only**: The `message_received` hook fires only for configured channel messages (WhatsApp, Signal, Google Chat bridges). It does **not** fire for HTTP chat completions API requests or Control UI messages. This is by design — channel-guard protects the channel perimeter, not the API surface. (Tested against OpenClaw 2026.2.12.)
 - **TOCTOU**: The model sees the message text at hook time. If the platform modifies the message after the hook fires, the classification may not match the final content the agent sees. In practice this is unlikely for channel messages.
-- **Model accuracy**: DeBERTa has a false positive rate of ~1-3% on benign messages. Tune `sensitivity` and thresholds for your use case.
+- **Probabilistic detection**: LLM classification can still produce false positives/negatives. Tune `warnThreshold`/`blockThreshold` for your risk tolerance.
 - **Warn mechanism**: The `warn` return value depends on OpenClaw's `message_received` hook supporting `{ warn: true, warnMessage }`. If unsupported, warnings are logged but not injected into agent context. Blocking (`{ block: true }`) is the primary defense.

@@ -330,7 +330,7 @@ for plugin in channel-guard content-guard file-guard network-guard command-guard
 done
 ```
 
-> **channel-guard downloads a ~370 MB DeBERTa ONNX model** on first run. First gateway start after migration may be slow if node_modules weren't transferred. content-guard requires no local model — it calls OpenRouter.
+> **channel-guard and content-guard use OpenRouter**. Ensure `OPENROUTER_API_KEY` is set on the target host before first start or both guards fail closed.
 
 > **Plugin changes require gateway restart.** Unlike config changes which hot-reload, plugin source is loaded at startup only.
 

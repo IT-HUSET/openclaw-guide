@@ -1,7 +1,7 @@
 {
   "name": "channel-guard",
   "version": "0.1.0",
-  "description": "OpenClaw plugin: scan incoming channel messages for prompt injection using local DeBERTa ONNX model",
+  "description": "OpenClaw plugin: scan incoming channel messages for prompt injection using OpenRouter LLM classification",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -13,10 +13,9 @@
   "devDependencies": {
     "tsx": "^4.20.5"
   },
-  "dependencies": {
-    "@huggingface/transformers": "^3"
-  },
   "openclaw": {
-    "extensions": ["./index.ts"]
+    "extensions": [
+      "./index.ts"
+    ]
   }
 }

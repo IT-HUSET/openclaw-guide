@@ -51,7 +51,7 @@ Primarily documentation (Markdown + annotated JSON config examples), plus TypeSc
 
 ### Extensions
 - `extensions/content-guard/` — OpenClaw plugin (TypeScript): LLM-based prompt injection scanning for sessions_send at the search→main trust boundary. Requires OPENROUTER_API_KEY.
-- `extensions/channel-guard/` — OpenClaw plugin (TypeScript): prompt injection scanning for incoming channel messages (WhatsApp, Signal, Google Chat) using local DeBERTa ONNX model
+- `extensions/channel-guard/` — OpenClaw plugin (TypeScript): prompt injection scanning for incoming channel messages (WhatsApp, Signal, Google Chat) using OpenRouter LLM classification
 - `extensions/file-guard/` — OpenClaw plugin (TypeScript): path-based file access protection with three levels (no_access, read_only, no_delete) using deterministic picomatch patterns
 - `extensions/network-guard/` — OpenClaw plugin (TypeScript): application-level domain allowlisting for web_fetch and exec tool calls (deterministic regex + glob, no ML model)
 - `extensions/command-guard/` — OpenClaw plugin (TypeScript): regex-based dangerous command blocking for exec/bash tool calls (no ML model)
@@ -76,7 +76,7 @@ Primarily documentation (Markdown + annotated JSON config examples), plus TypeSc
 cd extensions/channel-guard && npm install && npm test
 cd extensions/content-guard && npm install && npm test
 ```
-channel-guard tests use real DeBERTa ONNX model (~370 MB, cached in `node_modules/`). First run downloads the model. content-guard tests are mock-based (<1s).
+channel-guard and content-guard tests are mock-based (<1s).
 
 ```bash
 cd extensions/file-guard && npm install && npm test
@@ -178,7 +178,7 @@ The prompt lives at `.github/prompts/changelog-review.md`. Claude has Bash acces
 **Setup:** Install the [Claude GitHub App](https://github.com/apps/claude), then run `claude setup-token` locally and add the output as `CLAUDE_CODE_OAUTH_TOKEN` repo secret. Enable **Allow auto-merge** in repo Settings → General for unattended PR merging.
 
 ### Extension CI
-`.github/workflows/extension-tests.yml` runs on PRs touching `extensions/` and on manual dispatch. Matrix strategy tests all 7 extensions independently (`fail-fast: false`). Uses `node_modules` cache keyed on `package.json` hash — important for channel-guard's ~370 MB ONNX model.
+`.github/workflows/extension-tests.yml` runs on PRs touching `extensions/` and on manual dispatch. Matrix strategy tests all 7 extensions independently (`fail-fast: false`). Uses `node_modules` cache keyed on `package.json` hash.
 
 ### Manual review procedure
 When updating the guide for a new OpenClaw version:

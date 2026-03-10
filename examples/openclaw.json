@@ -359,12 +359,15 @@
       "signal": { "enabled": true },
       "googlechat": { "enabled": true },
       "channel-guard": {
-        // Scans inbound channel messages for prompt injection before they reach agents.
+        // LLM-based scanning of inbound channel messages before they reach agents.
+        // Requires OPENROUTER_API_KEY (or openRouterApiKey in plugin config).
         // failOpen:false — block message if scanner fails (safe default).
         "enabled": true,
         "config": {
+          "model": "anthropic/claude-haiku-4-5",
+          "maxContentLength": 10000,
+          "timeoutMs": 10000,
           "failOpen": false,
-          "sensitivity": 0.5,
           "warnThreshold": 0.4,
           "blockThreshold": 0.8
         }

@@ -1,8 +1,6 @@
 # CI: runs unit tests for each extension on PRs that touch extensions/.
 #
-# All tests are self-contained (mock-based or bundled models) — no API keys needed.
-# channel-guard downloads a ~370 MB ONNX model on first run; node_modules cache
-# prevents re-downloading on subsequent runs.
+# All tests are self-contained (mock-based) — no API keys needed.
 
 name: Extension Tests
 

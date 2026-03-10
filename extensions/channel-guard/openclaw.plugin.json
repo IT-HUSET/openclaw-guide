@@ -1,18 +1,38 @@
 {
   "id": "channel-guard",
   "name": "Channel Message Guard",
-  "description": "Scans incoming channel messages (WhatsApp, Signal, Control UI) for prompt injection using a local DeBERTa ONNX model. Three-tier response: pass, warn (inject advisory), or block. No API key required — model is downloaded on first use and cached locally.",
+  "description": "Scans incoming channel messages (WhatsApp, Signal, Control UI) for prompt injection using an LLM via OpenRouter. Three-tier response: pass, warn (inject advisory), or block.",
   "version": "0.1.0",
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
     "properties": {
+      "openRouterApiKey": {
+        "type": "string",
+        "description": "OpenRouter API key. Falls back to OPENROUTER_API_KEY env var if omitted."
+      },
+      "model": {
+        "type": "string",
+        "default": "anthropic/claude-haiku-4-5",
+        "description": "OpenRouter model used for message classification."
+      },
+      "maxContentLength": {
+        "type": "number",
+        "minimum": 100,
+        "default": 10000,
+        "description": "Maximum number of characters sent per classifier request. Longer messages are scanned in sequential chunks of this size."
+      },
+      "timeoutMs": {
+        "type": "number",
+        "minimum": 1000,
+        "default": 10000,
+        "description": "Classification timeout in milliseconds."
+      },
       "sensitivity": {
         "type": "number",
         "minimum": 0,
         "maximum": 1,
-        "default": 0.5,
-        "description": "Detection threshold (0.0–1.0). Lower = more aggressive (fewer false negatives, more false positives)."
+        "description": "Deprecated. Legacy compatibility only; used as warnThreshold fallback when warnThreshold is unset."
       },
       "warnThreshold": {
         "type": "number",
@@ -31,11 +51,7 @@
       "failOpen": {
         "type": "boolean",
         "default": false,
-        "description": "If true, allow messages when model is unavailable. If false (default), block on model failure."
-      },
-      "cacheDir": {
-        "type": "string",
-        "description": "Directory to cache the ONNX model. Defaults to @huggingface/transformers default cache location."
+        "description": "If true, allow messages when classifier is unavailable. If false (default), block on classifier failure."
       },
       "logDetections": {
         "type": "boolean",
@@ -45,11 +61,14 @@
     }
   },
   "uiHints": {
-    "sensitivity": { "label": "Sensitivity" },
+    "openRouterApiKey": { "label": "OpenRouter API Key" },
+    "model": { "label": "Model" },
+    "maxContentLength": { "label": "Max Content Length" },
+    "timeoutMs": { "label": "Timeout (ms)" },
+    "sensitivity": { "label": "Sensitivity (deprecated)" },
     "warnThreshold": { "label": "Warn Threshold" },
     "blockThreshold": { "label": "Block Threshold" },
     "failOpen": { "label": "Fail Open" },
-    "cacheDir": { "label": "Model Cache Dir" },
     "logDetections": { "label": "Log Detections" }
   }
 }

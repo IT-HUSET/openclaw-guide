@@ -190,7 +190,7 @@ openclaw plugins install -l ./extensions/network-guard
 openclaw plugins install -l ./extensions/command-guard
 ```
 
-First install of channel-guard downloads DeBERTa ONNX model (~370 MB, cached in `node_modules/`). content-guard requires `OPENROUTER_API_KEY` instead of a local model.
+Both channel-guard and content-guard require `OPENROUTER_API_KEY` for LLM-based classification.
 
 ---
 
