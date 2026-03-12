@@ -3,6 +3,14 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-03-12 — OpenClaw 2026.3.8 → 2026.3.11
+
+- Added version ≥ 2026.3.11 checklist item to security-review.md covering the cross-site WebSocket hijacking fix (GHSA-5wcw-8jjv-m286) in trusted-proxy mode, secret file symlink hardening, and plugin/session auth fixes
+- Added cron delivery breaking change gotcha to reference.md (2026.3.11): isolated cron jobs can no longer notify via ad hoc `message` tool calls or fallback main-session summaries; migrate to `delivery.mode: "announce"` and run `openclaw doctor --fix` for legacy cron storage migration
+- Updated phase-2-memory.md provider table: `gemini-embedding-2-preview` is now available (2026.3.11+) with configurable output dimensions
+- Added version note to phase-2-memory.md `extraPaths` section: opt-in multimodal image/audio indexing is now available with the `gemini` provider using `gemini-embedding-2-preview` (2026.3.11+)
+- Bumped guide version to 2026.3.11 in `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md`
+
 ## 2026-03-09 — OpenClaw 2026.3.2 → 2026.3.8
 
 - Updated Brave Search plan name from "Data for Search" to "Search" (plan was renamed upstream; free tier includes $5/month credits)

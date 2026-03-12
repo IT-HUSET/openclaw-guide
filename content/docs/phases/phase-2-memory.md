@@ -146,7 +146,7 @@ By default, the agent can only see today's and yesterday's memory files. **Memor
 |----------|----------|---------|---------|
 | `local` (GGUF) | ~600MB disk, first-run download | ~50ms | Full — nothing leaves your machine |
 | `openai` | `OPENAI_API_KEY` | ~200ms | Embeddings sent to OpenAI |
-| `gemini` | `GEMINI_API_KEY` | ~200ms | Embeddings sent to Google |
+| `gemini` | `GEMINI_API_KEY` | ~200ms | Embeddings sent to Google. `gemini-embedding-2-preview` available (2026.3.11+) with configurable output dimensions |
 | `voyage` | `VOYAGE_API_KEY` | ~200ms | Embeddings sent to Voyage AI |
 
 **Provider auto-selection:** OpenClaw does **not** default to `local`. If `provider` is omitted, it auto-selects: `local` (if `modelPath` configured) → `openai` → `gemini` → `voyage` → disabled. Set `provider: "local"` explicitly to avoid surprises — without it, OpenClaw may silently use a remote provider if an API key is found in the environment.
@@ -425,7 +425,9 @@ To index shared files across agents without merging workspaces, use `memorySearc
 }
 ```
 
-Paths can be absolute or workspace-relative. Directories are scanned recursively for `.md` files. Only Markdown is indexed; symlinks are ignored.
+Paths can be absolute or workspace-relative. Directories are scanned recursively for `.md` files. Only Markdown is indexed by default; symlinks are ignored.
+
+> **Version note (2026.3.11):** Opt-in multimodal indexing for images and audio in `extraPaths` is now available when using the `gemini` provider with `gemini-embedding-2-preview`. Reindexing is scope-based and strict fallback gating prevents silent downgrade. See [official docs](https://docs.openclaw.ai/concepts/memory) for the opt-in config.
 
 > **Scope note:** `extraPaths` content is searchable via `memory_search` but **not** directly fetchable via `memory_get`. The `memory_get` tool only reads files in the agent's `memory/` directory and `MEMORY.md`. To let the agent read `extraPaths` files directly, it needs filesystem tools (`read`) with appropriate access.
 
