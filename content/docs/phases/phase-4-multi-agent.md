@@ -405,7 +405,7 @@ Use group shorthands to deny/allow entire categories:
 > 2. **Sandbox tool policy** — if the session is sandboxed, `message` must be in `tools.sandbox.tools.allow` (it is NOT in the default sandbox allow list)
 > 3. **`disableMessageTool` flag** — set automatically on cron isolated jobs with delivery configured; not relevant for normal sessions
 >
-> Gate 2 is the non-obvious one: **WhatsApp DM sessions are always non-main sessions** (key = `agent:main:whatsapp:dm:...`), so they're sandboxed with `mode: "non-main"` or `"all"`. Even if the agent policy allows `message`, it's blocked in a DM session unless the sandbox tool allow list includes it. See [Reference: Default Sandbox Tool Allow List](../reference.md#default-sandbox-tool-allow-list) and the config examples, which include `tools.sandbox.tools.allow` with `message`.
+> Gate 2 is the non-obvious one: **WhatsApp DM sessions are always non-main sessions** (key = `agent:main:whatsapp:direct:...`), so they're sandboxed with `mode: "non-main"` or `"all"`. Even if the agent policy allows `message`, it's blocked in a DM session unless the sandbox tool allow list includes it. See [Reference: Default Sandbox Tool Allow List](../reference.md#default-sandbox-tool-allow-list) and the config examples, which include `tools.sandbox.tools.allow` with `message`.
 
 Example — a read-only agent:
 ```json

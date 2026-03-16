@@ -728,9 +728,9 @@ stateDiagram-v2
 | DM Scope | Key Pattern | Example |
 |----------|-------------|---------|
 | `main` | `agent:<id>:main` | `agent:main:main` |
-| `per-peer` | `agent:<id>:dm:<peerId>` | `agent:main:dm:+46700000000` |
-| `per-channel-peer` | `agent:<id>:<ch>:dm:<peerId>` | `agent:main:whatsapp:dm:+46700000000` |
-| `per-account-channel-peer` | `agent:<id>:<ch>:<acct>:dm:<peerId>` | `agent:main:whatsapp:personal:dm:+46700000000` |
+| `per-peer` | `agent:<id>:direct:<peerId>` | `agent:main:direct:+46700000000` |
+| `per-channel-peer` | `agent:<id>:<ch>:direct:<peerId>` | `agent:main:whatsapp:direct:+46700000000` |
+| `per-account-channel-peer` | `agent:<id>:<ch>:<acct>:direct:<peerId>` | `agent:main:whatsapp:personal:direct:+46700000000` |
 
 ### Queue Processing
 

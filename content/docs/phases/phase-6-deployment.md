@@ -193,6 +193,10 @@ This creates a Docker Compose setup with:
 
 For production deployments on dedicated hardware where you want per-agent isolation and OS-level service management, use Docker Isolation below instead.
 
+> **Timezone support (2026.3.13-1+):** Set `OPENCLAW_TZ` in the container environment to control the gateway's timezone (e.g., `OPENCLAW_TZ=Europe/Stockholm`). Without this, the container uses UTC. This affects daily memory file naming, session reset times, and cron job scheduling. Pass it via your Docker Compose `environment:` block or `docker run -e OPENCLAW_TZ=...`.
+
+> **Security — Docker build context token leak (2026.3.13-1+):** Do not pass `OPENCLAW_GATEWAY_TOKEN` or other secrets as Docker build arguments (`--build-arg`). Build args are embedded in the image layer cache and visible via `docker history`. Use runtime environment variables (`-e` / Compose `environment:`) or Docker secrets for all credential injection.
+
 > **Official docs:** See [docs.openclaw.ai](https://docs.openclaw.ai) for the latest Docker setup instructions and options.
 
 ---
@@ -1550,11 +1554,16 @@ Add to `openclaw.json`:
       "dmPolicy": "pairing",
       "allowFrom": ["+46XXXXXXXXX"],
       "groupPolicy": "allowlist",
+      "groups": {
+        "*": { "requireMention": false }
+      },
       "mediaMaxMb": 8
     }
   }
 }
 ```
+
+> **Signal groups (2026.3.13-1+):** The `groups` config key is now supported in Signal's channel schema. Configure `groups` exactly as you would for WhatsApp — use group IDs as keys or `"*"` for all groups. Note: Signal has no native @mention support, so set `requireMention: false` and use `mentionPatterns` in the agent's `groupChat` config instead.
 
 > **Slow JVM starts:** `signal-cli` is Java-based and can take 10–30s to start. If you manage the daemon separately, set `autoStart: false` and point `httpUrl` at your running instance (e.g., `"httpUrl": "http://127.0.0.1:8080"`). For auto-spawned daemons, increase `startupTimeoutMs` if you see timeouts.
 

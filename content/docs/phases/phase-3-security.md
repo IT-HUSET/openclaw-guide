@@ -58,6 +58,14 @@ The fix isn't one setting — it's layered defense. Each setting below blocks a 
 > - **LaunchAgent file permissions** — generated gateway LaunchAgent plists now include `Umask=077` (octal 077) so gateway-created state files default to owner-only permissions; update manually-created plists (see [Phase 6](phase-6-deployment.md))
 > - **Plugin HTTP auth required** — plugin route registration now requires explicit `auth` field; affects custom extensions using `api.registerHttpHandler` (removed — migrate to `api.registerHttpRoute`)
 > - **Multi-platform reaction auth** — Signal, Discord, Slack, and Telegram reaction events now require authorization before enqueueing, consistent with normal message policy
+>
+> **Version note (2026.3.12):**
+> - **Workspace plugin auto-load disabled** (`GHSA-99qw-6mr3-36qr`) — cloned repositories can no longer execute workspace plugin code without an explicit trust decision. Plugins in workspace directories must be explicitly trusted before loading
+> - **Exec approval hardening** — invisible Unicode format characters now rendered as `\u{...}` escapes in approval prompts (`GHSA-pcqg-f7rg-xfvv`); compatibility Unicode normalized before obfuscation checks (`GHSA-9r3v-37xh-2cf6`); exec allowlist POSIX case sensitivity and `?` segment boundary preserved (`GHSA-f8r2-vg7x-gh8m`); Ruby `-r`/`-I` flags, inline loaders, and `npx`/`pnpm exec` script runners bound correctly before approval (`GHSA-57jw-9722-6rf2` and related)
+> - **`/config` and `/debug` require sender ownership** (`GHSA-r7vr-gr74-94p8`) — authorized non-owner senders can no longer reach owner-only config and debug surfaces
+> - **Device pairing: short-lived bootstrap tokens** — `/pair` and `openclaw qr` now issue short-lived bootstrap tokens instead of embedding shared gateway credentials in pairing payloads; device-token scopes capped to each device's approved baseline (`GHSA-2pwv-x786-56f8`)
+> - **Gateway auth scope** (`GHSA-rqpp-rjj8-7wv8`) — device-less shared-token operators can no longer self-declare elevated scopes on WebSocket connect
+> - **WebSocket pre-auth hardening** (`GHSA-jv4g-m82p-2j93`, `GHSA-xwx2-ppv2-wx98`) — unauthenticated handshake window shortened; oversized pre-auth frames rejected before application-layer parsing
 
 ---
 

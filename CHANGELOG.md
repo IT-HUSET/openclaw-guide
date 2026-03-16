@@ -3,6 +3,18 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-03-16 — OpenClaw 2026.3.11 → 2026.3.13-1
+
+- Updated guide baseline version to 2026.3.13-1 in `.guide-version`, docs index, and hardened-multi-agent prerequisite line
+- Added security-review checklist item for ≥ 2026.3.12 covering workspace plugin auto-load disabled, exec approval Unicode/obfuscation hardening, `/config`+`/debug` owner-only enforcement, device pairing bootstrap token improvements, and gateway auth scope fixes
+- Added Phase 3 version note for 2026.3.12 documenting all CVE-tagged security fixes (GHSA-99qw-6mr3-36qr, GHSA-pcqg-f7rg-xfvv, GHSA-9r3v-37xh-2cf6, GHSA-f8r2-vg7x-gh8m, GHSA-r7vr-gr74-94p8, GHSA-2pwv-x786-56f8, GHSA-rqpp-rjj8-7wv8, GHSA-jv4g-m82p-2j93/GHSA-xwx2-ppv2-wx98)
+- Added Phase 2 memory version note for new `agents.defaults.compaction.postIndexSync` and `agents.defaults.memorySearch.sync.sessions.postCompactionForce` config options (2026.3.12)
+- Updated Node.js minimum version requirement from 22+ to 22.16.0+ in Phase 1, pragmatic-single-agent guide, to match the runtime guard enforced since 2026.3.13-1
+- Added Phase 6 Docker notes: `OPENCLAW_TZ` timezone environment variable support and warning against passing secrets as Docker build args (token leak fix from 2026.3.13-1)
+- Added Signal `groups` config block to Phase 6 Signal config example and noted schema support added in 2026.3.13-1
+- Fixed session key format throughout the guide: `:dm:` → `:direct:` in sessions.md, architecture.md, phase-4-multi-agent.md, and google-chat.md (correcting a long-standing documentation error confirmed by upstream fix in 2026.3.13-1)
+- Added version table entries for 2026.3.12 and 2026.3.13-1 to reference.md
+
 ## 2026-03-12 — OpenClaw 2026.3.8 → 2026.3.11
 
 - Added version ≥ 2026.3.11 checklist item to security-review.md covering the cross-site WebSocket hijacking fix (GHSA-5wcw-8jjv-m286) in trusted-proxy mode, secret file symlink hardening, and plugin/session auth fixes
