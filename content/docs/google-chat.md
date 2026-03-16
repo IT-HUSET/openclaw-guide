@@ -32,7 +32,7 @@ Key differences from WhatsApp/Signal:
 - **Webhook-based** — requires a publicly reachable HTTPS endpoint (WhatsApp/Signal connect outbound)
 - **Service account auth** — no QR code or CLI linking; uses a GCP service account JSON key
 - **Audience verification** — two modes: `app-url` (webhook URL) or `project-number` (GCP project number)
-- **Space-based sessions** — session keys use `agent:<agentId>:googlechat:dm:<spaceId>` or `agent:<agentId>:googlechat:group:<spaceId>`
+- **Space-based sessions** — session keys use `agent:<agentId>:googlechat:direct:<spaceId>` or `agent:<agentId>:googlechat:group:<spaceId>`
 - **Threaded replies** — in spaces (group chats), replies are always posted in the thread of the original message. No config option to post top-level instead (OpenClaw limitation — the Google Chat API does support it via `messageReplyOption`).
 - **Plugin required** — `plugins.entries.googlechat.enabled: true` must be set (WhatsApp/Signal also need their plugin enabled)
 

@@ -136,6 +136,7 @@ Evaluate each area using the collected data:
 - [ ] Version ≥ 2026.3.2 (ACP sandbox bypass fix, ws:// loopback-only default, LaunchAgent Umask hardening, plugin HTTP auth required)
 - [ ] Version ≥ 2026.3.7 (ACP /acp spawn sandbox bypass via command-path closed)
 - [ ] Version ≥ 2026.3.11 (WebSocket hijacking in trusted-proxy mode, secret file symlink hardening, plugin/session auth fixes)
+- [ ] Version ≥ 2026.3.12 (workspace plugin auto-load disabled, exec approval Unicode/obfuscation hardening, /config+/debug owner-only, device pairing bootstrap tokens, gateway auth scope fixes)
 - [ ] Version compared against guide baseline (`.guide-version`)
 
 ### 2. Security Baseline (Phase 3)

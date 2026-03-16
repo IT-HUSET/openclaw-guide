@@ -21,9 +21,9 @@ DM session keys are controlled by `session.dmScope`:
 | `dmScope` | Key format | Behavior |
 |-----------|-----------|----------|
 | `main` (default) | `agent:<agentId>:main` | All DMs share one conversation |
-| `per-peer` | `agent:<agentId>:dm:<peerId>` | Isolate by sender, across channels |
-| `per-channel-peer` | `agent:<agentId>:<channel>:dm:<peerId>` | Isolate by sender + channel *(recommended)* |
-| `per-account-channel-peer` | `agent:<agentId>:<channel>:<accountId>:dm:<peerId>` | Full isolation per account + channel + sender |
+| `per-peer` | `agent:<agentId>:direct:<peerId>` | Isolate by sender, across channels |
+| `per-channel-peer` | `agent:<agentId>:<channel>:direct:<peerId>` | Isolate by sender + channel *(recommended)* |
+| `per-account-channel-peer` | `agent:<agentId>:<channel>:<accountId>:direct:<peerId>` | Full isolation per account + channel + sender |
 
 > **Security:** The default `main` scope shares context across all senders. If Alice and Bob both message your agent, Bob can ask "What were we talking about?" and get Alice's context. Set `dmScope` to `per-channel-peer` for multi-user deployments. See [Phase 3: Security Baseline](phases/phase-3-security.md#security-baseline).
 
@@ -65,7 +65,7 @@ When a user messages from multiple channels (e.g., WhatsApp + Telegram), they no
 }
 ```
 
-With this config, Alice's WhatsApp and Telegram DMs share the same session. The canonical name (`"alice"`) replaces the peer ID in the session key: `agent:<agentId>:dm:alice`.
+With this config, Alice's WhatsApp and Telegram DMs share the same session. The canonical name (`"alice"`) replaces the peer ID in the session key: `agent:<agentId>:direct:alice`.
 
 > **Finding channel-specific identifiers:** WhatsApp JIDs, Signal UUIDs, and other peer IDs appear in gateway logs when a user first messages the agent. Use `openclaw logs --follow` and look for `identity` or `peer` fields.
 

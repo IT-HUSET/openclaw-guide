@@ -363,6 +363,8 @@ How it works:
 
 **Why this matters:** Without memory flush, the agent forgets everything from the compacted portion of the conversation. With it, key information survives in memory and can be recalled via `memory_search`.
 
+> **Version note (2026.3.12):** Two new opt-in config keys control post-compaction memory reindexing. `agents.defaults.compaction.postIndexSync: true` triggers an immediate memory reindex after compaction completes, so the updated session memory is searchable in the same turn. `agents.defaults.memorySearch.sync.sessions.postCompactionForce: true` forces a full session sync after compaction even if the incremental sync already ran. Both default to `false` — enable only if your agents rely on immediately querying compacted memory in the same session turn.
+
 ---
 
 ## Memory CLI

@@ -155,7 +155,7 @@ multipass shell openclaw-vm
 As the `openclaw` user (or inside the VM):
 
 ```bash
-# Install Node.js 22+
+# Install Node.js 22.16.0+
 # macOS:
 brew install node@22
 

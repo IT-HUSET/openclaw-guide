@@ -590,6 +590,8 @@ Features below require the listed version or later. Check yours with `openclaw -
 | 2026.2.26 | `openclaw secrets` workflow (`audit`, `configure`, `apply`, `reload`), `openclaw agents bindings/bind/unbind` | External secrets management — see [Phase 6](phases/phase-6-deployment.md#secrets-management-all-methods) |
 | 2026.3.1 | Gateway health endpoints (`/health`, `/healthz`, `/ready`, `/readyz`), `agents.*.heartbeat.lightContext` | Health endpoints useful for Docker/Kubernetes health checks |
 | 2026.3.2 | `openclaw config validate`, `tools.profile: "messaging"` new default, `pdf` tool, Telegram streaming defaults to `partial`, LaunchAgent `Umask` key | See [Phase 3](phases/phase-3-security.md) version note for security details |
+| 2026.3.12 | Workspace plugin auto-load disabled, exec approval Unicode/obfuscation hardening, `/config`+`/debug` owner-only, device pairing bootstrap tokens, gateway auth scope fixes, `agents.defaults.compaction.postIndexSync`, `sessions_yield` for orchestrators | See [Phase 3](phases/phase-3-security.md) version note; multiple CVEs patched |
+| 2026.3.13-1 | Node.js 22.16.0+ minimum enforced, `OPENCLAW_TZ` Docker timezone support, Signal `groups` schema support, Docker build context token leak fix, session key `:dm:` corrected to `:direct:` | Recovery release (npm version remains `2026.3.13`) |
 
 ---
 
