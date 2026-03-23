@@ -28,6 +28,7 @@ After completing all changelog-driven updates above, do a broader scan of the re
    - **Test coverage:** missing test cases for edge cases in extensions
    - **Consistency:** config examples that contradict each other or the docs
    - **Completeness:** documented features missing from examples
+   - **Feature Atlas:** known-issues table entries that reference issues resolved in `{{NEW_VERSION}}` — remove or mark as fixed; new features documented in phases but missing from the atlas
 
 Keep these changes focused. Do NOT modify `.github/` or `CLAUDE.md`. Run `npm test` / `hugo --gc` to verify after edits.
 
@@ -44,6 +45,7 @@ Include any improvement findings in the `summary` output alongside changelog cha
 - Deployment or service management changes (affects Phase 6, Phase 7, scripts/)
 - Sandbox image changes — if `Dockerfile.sandbox` base image or packages changed, update `scripts/custom-sandbox/Dockerfile` to match
 - Memory or session behavior changes (affects Phase 2, sessions doc)
+- Feature additions or deprecations → update Feature Atlas (`content/docs/feature-atlas.md`): add/update rows in the relevant category table, set the "Since" column to `{{NEW_VERSION}}`. If the change adds a new feature category or significantly restructures existing ones, add a note to the PR description: `<!-- ATLAS_DIAGRAM_UPDATE: [describe change] -->` so the Excalidraw diagram can be updated manually
 
 ## What to ignore
 

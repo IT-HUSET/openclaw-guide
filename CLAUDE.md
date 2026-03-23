@@ -32,6 +32,7 @@ Primarily documentation (Markdown + annotated JSON config examples), plus TypeSc
 - `content/docs/custom-sandbox-images.md` — Custom Sandbox Images: building, deploying, and using custom Docker images for production sandboxes
 - `content/docs/pragmatic-single-agent.md` — Pragmatic Single Agent: two-agent setup (main + search), no Docker, hardened by all five guard plugins + OS-level isolation (non-admin user or VM)
 - `content/docs/hardened-multi-agent.md` — Hardened Multi-Agent: optional exec isolation via dedicated computer agent on top of 2-agent baseline
+- `content/docs/feature-atlas.md` — Feature Atlas: complete feature inventory with 7 categories, use cases, known issues, Excalidraw overview diagram
 - `content/docs/reference.md` — Config cheat sheet, tool groups, plugins, gotchas, useful commands
 - `content/docs/architecture.md` — System internals: core components, module dependencies, networking, diagrams
 - `content/docs/recipes/` — Optional use cases building on core phases (knowledge vault, automated research)
@@ -41,6 +42,11 @@ Primarily documentation (Markdown + annotated JSON config examples), plus TypeSc
 - `examples/openclaw-basic.json` — Minimal config (main + search, single channel)
 - `examples/openclaw-pragmatic.json` — Pragmatic config (two-agent: main + search, unsandboxed, all five guard plugins)
 - `content/docs/examples/security-audit.md` — Worked example of `openclaw security audit` output
+
+### Diagrams
+- `diagrams/feature-atlas-overview.excalidraw.json` — Excalidraw source for the Feature Atlas overview diagram (editable at excalidraw.com)
+- The Feature Atlas page uses an inline Mermaid diagram (renders natively via Hextra theme, no export step needed)
+- The Excalidraw source is a companion for richer editing — linked from the atlas page for anyone who wants the editable version
 
 ### Scripts
 - `scripts/docker-isolation/` — Automated setup for Docker isolation deployment (3 bash scripts + README)

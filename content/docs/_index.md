@@ -13,6 +13,7 @@ Start with [Phase 1]({{< relref "phases/phase-1-getting-started" >}}) and work t
 
 {{< cards >}}
   {{< card link="phases" title="Phase Guides" subtitle="Progressive setup from first agent to production deployment" icon="academic-cap" >}}
+  {{< card link="feature-atlas" title="Feature Atlas" subtitle="Complete feature inventory with categories, use cases, and diagrams" icon="map" >}}
   {{< card link="reference" title="Reference" subtitle="Config cheat sheet, tool groups, plugins, gotchas" icon="book-open" >}}
   {{< card link="sessions" title="Sessions" subtitle="Session keys, routing, lifecycle, compaction, pruning" icon="clock" >}}
   {{< card link="architecture" title="Architecture" subtitle="System internals, module dependencies, networking diagrams" icon="chip" >}}

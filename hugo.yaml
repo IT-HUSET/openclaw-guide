@@ -43,18 +43,21 @@ menu:
     - name: Guide
       pageRef: /docs
       weight: 1
+    - name: Feature Atlas
+      pageRef: /docs/feature-atlas
+      weight: 2
     - name: Reference
       pageRef: /docs/reference
-      weight: 2
+      weight: 3
     - name: Architecture
       pageRef: /docs/architecture
-      weight: 3
-    - name: Search
       weight: 4
+    - name: Search
+      weight: 5
       params:
         type: search
     - name: GitHub
-      weight: 5
+      weight: 6
       url: "https://github.com/IT-HUSET/openclaw-guide"
       params:
         icon: github
