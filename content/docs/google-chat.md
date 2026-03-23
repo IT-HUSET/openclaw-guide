@@ -26,7 +26,7 @@ Connect OpenClaw to Google Chat via HTTP webhooks. Unlike WhatsApp (QR pairing) 
 Google Chat → HTTPS POST /googlechat → OpenClaw Gateway → AI Provider → Response → Google Chat
 ```
 
-Google Chat sends webhook POSTs to your gateway. Each request includes an `Authorization: Bearer <token>` header signed by `chat@system.gserviceaccount.com`. OpenClaw verifies the token against your configured audience before processing.
+Google Chat sends webhook POSTs to your gateway. Each request includes an `Authorization: Bearer <token>` header — an OIDC ID token issued by `accounts.google.com` (for apps created via the new GCP Console) or a service account JWT signed by `chat@system.gserviceaccount.com` (legacy). OpenClaw verifies the token against your configured audience before processing.
 
 Key differences from WhatsApp/Signal:
 - **Webhook-based** — requires a publicly reachable HTTPS endpoint (WhatsApp/Signal connect outbound)
@@ -34,6 +34,7 @@ Key differences from WhatsApp/Signal:
 - **Audience verification** — two modes: `app-url` (webhook URL) or `project-number` (GCP project number)
 - **Space-based sessions** — session keys use `agent:<agentId>:googlechat:direct:<spaceId>` or `agent:<agentId>:googlechat:group:<spaceId>`
 - **Threaded replies** — in spaces (group chats), replies are always posted in the thread of the original message. No config option to post top-level instead (OpenClaw limitation — the Google Chat API does support it via `messageReplyOption`).
+- **Mention-only in spaces** — Google Chat only forwards @mention messages (and slash commands) to HTTP endpoint apps in group spaces. Non-mention messages never reach the webhook — this is a [Google Chat platform constraint](https://developers.google.com/workspace/chat/api/reference/rest/v1/EventType), not an OpenClaw limitation. `requireMention: false` in OpenClaw config has no practical effect for spaces since Google never delivers non-mention messages. All-message monitoring would require the separate [Workspace Events API + Pub/Sub](https://developers.google.com/workspace/events/guides/events-chat) architecture. DMs always arrive regardless.
 - **Plugin required** — `plugins.entries.googlechat.enabled: true` must be set (WhatsApp/Signal also need their plugin enabled)
 
 ---
@@ -155,8 +156,12 @@ Add to `~/.openclaw/openclaw.json`:
       "serviceAccountFile": "~/.openclaw/credentials/googlechat/service-account.json",
       "audienceType": "app-url",
       "audience": "https://<node-name>.<tailnet>.ts.net/googlechat",
+      // Required for @mention detection in spaces — see "Finding the bot user ID" below
+      "botUser": "users/<bot-numeric-id>",
       "dm": {
         "policy": "pairing",
+        // Use stable user IDs (users/<id>) once known — email matching is fragile.
+        // Start with email, then replace after first DM (ID appears in pairing request + session logs).
         "allowFrom": ["user@yourdomain.com"]
       },
       "groupPolicy": "allowlist",
@@ -173,6 +178,8 @@ Add to `~/.openclaw/openclaw.json`:
 ```
 
 > **Both `channels.googlechat` and `plugins.entries.googlechat` are required.** Missing either causes a 405 error on the webhook endpoint.
+>
+> **Start with DMs, add spaces later.** You can omit `botUser` initially — DMs work without it. Once you have the bot's user ID (see below), add `botUser` and test spaces.
 
 ### Multi-agent setup (Phase 4+)
 
@@ -272,6 +279,41 @@ For production, use `serviceAccountFile` or the env var — keeps secrets out of
    openclaw status --deep          # Full health check including channel probe + security audit
    ```
 
+6. **Harden `dm.allowFrom`**: After the first DM, replace email with the stable user ID:
+   ```bash
+   # Find sender ID in session store
+   cat ~/.openclaw/agents/main/sessions/sessions.json | python3 -m json.tool | grep -A2 '"from"'
+   # Output: "from": "googlechat:users/111261968043283685958"
+   # Use the users/<id> part in allowFrom, then remove dangerouslyAllowNameMatching if set
+   ```
+
+### Finding the bot user ID
+
+`botUser` is required for @mention detection in spaces ([#25639](https://github.com/openclaw/openclaw/issues/25639)). The bot's numeric user ID is **not** visible in the GCP Console or gateway logs. To find it, send a message as the bot via the Google Chat API and read `sender.name` from the response:
+
+```bash
+# One-time setup (use a Python venv to avoid system package conflicts)
+python3 -m venv /tmp/gapi && /tmp/gapi/bin/pip install -q google-auth google-api-python-client
+
+# Get bot user ID (replace the space ID with any space the bot is in)
+/tmp/gapi/bin/python3 -c "
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+creds = service_account.Credentials.from_service_account_file(
+    '$HOME/.openclaw/credentials/googlechat/service-account.json',
+    scopes=['https://www.googleapis.com/auth/chat.bot'])
+service = build('chat', 'v1', credentials=creds)
+# Send a message to any DM space, read sender.name, then delete it
+spaces = service.spaces().list(pageSize=1).execute()
+space = spaces['spaces'][0]['name']
+msg = service.spaces().messages().create(parent=space, body={'text': '(bot identity probe)'}).execute()
+print(f'botUser: {msg[\"sender\"][\"name\"]}')
+service.spaces().messages().delete(name=msg['name']).execute()
+"
+# Output: botUser: users/104817664214523572409
+# Add this to channels.googlechat.botUser in your config
+```
+
 ---
 
 ## Known Issues
@@ -279,6 +321,9 @@ For production, use `serviceAccountFile` or the env var — keeps secrets out of
 | Issue | Impact | Status |
 |-------|--------|--------|
 | **OIDC token 401 regression** ([#35095](https://github.com/openclaw/openclaw/issues/35095)) — **affects 2026.3.2–2026.3.7** | The new GCP Console creates Chat apps that issue Google ID tokens (`iss: accounts.google.com`, signed by `/oauth2/v3/certs`) instead of service account JWTs (`iss: chat@system.gserviceaccount.com`). OpenClaw 2026.3.2–2026.3.7 verifies against the wrong key set, returning 401 for every webhook. Fixed in [#35204](https://github.com/openclaw/openclaw/pull/35204) — **upgrade to 2026.3.8+**. With the fix, `audienceType: "app-url"` with the webhook URL is correct. | Fixed in 2026.3.8 |
+| **@mention detection fails without `botUser`** ([#25639](https://github.com/openclaw/openclaw/issues/25639)) | In spaces with `requireMention: true`, @mentions are silently dropped because OpenClaw checks for `users/app` alias but Google Chat sends the bot's numeric user ID. **Workaround:** set `botUser: "users/<numeric-id>"` in `channels.googlechat` config. Get the bot's user ID via the Google Chat API (`spaces.messages.create` response includes `sender.name`). | Open |
+| **`requireMention: false` broken** ([#29855](https://github.com/openclaw/openclaw/issues/29855)) | `requireMention: false` has no effect in spaces — messages are still ignored unless @mentioned. Fix merged in PR #29917 but may not be released yet. Note: even when fixed, this only affects OpenClaw's filter — [Google Chat only forwards @mention messages](https://developers.google.com/workspace/chat/api/reference/rest/v1/EventType) to HTTP endpoint apps in spaces, so non-mention messages never arrive regardless. | Open (fix merged) |
+| **No all-message reception in spaces** ([#44347](https://github.com/openclaw/openclaw/issues/44347)) | HTTP endpoint apps only receive @mention/DM messages from Google Chat — this is a [platform constraint](https://developers.google.com/workspace/chat/api/reference/rest/v1/EventType). Receiving all space messages would require the [Workspace Events API + Pub/Sub](https://developers.google.com/workspace/events/guides/events-chat) architecture (not supported by OpenClaw). | Open |
 | **OAuth limitations** ([#9764](https://github.com/openclaw/openclaw/issues/9764)) | Service account auth can't do reactions, media uploads, or proactive DMs. These require user OAuth (not yet supported). | Open |
 | **Per-space rate limit** | 1 write/sec (60/min standard). The 600/min figure in some docs applies only to data import operations. | By design |
 
@@ -400,18 +445,20 @@ Google Cloud Logs shows `status code: 405`:
 
 ### Mention gating blocks replies in spaces
 
-Set `botUser` to the app's user resource name:
+@mention messages arrive at the gateway but are silently dropped as "mention required" ([#25639](https://github.com/openclaw/openclaw/issues/25639)). This happens because OpenClaw checks for the `users/app` alias, but Google Chat sends the bot's numeric user ID in message annotations.
+
+**Fix:** Set `botUser` to the bot's numeric user resource name (see [Finding the bot user ID](#finding-the-bot-user-id)):
 ```json5
 {
   "channels": {
     "googlechat": {
-      "botUser": "users/1234567890"
+      "botUser": "users/104817664214523572409"
     }
   }
 }
 ```
 
-Find the bot's user ID in gateway logs or via the Google Chat API.
+**Diagnosis:** Check `openclaw logs --follow` for `"drop group message (mention required)"` entries — if you see these when @mentioning the bot, `botUser` is missing or wrong.
 
 ### 401 Unauthorized on every message (new GCP Console setup)
 
