@@ -66,6 +66,20 @@ The fix isn't one setting — it's layered defense. Each setting below blocks a 
 > - **Device pairing: short-lived bootstrap tokens** — `/pair` and `openclaw qr` now issue short-lived bootstrap tokens instead of embedding shared gateway credentials in pairing payloads; device-token scopes capped to each device's approved baseline (`GHSA-2pwv-x786-56f8`)
 > - **Gateway auth scope** (`GHSA-rqpp-rjj8-7wv8`) — device-less shared-token operators can no longer self-declare elevated scopes on WebSocket connect
 > - **WebSocket pre-auth hardening** (`GHSA-jv4g-m82p-2j93`, `GHSA-xwx2-ppv2-wx98`) — unauthenticated handshake window shortened; oversized pre-auth frames rejected before application-layer parsing
+>
+> **Version note (2026.3.23–2026.3.24):**
+> - **Sandbox media dispatch bypass fix** — `mediaUrl`/`fileUrl` alias bypass in outbound tool and message actions closed; agents under `workspaceOnly` sandbox can no longer escape media-root restrictions via these aliases
+> - **Gateway auth hardening** — canvas routes now require auth; agent session reset requires admin scope
+>
+> **Version note (2026.3.22):**
+> - **`jq` removed from default safe-bin allowlist** — `jq` is no longer trusted by default; if your `tools.exec.safeBins` includes `jq`, it must now be explicitly trusted via `tools.exec.safeBinTrustedDirs`. The `jq` `env` builtin (`jq -n env`) is blocked even when `jq` is explicitly opted in
+> - **Exec inline eval hardening** — new `tools.exec.strictInlineEval: true` option requires fresh approval for inline interpreter eval (e.g. `python -c "..."`, `node -e "..."`) so eval payloads cannot bypass the allowlist
+> - **Exec macOS allowlist hardening** — wrapper and `env` spoofing blocked in allowlist resolution; Discord guild message bodies wrapped as untrusted external content; audit findings added for risky exec approval + open-channel combinations
+> - **Exec approval prompts** — blank Hangul filler code points (`U+3164`, etc.) escaped in approval prompts so visually empty Unicode padding cannot hide reviewed command text
+> - **Gateway auth** — spoofed loopback hops in trusted forwarding chains ignored; device-less trusted-proxy Control UI sessions can no longer self-declare admin or secrets scopes; device pairing iOS setup codes bound to intended profile (`GHSA-7jrw-x62h-64p8`)
+> - **Voice-call webhook pre-auth** — missing provider signature headers rejected before body reads; pre-auth body budget reduced to 64 KB / 5 s; concurrent pre-auth requests capped per source IP
+> - **Browser SSRF** — remote CDP discovery and `/json/version` checks honor strict SSRF policy; sensitive `cdpUrl` tokens redacted from status output
+> - **Security/network** — explicit-proxy SSRF pinning hardened: target-hop transport hints translated onto HTTPS proxy tunnels; plain HTTP guarded fetches that cannot preserve pinned DNS now fail closed
 
 ---
 

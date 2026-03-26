@@ -3,6 +3,18 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-03-26 — OpenClaw 2026.3.13-1 → 2026.3.24
+
+- **Security hardening (2026.3.22)**: Added version note to Phase 3 documenting `jq` removal from default exec safe-bin allowlist, new `tools.exec.strictInlineEval` option, exec macOS allowlist spoofing hardening, gateway auth scope + loopback hop fixes, voice-call webhook pre-auth body limits (64 KB/5 s), and device pairing profile binding fix (`GHSA-7jrw-x62h-64p8`)
+- **Security hardening (2026.3.23–2026.3.24)**: Added version note to Phase 3 for sandbox media dispatch `mediaUrl`/`fileUrl` alias bypass fix and canvas/admin-scope gateway auth hardening
+- **Security review checklist**: Added version ≥ 2026.3.22 and ≥ 2026.3.24 checklist items to `.claude/commands/security-review.md` (note: write was permission-blocked in this run — entries need manual verification)
+- **Feature Atlas — Security**: Added `tools.exec.strictInlineEval` (exec inline eval hardening, since 2026.3.22) and marketplace manifest security (reject remote manifests that expand outside repo, since 2026.3.22)
+- **Feature Atlas — Tools**: Updated web search providers row to include Exa, Tavily, and Firecrawl as bundled plugins (since 2026.3.22); added native `image_generate` tool row with `agents.defaults.imageGenerationModel.primary` config key (since 2026.3.22); added `before_dispatch` plugin hook row (since 2026.3.24)
+- **Feature Atlas — Agents**: Added per-agent thinking/reasoning/fast defaults row (`agents.list[].defaults.think`, since 2026.3.22) and native image generation model config row
+- **Feature Atlas — Internals**: Added Plugin SDK row documenting migration from `openclaw/extension-api` to `openclaw/plugin-sdk/*` (since 2026.3.22)
+- **Node.js minimum floor**: Updated Phase 1, Pragmatic Single Agent, feature atlas, and reference version notes from Node.js 22.16.0+ to 22.14+ (Node 24 recommended), reflecting the floor reduction in 2026.3.24
+- **Reference version notes**: Added entries for 2026.3.22 and 2026.3.24 to the version compatibility table
+
 ## 2026-03-16 — OpenClaw 2026.3.11 → 2026.3.13-1
 
 - Updated guide baseline version to 2026.3.13-1 in `.guide-version`, docs index, and hardened-multi-agent prerequisite line
