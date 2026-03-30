@@ -3,6 +3,17 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-03-30 — OpenClaw 2026.3.24 → 2026.3.28
+
+- Updated version references to 2026.3.28 in `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md` (mechanical housekeeping)
+- Added `openclaw config schema` command (new in 2026.3.28) to the Config Validation section and Useful Commands in `reference.md`, and as a new row in the Feature Atlas Agents & Configuration table
+- Updated `tools.sandbox.tools.alsoAllow` gotchas in `reference.md`: the key is now honored as of 2026.3.28 (previously documented as non-functional); users on older versions still need the full `allow` list
+- Added async `requireApproval` to `before_tool_call` plugin hook documentation in `reference.md` Plugin Hooks table and Feature Atlas internals table — plugins can now pause tool execution and prompt for user approval via exec overlay, Telegram, Discord, or `/approve`
+- Added MiniMax `image-01` image generation provider support to Feature Atlas Tools & Automation image-gen plugin row (2026.3.28)
+- Added version entry for 2026.3.28 to the Version Compatibility table in `reference.md`, including the breaking Config/Doctor migration change: legacy config keys older than two months now fail validation instead of being silently rewritten; run `openclaw doctor --fix` on the old version before upgrading old configs
+- Added Config/Doctor breaking change as gotcha #28a in `reference.md`
+- Added version ≥ 2026.3.28 checklist item to `.claude/commands/security-review.md` noting that `openclaw security audit` now recognizes Gemini, Grok/xAI, Kimi, Moonshot, and OpenRouter credentials (write was blocked by session permissions — requires manual addition of: `- [ ] Version ≥ 2026.3.28 (security audit now recognizes Gemini, Grok/xAI, Kimi, Moonshot, OpenRouter credentials)`)
+
 ## 2026-03-26 — OpenClaw 2026.3.13-1 → 2026.3.24
 
 - **Security hardening (2026.3.22)**: Added version note to Phase 3 documenting `jq` removal from default exec safe-bin allowlist, new `tools.exec.strictInlineEval` option, exec macOS allowlist spoofing hardening, gateway auth scope + loopback hop fixes, voice-call webhook pre-auth body limits (64 KB/5 s), and device pairing profile binding fix (`GHSA-7jrw-x62h-64p8`)
