@@ -291,7 +291,7 @@ To add `message`, `browser`, or memory tools to sandboxed sessions (e.g., so a W
 ```
 
 **Gotchas:**
-- `tools.sandbox.tools.alsoAllow` does **not** work with the default policy (`mergeAlsoAllowPolicy()` requires an explicit base `allow` array). Must use `allow` with the full list.
+- `tools.sandbox.tools.alsoAllow` now works (2026.3.28+) and can extend the default policy without specifying the full list. On older versions it did not work — use `allow` with the full list if targeting older versions.
 - `sandbox.tools` at agent level is **invalid** config. Correct path: `agents.list[].tools.sandbox.tools` (under the agent's `tools` key).
 - Verify with: `openclaw sandbox explain --agent <id> --session "<session-key>"`
 
@@ -339,6 +339,12 @@ Use `openclaw config file` (added in 2026.3.1) to print the active config file p
 
 ```bash
 openclaw config file                  # Prints e.g. /Users/openclaw/.openclaw/openclaw.json
+```
+
+Use `openclaw config schema` (added in 2026.3.28) to print the generated JSON schema for `openclaw.json`:
+
+```bash
+openclaw config schema                # Print full JSON schema for openclaw.json
 ```
 
 ### Environment Files
@@ -508,7 +514,7 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 
 ### Sandbox & Docker
 
-20. **Sandbox tool policy is a separate layer from agent tool policy** — even if an agent allows `message` or `browser`, those tools are blocked in sandboxed sessions unless explicitly listed in `tools.sandbox.tools.allow`. The default sandbox allow list does not include `message`, `browser`, `memory_search`, `memory_get`, or `web_fetch`. WhatsApp DM sessions (and all non-main sessions) are sandboxed with `mode: "non-main"` or `"all"`. Use `tools.sandbox.tools.allow` with the full list including any tools your sandboxed sessions need. `alsoAllow` does not work with the default policy — must specify the complete `allow` list.
+20. **Sandbox tool policy is a separate layer from agent tool policy** — even if an agent allows `message` or `browser`, those tools are blocked in sandboxed sessions unless explicitly listed in `tools.sandbox.tools.allow`. The default sandbox allow list does not include `message`, `browser`, `memory_search`, `memory_get`, or `web_fetch`. WhatsApp DM sessions (and all non-main sessions) are sandboxed with `mode: "non-main"` or `"all"`. Use `tools.sandbox.tools.allow` with the full list including any tools your sandboxed sessions need, or use `tools.sandbox.tools.alsoAllow` (2026.3.28+) to extend the default policy without specifying the full list.
 
 21. **Sandbox image must be built before use** — the default `openclaw-sandbox:bookworm-slim` is raw `debian:bookworm-slim` with no packages. Run `cd $(npm root -g)/openclaw && ./scripts/sandbox-setup.sh` before enabling Docker sandboxing. Without this, all exec calls inside the sandbox fail (`sh: 1: git: not found`).
 
@@ -529,6 +535,8 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 ### Config & Gateway
 
 28. **`gateway.mode` is required** — the gateway refuses to start unless `gateway.mode: "local"` is set in config. Use `--allow-unconfigured` for ad-hoc/dev runs.
+
+28a. **Old legacy config keys fail after 2026.3.28** — automatic config migrations are only applied for keys introduced within the last two months. Very old legacy keys (older than 2 months) now fail validation instead of being silently rewritten on load or by `openclaw doctor`. Run `openclaw doctor --fix` on the old version before upgrading if your config predates 2026.1.28.
 
 29. **Config validation is strict** — unknown keys, malformed types, or invalid values cause the gateway to refuse to start. Run `openclaw doctor` to diagnose.
 
@@ -594,6 +602,7 @@ Features below require the listed version or later. Check yours with `openclaw -
 | 2026.3.13-1 | Node.js 22.16.0+ minimum enforced, `OPENCLAW_TZ` Docker timezone support, Signal `groups` schema support, Docker build context token leak fix, session key `:dm:` corrected to `:direct:` | Recovery release (npm version remains `2026.3.13`) |
 | 2026.3.22 | `jq` removed from default exec safe-bin allowlist, `tools.exec.strictInlineEval` for inline interpreter eval hardening, exec macOS allowlist spoofing hardening, gateway auth scope + loopback hop fixes, voice-call pre-auth body limits (64 KB/5 s), device pairing profile binding (`GHSA-7jrw-x62h-64p8`), Exa/Tavily/Firecrawl as bundled web-search plugins, native `image_generate` tool + `agents.defaults.imageGenerationModel`, new plugin SDK surface (`openclaw/plugin-sdk/*`, removes `openclaw/extension-api`) | See [Phase 3](phases/phase-3-security.md) version note for security details |
 | 2026.3.24 | Node.js minimum floor lowered to 22.14+ (Node 24 recommended), `before_dispatch` plugin hook, `/v1/models` and `/v1/embeddings` OpenAI-compatible endpoints, outbound media fs-policy alignment, sandbox media dispatch bypass fix | Node floor change: update installs targeting Node 22.14–22.15 |
+| 2026.3.28 | `openclaw config schema` command, `requireApproval` in `before_tool_call` hooks, `tools.sandbox.tools.alsoAllow` now honored, security audit recognizes Gemini/Grok/xAI/Kimi/Moonshot/OpenRouter credentials, legacy config migration dropped for keys older than 2 months (run `openclaw doctor --fix` before upgrading old configs) | Breaking: old legacy config keys now fail validation — run `openclaw doctor --fix` on the old version first |
 
 ---
 
@@ -622,7 +631,7 @@ Plugins can register handlers for these lifecycle hooks:
 
 | Hook | When it fires | Example use |
 |------|--------------|-------------|
-| `before_tool_call` | Before a tool executes | content-guard: classify sessions_send content |
+| `before_tool_call` | Before a tool executes; supports async `requireApproval` (2026.3.28+) to pause execution for user approval | content-guard: classify sessions_send content |
 | `message_received` | Incoming channel message (WhatsApp/Signal/Google Chat) | channel-guard: scan for injection |
 | `llm_input` | Before prompt is sent to the model (added 2026.2.16) | Input logging, token counting, content filtering |
 | `llm_output` | After model response received (added 2026.2.16) | Output logging, response filtering, compliance checks |
@@ -728,6 +737,7 @@ openclaw security audit --fix               # Auto-apply safe guardrails
 openclaw config validate                    # Validate config file before startup (2026.3.2+)
 openclaw config validate --json             # Machine-readable validation output
 openclaw config file                        # Print active config file path (2026.3.1+)
+openclaw config schema                      # Print JSON schema for openclaw.json (2026.3.28+)
 
 # Memory
 openclaw memory status                      # Index size, provider, last indexed
