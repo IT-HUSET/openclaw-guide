@@ -19,7 +19,7 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
 | `write` | Write/create files |
 | `edit` | Edit existing files |
 | `apply_patch` | Apply unified diffs |
-| `web_search` | Search the web (Brave/Perplexity) |
+| `web_search` | Search the web (Brave/Perplexity/xAI/SearXNG and others) |
 | `web_fetch` | Fetch URL content |
 | `browser` | Browser automation (Playwright) |
 | `canvas` | Interactive artifact rendering |
@@ -96,7 +96,8 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
         // maxSpawnDepth: 2,           // Max nesting depth for nested sub-agents; default 2 as of 2026.2.21 (added 2026.2.16)
         // maxChildrenPerAgent: 10,    // Max concurrent children per parent agent (added 2026.2.16)
         // announceTimeoutMs: 60000,   // Announce call timeout in ms (added 2026.2.22)
-      }
+      },
+      // params: {},                   // Global default provider parameters applied to all agents (added 2026.4.1)
     },
     list: [{
       id: "main", default: true, workspace: "...",
@@ -421,6 +422,22 @@ When `delivery` is configured on isolated jobs, the runtime appends delivery ins
 
 Alternatives to the `cron` tool for job management: Control UI (web), `openclaw cron create/list/edit` CLI, or direct edit of `cron/jobs.json`.
 
+### Per-Job Tool Allowlist (2026.4.1+)
+
+Use `openclaw cron --tools` to restrict which tools a cron job can invoke:
+
+```bash
+openclaw cron add \
+  --name "Read-only report" \
+  --cron "0 8 * * *" \
+  --session isolated \
+  --tools "web_search,web_fetch,memory_search" \
+  --message "Search for overnight news and summarize." \
+  --no-announce
+```
+
+This limits the cron job to only those tools regardless of the agent's configured allow list — useful for least-privilege automation.
+
 ---
 
 ## Chat Commands
@@ -603,6 +620,8 @@ Features below require the listed version or later. Check yours with `openclaw -
 | 2026.3.22 | `jq` removed from default exec safe-bin allowlist, `tools.exec.strictInlineEval` for inline interpreter eval hardening, exec macOS allowlist spoofing hardening, gateway auth scope + loopback hop fixes, voice-call pre-auth body limits (64 KB/5 s), device pairing profile binding (`GHSA-7jrw-x62h-64p8`), Exa/Tavily/Firecrawl as bundled web-search plugins, native `image_generate` tool + `agents.defaults.imageGenerationModel`, new plugin SDK surface (`openclaw/plugin-sdk/*`, removes `openclaw/extension-api`) | See [Phase 3](phases/phase-3-security.md) version note for security details |
 | 2026.3.24 | Node.js minimum floor lowered to 22.14+ (Node 24 recommended), `before_dispatch` plugin hook, `/v1/models` and `/v1/embeddings` OpenAI-compatible endpoints, outbound media fs-policy alignment, sandbox media dispatch bypass fix | Node floor change: update installs targeting Node 22.14–22.15 |
 | 2026.3.28 | `openclaw config schema` command, `requireApproval` in `before_tool_call` hooks, `tools.sandbox.tools.alsoAllow` now honored, security audit recognizes Gemini/Grok/xAI/Kimi/Moonshot/OpenRouter credentials, legacy config migration dropped for keys older than 2 months (run `openclaw doctor --fix` before upgrading old configs) | Breaking: old legacy config keys now fail validation — run `openclaw doctor --fix` on the old version first |
+| 2026.3.31 | Breaking: `nodes.run` shell wrapper removed (use `exec host=node`); Plugin SDK legacy provider compat subpaths deprecated (use `openclaw/plugin-sdk/*`); plugin/skill install fails closed on critical dangerous-code findings; gateway `trusted-proxy` rejects mixed shared-token configs; node commands stay disabled until pairing approved; exec env injection blocking (proxy/TLS/Docker/Python index vars blocked in host exec) | Breaking: see migration notes for nodes.run and Plugin SDK changes; `--dangerously-force-unsafe-install` required for installs that previously succeeded |
+| 2026.4.1 | SearXNG bundled `web_search` provider (self-hosted, no API key); `agents.defaults.params` for global provider parameters; `openclaw cron --tools` per-job tool allowlist; `openclaw flows list\|show\|cancel` background task flow control; `/tasks` chat command for task board | See [Phase 5](phases/phase-5-web-search.md) for SearXNG setup |
 
 ---
 
@@ -758,6 +777,11 @@ openclaw sessions cleanup --fix-missing     # Prune store entries with missing t
 openclaw agents bindings                    # List account-scoped route bindings (2026.2.26+)
 openclaw agents bind <agent> <channel>      # Bind an agent to a channel account
 openclaw agents unbind <agent> <channel>    # Remove a channel binding
+
+# Background task flows (2026.3.31+)
+openclaw flows list                         # List active and recent task flows
+openclaw flows show <id>                    # Show details for a specific flow
+openclaw flows cancel <id>                  # Cancel a running flow
 
 # Secrets management (2026.2.26+)
 openclaw secrets audit                      # Find hardcoded secrets in config

@@ -276,6 +276,27 @@ OpenRouter supports crypto/prepaid — no credit card needed.
 }
 ```
 
+**SearXNG** (self-hosted, added in 2026.4.1 — no API key, no tracking):
+SearXNG is a self-hosted meta-search engine. Run your own instance (Docker: `docker run -d -p 8080:8080 searxng/searxng`) and point OpenClaw at it:
+
+```json
+{
+  "tools": {
+    "web": {
+      "search": {
+        "enabled": true,
+        "provider": "searxng",
+        "searxng": {
+          "host": "http://localhost:8080"
+        }
+      }
+    }
+  }
+}
+```
+
+No API key required. Searches stay on your infrastructure — results are fetched from many underlying engines without sending your queries to a commercial API. Ideal for privacy-first deployments.
+
 ### 7. No channel binding for search agent
 
 Do **not** add a binding for the search agent. It should only be reachable via `sessions_send` from other agents — never directly from a chat channel.

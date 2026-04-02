@@ -3,6 +3,21 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-04-02 — OpenClaw 2026.3.28 → 2026.4.1
+
+- Added SearXNG as a self-hosted `web_search` provider option in Phase 5, with config example showing `provider: "searxng"` and `searxng.host` — no API key required, queries stay on-prem (v2026.4.1)
+- Added `memorySearch.qmd.extraCollections` note in Phase 2 QMD section for per-agent cross-agent session search without flattening all collections into a shared namespace (v2026.3.31)
+- Added `agents.defaults.params` global default provider parameters entry to the Feature Atlas and Reference config quick reference (v2026.4.1)
+- Added QQ Bot bundled channel plugin row to Feature Atlas Channels table with `channels.qqbot` config key (v2026.3.31)
+- Added WhatsApp emoji reactions row to Feature Atlas Channels table with `reactionLevel` config key (v2026.3.31 + v2026.4.1)
+- Added `cron --tools` per-job tool allowlist feature to Feature Atlas and Reference, with CLI example showing how to restrict cron jobs to specific tools (v2026.4.1)
+- Added `openclaw flows list|show|cancel` background task flow control to Feature Atlas Tools section and Reference useful commands (v2026.3.31)
+- Added `QMD cross-agent collections` row to Feature Atlas Sessions & Memory table (v2026.3.31)
+- Added three security feature rows to Feature Atlas Security table: exec env injection blocking, plugin install fail-closed, and gateway auth hardening (v2026.3.31)
+- Updated Reference tool list to reflect expanded `web_search` provider support (SearXNG, xAI, and others)
+- Added version compatibility rows for 2026.3.31 (breaking changes summary) and 2026.4.1 (new features) in Reference version notes table
+- Bumped `.guide-version` to `2026.4.1`, updated "last reviewed against" callout in `content/docs/_index.md`, and updated prerequisite line in `content/docs/hardened-multi-agent.md`
+
 ## 2026-03-30 — OpenClaw 2026.3.24 → 2026.3.28
 
 - Updated version references to 2026.3.28 in `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md` (mechanical housekeeping)
