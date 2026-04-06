@@ -148,6 +148,7 @@ By default, the agent can only see today's and yesterday's memory files. **Memor
 | `openai` | `OPENAI_API_KEY` | ~200ms | Embeddings sent to OpenAI |
 | `gemini` | `GEMINI_API_KEY` | ~200ms | Embeddings sent to Google. `gemini-embedding-2-preview` available (2026.3.11+) with configurable output dimensions |
 | `voyage` | `VOYAGE_API_KEY` | ~200ms | Embeddings sent to Voyage AI |
+| `bedrock` | AWS credentials (IAM or env) | ~200ms | Embeddings sent to AWS. Supports Titan, Cohere, Nova, and TwelveLabs models. `provider: "auto"` uses AWS credential-chain auto-detection (2026.4.5+) |
 
 **Provider auto-selection:** OpenClaw does **not** default to `local`. If `provider` is omitted, it auto-selects: `local` (if `modelPath` configured) → `openai` → `gemini` → `voyage` → disabled. Set `provider: "local"` explicitly to avoid surprises — without it, OpenClaw may silently use a remote provider if an API key is found in the environment.
 
@@ -364,6 +365,74 @@ How it works:
 **Why this matters:** Without memory flush, the agent forgets everything from the compacted portion of the conversation. With it, key information survives in memory and can be recalled via `memory_search`.
 
 > **Version note (2026.3.12):** Two new opt-in config keys control post-compaction memory reindexing. `agents.defaults.compaction.postIndexSync: true` triggers an immediate memory reindex after compaction completes, so the updated session memory is searchable in the same turn. `agents.defaults.memorySearch.sync.sessions.postCompactionForce: true` forces a full session sync after compaction even if the incremental sync already ran. Both default to `false` — enable only if your agents rely on immediately querying compacted memory in the same session turn.
+
+> **Version note (2026.4.2):** `agents.defaults.compaction.notifyUser` controls whether the `🧹 Compacting context...` start notice is shown. It defaults to `true` (notice shown). Set to `false` to suppress the message if you find it noisy.
+
+---
+
+## Memory Dreaming (Experimental)
+
+> **Requires OpenClaw 2026.4.5+.** Dreaming is opt-in and experimental — enable it only after the rest of your memory setup is working well.
+
+**Memory Dreaming** is a background process that automatically promotes short-term daily-log content into durable `MEMORY.md` entries. Without dreaming, `MEMORY.md` is maintained manually during heartbeat cycles. With dreaming, OpenClaw runs lightweight background passes that review recent daily notes, group related entries, extract lasting insights, and write them into `MEMORY.md` automatically.
+
+Dreaming runs in three cooperative phases:
+
+| Phase | What it does |
+|-------|-------------|
+| **Light** | Scans recent daily notes for recurring themes and near-duplicate entries |
+| **Deep** | Promotes high-signal content to `MEMORY.md`; weighted by recency |
+| **REM** | Surfaces "possible lasting truths" for review; replay-safe (reruns reconcile, not duplicate) |
+
+Dreaming trail content is written to a top-level `dreams.md` file in the workspace. The `/dreaming` command shows current dreaming status and recent activity.
+
+### Basic Config
+
+```json5
+{
+  agents: {
+    defaults: {
+      dreaming: {
+        enabled: true,
+        frequency: "nightly"   // "nightly" | "hourly" | cron expression
+      }
+    }
+  }
+}
+```
+
+### Aging Controls
+
+Control how long memories stay in the pool before being retired:
+
+```json5
+{
+  agents: {
+    defaults: {
+      dreaming: {
+        enabled: true,
+        recencyHalfLifeDays: 14,   // Weighting half-life for promotion decisions
+        maxAgeDays: 180            // Retire memories older than this
+      }
+    }
+  }
+}
+```
+
+### Tooling
+
+```bash
+# Preview what REM staging would promote (dry run)
+openclaw memory rem-harness
+
+# Explain a specific promotion decision
+openclaw memory promote-explain
+
+# Check dreaming status and recent activity
+# (send /dreaming to the agent in chat)
+```
+
+> **Note:** Dreaming is background infrastructure — it does not replace manual `MEMORY.md` curation. Think of it as an assistant that keeps `MEMORY.md` up to date between your manual reviews.
 
 ---
 

@@ -3,6 +3,18 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-04-06 — OpenClaw 2026.4.1 → 2026.4.5
+
+- Added version notes for 2026.4.2 security changes to Phase 3: exec now defaults to YOLO mode (security=full, ask=off) for host exec, gateway session kill scope enforcement, channel setup plugin hardening, additional exec env injection blocks, dotenv OPENCLAW_PINNED_PYTHON protection, and transport policy centralization
+- Added version notes for 2026.4.5 security changes to Phase 3: plugin tool allowlists enforced and fail-closed on `before_tool_call` crash, `/allowlist` requires owner access, SSRF redirect bypass blocked, plugin route scope fix, Claude CLI env isolation, device pairing hardening, and legacy config alias removal (`agents.*.sandbox.perSession`, `browser.ssrfPolicy.allowPrivateNetwork`, `hooks.internal.handlers`, channel `allow` toggles)
+- Added Memory Dreaming section to Phase 2: covers the new experimental background memory promotion feature (light/deep/REM phases), basic config (`dreaming.enabled`, `dreaming.frequency`), aging controls (`recencyHalfLifeDays`, `maxAgeDays`), and CLI tooling (`rem-harness`, `promote-explain`)
+- Added Amazon Bedrock embeddings provider to Phase 2 memory search providers table (Titan, Cohere, Nova, TwelveLabs; AWS credential-chain auto-detection)
+- Added `compaction.notifyUser` version note to Phase 2 (opt-in suppression of the compacting notice, since 2026.4.2)
+- Updated Feature Atlas Sessions & Memory table: added Amazon Bedrock embeddings, memory dreaming (enabled/frequency), dreaming aging controls, dreaming REM tooling, and compaction notifyUser rows
+- Updated Feature Atlas Channels table: added `contextVisibility` per-channel config (filter supplemental context by sender allowlist)
+- Updated Feature Atlas Tools table: added `video_generate` (native, xAI/Wan/Runway providers), `music_generate` (native, Google Lyria/MiniMax), and ComfyUI workflow plugin rows
+- Updated Feature Atlas Internals table: added `before_agent_reply` hook (short-circuit LLM with synthetic replies, since 2026.4.2); updated plugin hook count in diagram from 4 to 6
+
 ## 2026-04-02 — OpenClaw 2026.3.28 → 2026.4.1
 
 - Added SearXNG as a self-hosted `web_search` provider option in Phase 5, with config example showing `provider: "searxng"` and `searxng.host` — no API key required, queries stay on-prem (v2026.4.1)
