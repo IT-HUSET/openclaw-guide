@@ -80,6 +80,21 @@ The fix isn't one setting — it's layered defense. Each setting below blocks a 
 > - **Voice-call webhook pre-auth** — missing provider signature headers rejected before body reads; pre-auth body budget reduced to 64 KB / 5 s; concurrent pre-auth requests capped per source IP
 > - **Browser SSRF** — remote CDP discovery and `/json/version` checks honor strict SSRF policy; sensitive `cdpUrl` tokens redacted from status output
 > - **Security/network** — explicit-proxy SSRF pinning hardened: target-hop transport hints translated onto HTTPS proxy tunnels; plain HTTP guarded fetches that cannot preserve pinned DNS now fail closed
+>
+> **Version note (2026.4.2):**
+> - **Exec defaults changed** — gateway and node host exec now defaults to YOLO mode (`security=full`, `ask=off`), meaning exec runs without prompting for approval. Deployments that relied on exec approval prompts must explicitly configure `tools.exec.security` and `tools.exec.ask` to restore the previous behavior
+> - **Gateway session kill** — HTTP operator scopes enforced and authorization checked before session lookup, so unauthenticated callers cannot probe session existence
+> - **Channel setup hardened** — untrusted workspace channel plugins are ignored during setup/login flows so a shadowing workspace plugin cannot override built-in channel setup unless explicitly trusted in config
+> - **Exec env injection** — additional host environment override pivots blocked: package roots, language runtimes, compiler include paths, and credential/config locations
+> - **Dotenv hardening** — workspace `.env` files blocked from overriding `OPENCLAW_PINNED_PYTHON` and `OPENCLAW_PINNED_WRITE_PYTHON`
+> - **Transport policy** — request auth, proxy, TLS, and header shaping centralized; insecure TLS/runtime transport overrides blocked
+>
+> **Version note (2026.4.5):**
+> - **Plugin tool allowlists enforced** — restrictive plugin-only tool allowlists preserved; `/allowlist add` and `/allowlist remove` require owner access; `before_tool_call` hooks that crash now fail closed (tool call blocked) instead of silently passing through; browser SSRF redirect bypasses blocked earlier in the request pipeline
+> - **Plugin route scopes** — gateway plugin runtime routes now use write-only fallback scopes unless a trusted-proxy caller explicitly declares narrower `x-openclaw-scopes`, closing a path where plugin HTTP handlers could mint admin-level runtime scopes
+> - **Device pairing** — non-operator device scope checks bound to the requested role prefix; rotating device tokens into non-approved roles rejected; reconnect role checks bounded to paired device's approved role set
+> - **Claude CLI isolation** — OpenClaw-launched Claude CLI runs now clear inherited `CLAUDE_CONFIG_DIR`, `CLAUDE_CODE_PLUGIN_*`, provider-routing, and managed-auth env overrides, and force `--setting-sources user` so repo-local `.claude` hooks and plugins cannot execute inside non-interactive OpenClaw sessions
+> - **Legacy config aliases removed** — `agents.*.sandbox.perSession`, `browser.ssrfPolicy.allowPrivateNetwork`, `hooks.internal.handlers`, and channel/group/room `allow` toggles are no longer valid config keys. Run `openclaw doctor --fix` to migrate automatically. Use `enabled` for channel/plugin toggles; `browser.ssrfPolicy.dangerouslyAllowPrivateNetwork` for the SSRF key (already the canonical name since 2026.2.23)
 
 ---
 
