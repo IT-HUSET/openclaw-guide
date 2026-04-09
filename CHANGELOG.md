@@ -3,6 +3,19 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-04-09 — OpenClaw 2026.4.5 → 2026.4.9
+
+- Updated version references to 2026.4.9 in `.guide-version`, docs index, and hardened-multi-agent prerequisites (mechanical housekeeping)
+- Added Phase 3 security version note for 2026.4.7: extended host exec env sanitization (Java, Rust, Cargo, Git, Kubernetes, cloud creds, Helm vars blocked); gateway config write lock preventing model turns from weakening exec approval policy (safeBins, strictInlineEval); /allowlist owner-auth requirement; fetch redirect body drop on 307/308 cross-origin; browser SSRF redirect tracking; runtime event trust (notifyOnExit, ACP relays, wake-hook marked untrusted); ClawHub plugin archive SHA-256 verification; gateway auth session invalidation on token rotation
+- Added Phase 3 security version note for 2026.4.9: browser SSRF interaction-bypass fix (blocked-destination checks re-run after click/evaluate navigations); workspace .env blocked from overriding runtime-control env vars; remote node exec events marked untrusted; plugin onboarding auth isolation; basic-ftp forced to 5.2.1 for CRLF injection fix
+- Updated Phase 2 dreaming tooling to document `rem-harness --path` for grounded REM historical backfill (2026.4.9); added note about Control UI diary view
+- Added Phase 2 version note for pluggable compaction provider registry (`agents.defaults.compaction.provider`, 2026.4.7)
+- Feature Atlas — Sessions & Memory: added Dreaming REM historical backfill and Dreaming diary view rows (2026.4.9); added Pluggable compaction provider row (2026.4.7)
+- Feature Atlas — Agents & Configuration: added System prompt override row (`agents.defaults.systemPromptOverride`, 2026.4.7)
+- Feature Atlas — Tools & Automation: added `openclaw infer` CLI hub and Webhook ingress plugin rows (2026.4.7)
+- Feature Atlas — Security & Hardening: added Runtime event trust hardening, Plugin archive integrity, Gateway config exec write lock, and Dotenv runtime-control env blocking rows (2026.4.7–2026.4.9)
+- Note: security-review.md version checklist items for 2026.4.7 and 2026.4.9 could not be written — the `.claude/commands/` path was blocked by the automated environment's permission system despite being listed as an allowed path in CLAUDE.md
+
 ## 2026-04-06 — OpenClaw 2026.4.1 → 2026.4.5
 
 - Added version notes for 2026.4.2 security changes to Phase 3: exec now defaults to YOLO mode (security=full, ask=off) for host exec, gateway session kill scope enforcement, channel setup plugin hardening, additional exec env injection blocks, dotenv OPENCLAW_PINNED_PYTHON protection, and transport policy centralization

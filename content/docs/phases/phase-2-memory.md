@@ -368,6 +368,8 @@ How it works:
 
 > **Version note (2026.4.2):** `agents.defaults.compaction.notifyUser` controls whether the `🧹 Compacting context...` start notice is shown. It defaults to `true` (notice shown). Set to `false` to suppress the message if you find it noisy.
 
+> **Version note (2026.4.7):** `agents.defaults.compaction.provider` enables a pluggable compaction provider registry — plugins can replace the built-in LLM summarization pipeline with a custom implementation. Falls back to LLM summarization on provider failure.
+
 ---
 
 ## Memory Dreaming (Experimental)
@@ -425,12 +427,17 @@ Control how long memories stay in the pool before being retired:
 # Preview what REM staging would promote (dry run)
 openclaw memory rem-harness
 
+# Replay historical daily notes into Dreams (grounded REM backfill)
+openclaw memory rem-harness --path ~/.openclaw/workspaces/main/memory/
+
 # Explain a specific promotion decision
 openclaw memory promote-explain
 
 # Check dreaming status and recent activity
 # (send /dreaming to the agent in chat)
 ```
+
+> **Version note (2026.4.9):** `rem-harness --path` adds a grounded REM backfill lane — replay old daily notes into Dreams and durable `MEMORY.md` without needing a second memory stack. Pairs with the Control UI diary view (timeline navigation, backfill/reset controls, traceable summaries).
 
 > **Note:** Dreaming is background infrastructure — it does not replace manual `MEMORY.md` curation. Think of it as an assistant that keeps `MEMORY.md` up to date between your manual reviews.
 
