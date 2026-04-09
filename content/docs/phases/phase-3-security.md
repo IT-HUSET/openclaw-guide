@@ -95,6 +95,23 @@ The fix isn't one setting — it's layered defense. Each setting below blocks a 
 > - **Device pairing** — non-operator device scope checks bound to the requested role prefix; rotating device tokens into non-approved roles rejected; reconnect role checks bounded to paired device's approved role set
 > - **Claude CLI isolation** — OpenClaw-launched Claude CLI runs now clear inherited `CLAUDE_CONFIG_DIR`, `CLAUDE_CODE_PLUGIN_*`, provider-routing, and managed-auth env overrides, and force `--setting-sources user` so repo-local `.claude` hooks and plugins cannot execute inside non-interactive OpenClaw sessions
 > - **Legacy config aliases removed** — `agents.*.sandbox.perSession`, `browser.ssrfPolicy.allowPrivateNetwork`, `hooks.internal.handlers`, and channel/group/room `allow` toggles are no longer valid config keys. Run `openclaw doctor --fix` to migrate automatically. Use `enabled` for channel/plugin toggles; `browser.ssrfPolicy.dangerouslyAllowPrivateNetwork` for the SSRF key (already the canonical name since 2026.2.23)
+>
+> **Version note (2026.4.7):**
+> - **Host exec env sanitization extended** — Java (`JAVA_TOOL_OPTIONS`, `_JAVA_OPTIONS`), Rust (`RUSTUP_TOOLCHAIN`), Cargo, Git (`GIT_EXEC_PATH`, `GIT_CONFIG_*`), Kubernetes, cloud credential (`AWS_*`, `GOOGLE_APPLICATION_CREDENTIALS`, `AZURE_*`), config-path, and Helm env overrides blocked in host exec to prevent redirecting tools to attacker-controlled code, config, or credentials
+> - **Gateway config write lock on exec paths** — model-facing `gateway config.apply` and `config.patch` calls can no longer change `safeBins`, `safeBinProfiles`, `safeBinTrustedDirs`, or `strictInlineEval`, preventing a compromised model turn from weakening exec approval policy
+> - **`/allowlist` requires owner authorization** — `/allowlist add` and `/allowlist remove` now require owner authorization before channel resolution, so non-owner but command-authorized senders can no longer rewrite allowlist policy
+> - **Fetch redirect body hardening** — request bodies and body-describing headers are dropped on cross-origin `307`/`308` redirects by default, preventing SSRF-chained redirect hops from receiving secret-bearing POST payloads
+> - **Browser SSRF redirect tracking** — main-frame `document` redirect hops are now treated as navigations even when Playwright doesn't flag them as `isNavigationRequest()`, closing a bypass path for forbidden-destination pivots
+> - **Runtime event trust** — background `notifyOnExit` summaries, ACP parent-stream relays, and wake-hook payloads are now marked as untrusted system events so lower-trust runtime output cannot re-enter later turns as trusted `System:` text
+> - **Plugin archive integrity** — ClawHub plugin downloads verified against version metadata SHA-256; installs fail closed when archive integrity metadata is missing or malformed
+> - **Gateway auth invalidation on rotation** — existing shared-token and password WebSocket sessions are invalidated when the configured secret rotates, so stale authenticated sockets cannot stay attached after token changes
+>
+> **Version note (2026.4.9):**
+> - **Browser SSRF interaction bypass fix** — blocked-destination safety checks re-run after interaction-driven main-frame navigations (click, evaluate, hook-triggered click, batched actions), closing a bypass path where browser interactions could land on forbidden URLs after passing the initial SSRF check
+> - **Dotenv runtime-control env blocking** — workspace `.env` files can no longer override runtime-control env vars, browser-control override env vars, or skip-server env vars; unsafe URL-style browser control override specifiers rejected before lazy loading
+> - **Node exec event trust** — remote node `exec.started`, `exec.finished`, and `exec.denied` summaries are now marked as untrusted system events and sanitized before enqueueing, preventing remote node output from injecting trusted `System:` content into later turns
+> - **Plugin onboarding auth isolation** — untrusted workspace plugins cannot collide with bundled provider auth-choice IDs during non-interactive onboarding, keeping operator secrets out of untrusted plugin handlers
+> - **`basic-ftp` CRLF injection fix** — forced `basic-ftp` to `5.2.1` to resolve the CRLF command-injection vulnerability in FTP transport
 
 ---
 
