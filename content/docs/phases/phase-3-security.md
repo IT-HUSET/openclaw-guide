@@ -112,6 +112,13 @@ The fix isn't one setting — it's layered defense. Each setting below blocks a 
 > - **Node exec event trust** — remote node `exec.started`, `exec.finished`, and `exec.denied` summaries are now marked as untrusted system events and sanitized before enqueueing, preventing remote node output from injecting trusted `System:` content into later turns
 > - **Plugin onboarding auth isolation** — untrusted workspace plugins cannot collide with bundled provider auth-choice IDs during non-interactive onboarding, keeping operator secrets out of untrusted plugin handlers
 > - **`basic-ftp` CRLF injection fix** — forced `basic-ftp` to `5.2.1` to resolve the CRLF command-injection vulnerability in FTP transport
+>
+> **Version note (2026.4.10):**
+> - **Browser/sandbox navigation hardening** — SSRF defaults tightened across strict hostname allowlists, interaction-driven redirects, subframes, CDP discovery, tab actions, noVNC, and Docker CDP source-range enforcement; strict-policy hostname navigation rejected unless the hostname is an explicit allowlist exception or IP literal; CDP HTTP discovery now routes through the pinned SSRF fetch path
+> - **Exec preflight and host-media authorization** — exec preflight reads hardened; host env denylisting extended; outbound host-media reads now check sender-scoped `toolsBySender` policy so denied senders cannot trigger host file disclosure via attachment hydration; plugin install dependency scanning blocks installs with critical dangerous-code findings
+> - **Hook event trust** — agent hook system events marked untrusted; hook display names sanitized before cron metadata reuse so injected hook names cannot poison scheduled job context
+> - **Dreaming admin scope required** — persistent `/dreaming on|off` changes now require `operator.admin`; missing gateway client scopes treated as unprivileged instead of silently allowing config writes
+> - **Gateway/pairing hardening** — device records with no device tokens fail closed; pairing approvals whose requested scopes do not match the requested device roles are rejected
 
 ---
 
