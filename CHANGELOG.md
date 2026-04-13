@@ -3,6 +3,15 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-04-13 — OpenClaw 2026.4.9 → 2026.4.11
+
+- Updated version references to 2026.4.11 in `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md` (mechanical housekeeping)
+- Added Phase 3 security version note for 2026.4.10: browser/sandbox SSRF navigation hardening, exec preflight + host-media `toolsBySender` authorization, hook event trust (agent hook events marked untrusted), dreaming admin scope required for persistent `/dreaming` changes, gateway/pairing fail-closed for no-token device records
+- Added **Active Memory** feature row to Feature Atlas Sessions & Memory table (2026.4.10): optional plugin that auto-surfaces relevant context before each reply without explicit "remember" prompts
+- Added **Dreaming ChatGPT import + memory-wiki** feature row to Feature Atlas Sessions & Memory table (2026.4.11): ChatGPT import ingestion, `Imported Insights` and `Memory Palace` diary subtabs
+- Added version compatibility table entries for 2026.4.2 through 2026.4.11 in `content/docs/reference.md`, covering breaking exec YOLO default (4.2), legacy config alias removal (4.5), exec env sanitization + webhook-ingress (4.7), SSRF/CRLF fixes (4.9), Active Memory + exec-policy command + security hardening (4.10), and Dreaming memory-wiki + asyncCompletion schema fix (4.11)
+- **Note:** `.claude/commands/security-review.md` version ≥ 2026.4.10 checklist entry was not added — write permission was denied during this run; add manually: `- [ ] Version ≥ 2026.4.10 (browser/sandbox SSRF hardening, exec preflight + host-media auth via toolsBySender, hook event trust, dreaming admin scope required)`
+
 ## 2026-04-09 — OpenClaw 2026.4.5 → 2026.4.9
 
 - Updated version references to 2026.4.9 in `.guide-version`, docs index, and hardened-multi-agent prerequisites (mechanical housekeeping)
