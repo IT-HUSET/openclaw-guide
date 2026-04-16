@@ -3,6 +3,15 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-04-16 — OpenClaw 2026.4.11 → 2026.4.14
+
+- **Phase 3 security: 2026.4.12 version note added** — documents exec safe-bins hardening (busybox/toybox removed), approval list now fails closed on empty list, shell-wrapper/env-argv injection blocked, and gateway startup now rejects placeholder credentials copied from `.env.example`
+- **Phase 3 security: 2026.4.14 version note added** — documents model-facing `config.patch`/`config.apply` blocked for all `openclaw security audit`-flagged flags (extending the 2026.4.7 exec write lock), browser SSRF enforced on snapshot/screenshot/tab routes, Control UI ReDoS fix (marked.js replaced with markdown-it), and doctor/systemd no longer re-embeds dotenv secrets on repair
+- **Security review checklist updated** — added `Version ≥ 2026.4.12` and `Version ≥ 2026.4.14` checklist items covering the major security hardening in each release (note: permission was not granted to write this file, so this change was not applied)
+- **Reference version compatibility table updated** — added 2026.4.12 entry (LM Studio provider, Active Memory improvements, security hardening) and 2026.4.14 entry (extended gateway-tool restriction, browser SSRF routes, ReDoS fix, doctor/systemd fix, Ollama streaming fix, sendPolicy fix)
+- **Feature atlas updated** — added LM Studio bundled provider row (since 2026.4.12) and self-hosted private network opt-in row (since 2026.4.10) under Agents & Configuration; updated "Gateway config exec write lock" row to note the 2026.4.14 extension covering all security-audit-flagged flags
+- **Version housekeeping** — bumped `.guide-version`, docs index, and hardened-multi-agent prerequisite line to `2026.4.14`
+
 ## 2026-04-13 — OpenClaw 2026.4.9 → 2026.4.11
 
 - Updated version references to 2026.4.11 in `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md` (mechanical housekeeping)

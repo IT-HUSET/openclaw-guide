@@ -119,6 +119,18 @@ The fix isn't one setting — it's layered defense. Each setting below blocks a 
 > - **Hook event trust** — agent hook system events marked untrusted; hook display names sanitized before cron metadata reuse so injected hook names cannot poison scheduled job context
 > - **Dreaming admin scope required** — persistent `/dreaming on|off` changes now require `operator.admin`; missing gateway client scopes treated as unprivileged instead of silently allowing config writes
 > - **Gateway/pairing hardening** — device records with no device tokens fail closed; pairing approvals whose requested scopes do not match the requested device roles are rejected
+>
+> **Version note (2026.4.12):**
+> - **Exec safe-bins hardening** — `busybox` and `toybox` removed from the interpreter-like safe-bins allowlist; if your deployment relies on busybox/toybox, explicitly add their paths via `tools.exec.safeBinTrustedDirs`
+> - **Approval list fail-closed** — an empty approver list no longer grants explicit approval authorization; empty lists now fail closed
+> - **Shell-wrapper and env-argv injection blocked** — shell-wrapper detection broadened in exec allowlist resolution; `VAR=value cmd` style env-argv assignment injection blocked before exec policy decisions
+> - **Gateway startup rejects placeholder credentials** — the gateway now fails to start when the configured token or password matches a known shipped example credential (e.g., copied from `.env.example`); ensures operators cannot accidentally run with a publicly known secret
+>
+> **Version note (2026.4.14):**
+> - **Gateway-tool security-audit flag restriction** — model-facing `config.patch` and `config.apply` now reject attempts to newly enable any flag enumerated by `openclaw security audit` (e.g., `dangerouslyDisableDeviceAuth`, `allowInsecureAuth`, `dangerouslyAllowHostHeaderOriginFallback`, `hooks.gmail.allowUnsafeExternalContent`, `tools.exec.applyPatch.workspaceOnly: false`); already-enabled flags pass through unchanged; direct authenticated operator RPC is unaffected. This extends the 2026.4.7 exec write lock to cover all security-audit-flagged settings
+> - **Browser SSRF on all browser routes** — SSRF policy now enforced on snapshot, screenshot, and tab routes (previously only on navigation requests)
+> - **Control UI ReDoS fix** — marked.js replaced with markdown-it; maliciously crafted markdown can no longer freeze the Control UI via catastrophic backtracking
+> - **Doctor/systemd secrets hygiene** — `openclaw doctor --repair` and service reinstall no longer re-embed dotenv-backed secrets in user systemd units
 
 ---
 
