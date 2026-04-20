@@ -3,6 +3,17 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-04-20 — OpenClaw 2026.4.14 → 2026.4.15
+
+- Updated memory dreaming storage default: `dreaming.storage.mode` changed from `inline` to `separate` (2026.4.15) — dreaming phase blocks now land in `memory/dreaming/{phase}/YYYY-MM-DD.md` instead of being injected into daily memory files; Phase 2 documents the opt-out config for operators who relied on inline behavior
+- Added GitHub Copilot as a memory search embedding provider to Phase 2 provider table and Feature Atlas
+- Added LanceDB cloud storage support for durable memory indexes to Feature Atlas
+- Added Control UI Model Auth status card (OAuth token health and provider rate-limit pressure at a glance) to Feature Atlas
+- Added local model lean mode (`agents.defaults.experimental.localModelLean: true`) to Feature Atlas — drops heavyweight tools for weaker local-model setups
+- Added v2026.4.15 security version note block to Phase 3 covering: exec approval secret redaction, gateway auth bearer resolved per-request (token rotation now immediately effective on HTTP without restart), MCP loopback constant-time comparison, workspace file symlink hardening, QMD memory path restriction closing a tool-policy bypass
+- Added exec approval secret redaction, gateway auth per-request resolution, and workspace file symlink hardening rows to Feature Atlas Security section
+- Note: `.claude/commands/security-review.md` v2026.4.15 checklist item could not be applied — write permission was not granted; the item to add is: `- [ ] Version ≥ 2026.4.15 (secrets redacted in exec approvals, gateway auth token rotation effective immediately on HTTP, workspace file symlink hardening, QMD memory path restriction)`
+
 ## 2026-04-16 — OpenClaw 2026.4.11 → 2026.4.14
 
 - **Phase 3 security: 2026.4.12 version note added** — documents exec safe-bins hardening (busybox/toybox removed), approval list now fails closed on empty list, shell-wrapper/env-argv injection blocked, and gateway startup now rejects placeholder credentials copied from `.env.example`
