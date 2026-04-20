@@ -149,6 +149,7 @@ By default, the agent can only see today's and yesterday's memory files. **Memor
 | `gemini` | `GEMINI_API_KEY` | ~200ms | Embeddings sent to Google. `gemini-embedding-2-preview` available (2026.3.11+) with configurable output dimensions |
 | `voyage` | `VOYAGE_API_KEY` | ~200ms | Embeddings sent to Voyage AI |
 | `bedrock` | AWS credentials (IAM or env) | ~200ms | Embeddings sent to AWS. Supports Titan, Cohere, Nova, and TwelveLabs models. `provider: "auto"` uses AWS credential-chain auto-detection (2026.4.5+) |
+| `copilot` | GitHub Copilot auth | ~200ms | Embeddings sent to GitHub Copilot (2026.4.15+). Reuses the Copilot transport with token refresh and remote override support |
 
 **Provider auto-selection:** OpenClaw does **not** default to `local`. If `provider` is omitted, it auto-selects: `local` (if `modelPath` configured) → `openai` → `gemini` → `voyage` → disabled. Set `provider: "local"` explicitly to avoid surprises — without it, OpenClaw may silently use a remote provider if an API key is found in the environment.
 
@@ -438,6 +439,11 @@ openclaw memory promote-explain
 ```
 
 > **Version note (2026.4.9):** `rem-harness --path` adds a grounded REM backfill lane — replay old daily notes into Dreams and durable `MEMORY.md` without needing a second memory stack. Pairs with the Control UI diary view (timeline navigation, backfill/reset controls, traceable summaries).
+
+> **Version note (2026.4.15):** The default `dreaming.storage.mode` changed from `inline` to `separate`. Dreaming phase blocks (`## Light Sleep`, `## REM Sleep`) now land in `memory/dreaming/{phase}/YYYY-MM-DD.md` instead of being injected into `memory/YYYY-MM-DD.md`. Daily memory files no longer get dominated by structured candidate output. If you relied on the previous inline behavior, opt back in:
+> ```json5
+> { "plugins": { "entries": { "memory-core": { "config": { "dreaming": { "storage": { "mode": "inline" } } } } } } }
+> ```
 
 > **Note:** Dreaming is background infrastructure — it does not replace manual `MEMORY.md` curation. Think of it as an assistant that keeps `MEMORY.md` up to date between your manual reviews.
 

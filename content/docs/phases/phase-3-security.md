@@ -131,6 +131,14 @@ The fix isn't one setting — it's layered defense. Each setting below blocks a 
 > - **Browser SSRF on all browser routes** — SSRF policy now enforced on snapshot, screenshot, and tab routes (previously only on navigation requests)
 > - **Control UI ReDoS fix** — marked.js replaced with markdown-it; maliciously crafted markdown can no longer freeze the Control UI via catastrophic backtracking
 > - **Doctor/systemd secrets hygiene** — `openclaw doctor --repair` and service reinstall no longer re-embed dotenv-backed secrets in user systemd units
+>
+> **Version note (2026.4.15):**
+> - **Exec approval secret redaction** — secrets are now redacted in exec approval prompts so inline approval review can no longer leak credential material in rendered prompt content
+> - **Gateway auth per-request bearer resolution** — the active gateway bearer is now resolved per-request on all HTTP paths (`/v1/*`, `/tools/invoke`, plugin routes, canvas upgrade); a secret rotated via `secrets.reload` or config hot-reload now takes effect immediately on HTTP without requiring a gateway restart (previously HTTP remained valid for stale tokens until restart)
+> - **Gateway/MCP loopback hardening** — `/mcp` bearer comparison now uses constant-time `safeEqualSecret` (matching all other auth surfaces); non-loopback browser-origin requests rejected before the auth gate via `checkBrowserOrigin`
+> - **Workspace file symlink hardening** — `agents.files.get`/`set` and workspace listing route through `fs-safe` helpers; symlink aliases for allowlisted agent files are rejected; `fs-safe` resolves opened-file real paths from the file descriptor before path-based `realpath` so a symlink swap between `open` and `realpath` can no longer redirect a validated path to a different inode
+> - **Gateway/tools MEDIA passthrough** — trusted local `MEDIA:` tool-result passthrough is now anchored to the exact raw name of registered built-in tools; client tool definitions whose names normalize-collide with a built-in or another client tool in the same request are rejected with `400 invalid_request_error`, preventing a client-supplied tool name from inheriting built-in local-media trust
+> - **QMD memory path restriction** — `memory_get` now rejects reads of arbitrary workspace markdown paths; only canonical memory files (`MEMORY.md`, `memory.md`, `DREAMS.md`, `dreams.md`, `memory/**`) and exact paths of active indexed QMD workspace documents are allowed; closes a bypass path where QMD could be used as a generic workspace-file reader that circumvents `read` tool-policy denials
 
 ---
 
