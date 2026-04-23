@@ -139,6 +139,16 @@ The fix isn't one setting — it's layered defense. Each setting below blocks a 
 > - **Workspace file symlink hardening** — `agents.files.get`/`set` and workspace listing route through `fs-safe` helpers; symlink aliases for allowlisted agent files are rejected; `fs-safe` resolves opened-file real paths from the file descriptor before path-based `realpath` so a symlink swap between `open` and `realpath` can no longer redirect a validated path to a different inode
 > - **Gateway/tools MEDIA passthrough** — trusted local `MEDIA:` tool-result passthrough is now anchored to the exact raw name of registered built-in tools; client tool definitions whose names normalize-collide with a built-in or another client tool in the same request are rejected with `400 invalid_request_error`, preventing a client-supplied tool name from inheriting built-in local-media trust
 > - **QMD memory path restriction** — `memory_get` now rejects reads of arbitrary workspace markdown paths; only canonical memory files (`MEMORY.md`, `memory.md`, `DREAMS.md`, `dreams.md`, `memory/**`) and exact paths of active indexed QMD workspace documents are allowed; closes a bypass path where QMD could be used as a generic workspace-file reader that circumvents `read` tool-policy denials
+>
+> **Version note (2026.4.20):**
+> - **Dotenv `OPENCLAW_*` blocking** — all `OPENCLAW_*` env keys are now blocked from untrusted workspace `.env` files; workspace-local env loading fails closed for any new runtime-control variables instead of silently inheriting them
+> - **Device pairing scope restriction** — non-admin paired-device sessions (device-token auth) are now restricted to their own device's pairing list, approve, and reject actions; a paired device can no longer enumerate other devices or approve/reject pairings from other devices; admin and shared-secret operator sessions retain full visibility
+> - **Gateway tool mutation guard extended** — model-facing `config.patch` and `config.apply` can no longer rewrite operator-trusted paths (sandbox, plugin trust, gateway auth/TLS, hook routing, SSRF policy, MCP servers, workspace filesystem hardening) and cannot bypass the guard by editing per-agent sandbox, tools, or embedded-Pi overrides under `agents.list[]`
+> - **WebSocket broadcast auth** — `operator.read` (or higher) is now required for chat, agent, and tool-result event frames; pairing-scoped and node-role sessions no longer passively receive session chat content; `plugin.*` broadcasts scoped to `operator.write`/`admin`; status/transport events remain unrestricted
+> - **MCP env key injection blocked** — interpreter-startup env keys (`NODE_OPTIONS`, etc.) are blocked for stdio MCP servers while ordinary credential and proxy env vars are preserved
+>
+> **Version note (2026.4.21):**
+> - **`enforceOwnerForCommands` bypass fix** — non-owner senders can no longer reach owner-only commands through a permissive `allowFrom` wildcard or empty `commands.ownerAllowFrom` when `enforceOwnerForCommands: true`; owner identity (owner-candidate match or internal `operator.admin`) is now required
 
 ---
 
