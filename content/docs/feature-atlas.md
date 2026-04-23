@@ -279,6 +279,12 @@ Layers of protection from sandbox isolation to network controls.
 | Exec approval secret redaction | Secrets are redacted in exec approval prompts so inline approval review cannot leak credential material | — | 2026.4.15 | [Phase 3](phases/phase-3-security.md) |
 | Gateway auth per-request resolution | Gateway bearer resolved per-request on all HTTP paths; token rotation via `secrets.reload` or config hot-reload takes effect immediately without restart | — | 2026.4.15 | [Phase 3](phases/phase-3-security.md) |
 | Workspace file symlink hardening | `agents.files` API routes through `fs-safe` helpers; symlink aliases for agent files rejected; real-path resolved from file descriptor to prevent swap-between-open-and-realpath attacks | — | 2026.4.15 | [Phase 3](phases/phase-3-security.md) |
+| Dotenv `OPENCLAW_*` env blocking | All `OPENCLAW_*` keys blocked from untrusted workspace `.env` files; fails closed for new runtime-control variables | — | 2026.4.20 | [Phase 3](phases/phase-3-security.md) |
+| Device pairing scope restriction | Non-admin paired-device sessions restricted to own device's pairing actions; cannot enumerate or approve other devices | — | 2026.4.20 | [Phase 3](phases/phase-3-security.md) |
+| Gateway tool mutation guard (full) | model-facing `config.patch`/`config.apply` cannot rewrite operator-trusted paths or bypass the guard via per-agent `agents.list[]` overrides | — | 2026.4.20 | [Phase 3](phases/phase-3-security.md) |
+| WebSocket broadcast auth | `operator.read` required for chat, agent, and tool-result event frames; pairing-scoped sessions no longer receive session chat content passively | — | 2026.4.20 | [Phase 3](phases/phase-3-security.md) |
+| MCP stdio env injection blocked | Interpreter-startup env keys (`NODE_OPTIONS`, etc.) blocked for stdio MCP servers | — | 2026.4.20 | [Phase 3](phases/phase-3-security.md) |
+| `enforceOwnerForCommands` bypass fix | Owner identity required for owner-enforced commands; permissive `allowFrom` wildcards or empty `ownerAllowFrom` no longer bypass owner checks | — | 2026.4.21 | [Phase 3](phases/phase-3-security.md) |
 
 ### Use Cases
 
@@ -322,6 +328,7 @@ The 44 built-in tools, cron scheduling, web search, browser, and extended capabi
 | Cron webhook triggers | External triggers for cron jobs via authenticated webhook | `cron.webhookToken` | 2026.2.16 | [Reference](reference.md#config-quick-reference) |
 | Cron notify | Deliver cron output to a channel peer | `cron.notify` | 2026.2.16 | [Reference](reference.md#config-quick-reference) |
 | Cron per-job tool allowlist | Restrict which tools a cron job can use via `--tools` flag | `openclaw cron --tools` | 2026.4.1 | [Reference](reference.md#cron-jobs) |
+| Cron state/definition split | Job definitions in `cron/jobs.json` (stable, git-trackable); runtime execution state in `cron/jobs-state.json` (ephemeral, auto-rebuilt) | — | 2026.4.20 | [Phase 7](phases/phase-7-migration.md) |
 | Background task flows | Unified background-run control plane with `openclaw flows list\|show\|cancel` | `openclaw flows` | 2026.3.31 | [Reference](reference.md#useful-commands) |
 | Image generation (native) | Built-in image generation via `image_generate` tool | `agents.defaults.imageGenerationModel.primary` | 2026.3.22 | [Reference](reference.md#config-quick-reference) |
 | Image generation (plugin) | Generate images via OpenRouter API (FLUX, Gemini, GPT, MiniMax image-01) | `generate_image` tool (image-gen plugin) | — (MiniMax: 2026.3.28) | [Extension](extensions/image-gen.md) |

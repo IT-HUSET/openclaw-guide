@@ -422,6 +422,8 @@ When `delivery` is configured on isolated jobs, the runtime appends delivery ins
 
 Alternatives to the `cron` tool for job management: Control UI (web), `openclaw cron create/list/edit` CLI, or direct edit of `cron/jobs.json`.
 
+> **`cron/jobs.json` vs `cron/jobs-state.json` (2026.4.20+):** Job definitions live in `cron/jobs.json` (stable, safe to git-track or copy in migration). Runtime execution state (last-run timestamps, delivery tracking) is stored separately in `cron/jobs-state.json` — do not copy this file during migration; it is auto-rebuilt.
+
 ### Per-Job Tool Allowlist (2026.4.1+)
 
 Use `openclaw cron --tools` to restrict which tools a cron job can invoke:

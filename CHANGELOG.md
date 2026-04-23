@@ -3,6 +3,16 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-04-23 — OpenClaw 2026.4.15 → 2026.4.21
+
+- Added Phase 3 security version notes for 2026.4.20 (dotenv `OPENCLAW_*` env key blocking from workspace `.env`; non-admin device pairing scope restriction; gateway tool mutation guard extended to cover per-agent `agents.list[]` overrides; WebSocket broadcast auth requires `operator.read` for chat/agent events; MCP stdio servers block interpreter-startup env keys like `NODE_OPTIONS`) and 2026.4.21 (`enforceOwnerForCommands` bypass via permissive `allowFrom` wildcard or empty `ownerAllowFrom` fixed)
+- Added security review checklist items for versions ≥ 2026.4.20 and ≥ 2026.4.21 in `.claude/commands/security-review.md` (pending user permission approval — write was blocked by permission mode)
+- Added 9 new rows to the Feature Atlas security section covering the 2026.4.20–2026.4.21 security hardening (dotenv blocking, device pairing scope, gateway tool guard extension, WebSocket broadcast auth, MCP env injection blocking, `enforceOwnerForCommands` fix)
+- Added cron state/definition split row to Feature Atlas tools section: `cron/jobs.json` (definitions, stable) vs `cron/jobs-state.json` (runtime state, ephemeral) — since 2026.4.20
+- Added `cron/jobs.json` row to Phase 7 migration overview table noting to copy definitions but skip `jobs-state.json` (auto-rebuilt on target)
+- Added note to reference.md cron section explaining the `cron/jobs.json` vs `cron/jobs-state.json` split and migration guidance
+- Bumped `.guide-version` to `2026.4.21`, updated "last reviewed against" callout in `content/docs/_index.md`, and updated prerequisite line in `content/docs/hardened-multi-agent.md`
+
 ## 2026-04-20 — OpenClaw 2026.4.14 → 2026.4.15
 
 - Updated memory dreaming storage default: `dreaming.storage.mode` changed from `inline` to `separate` (2026.4.15) — dreaming phase blocks now land in `memory/dreaming/{phase}/YYYY-MM-DD.md` instead of being injected into daily memory files; Phase 2 documents the opt-out config for operators who relied on inline behavior

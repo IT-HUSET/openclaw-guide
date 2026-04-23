@@ -30,6 +30,7 @@ An OpenClaw deployment consists of these components:
 | **Memory search index** | Internal (architecture-dependent) | No | Rebuild on target: `openclaw memory index` |
 | **Secrets** | Plist env vars / `secrets.env` | Manual | Re-enter on target (never copy plists with secrets over network) |
 | **Service files** | LaunchAgent/systemd (or LaunchDaemon for hardened) | Recreate | Paths and users differ per host |
+| **Cron job definitions** | `~/.openclaw/cron/jobs.json` | Yes | Git-trackable job definitions; copy to target. Do **not** copy `cron/jobs-state.json` (runtime execution state — auto-rebuilt) |
 | **Cron jobs / scheduled tasks** | `/etc/newsyslog.d/`, `/etc/logrotate.d/`, crontab | Recreate | Log rotation, session pruning, temp cleanup |
 
 ---
