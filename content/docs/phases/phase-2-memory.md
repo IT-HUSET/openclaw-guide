@@ -174,12 +174,15 @@ Add to `openclaw.json`:
 }
 ```
 
-For local, OpenClaw downloads a GGUF embedding model (~600MB) on first use. Approve the native build and rebuild (run from OpenClaw's install directory — typically `/opt/homebrew/lib/node_modules/openclaw` on macOS or `/usr/local/lib/node_modules/openclaw` on Linux):
+For local, OpenClaw downloads a GGUF embedding model (~600MB) on first use. Run the following from the OpenClaw install directory — typically `/opt/homebrew/lib/node_modules/openclaw` on macOS or `/usr/local/lib/node_modules/openclaw` on Linux:
 
 ```bash
-npx pnpm approve-builds          # Approve node-llama-cpp native build
+npx pnpm add node-llama-cpp      # Install optional local embedding runtime
+npx pnpm approve-builds          # Approve native build
 npx pnpm rebuild node-llama-cpp  # Build native bindings
 ```
+
+> **Version note (2026.4.24):** `node-llama-cpp` is no longer installed with OpenClaw by default. You must run `npx pnpm add node-llama-cpp` explicitly before using local embeddings — the `approve-builds` / `rebuild` steps alone are no longer sufficient on a fresh install.
 
 > **Note:** OpenClaw uses pnpm internally but does not install it globally. Use `npx pnpm` to run these commands. If you get "pnpm not found", ensure you're in the OpenClaw installation directory (not your workspace) and that `npx` is on your PATH.
 
@@ -317,6 +320,21 @@ memorySearch: {
 }
 ```
 
+#### Local Context Size
+
+On constrained hosts, reduce the context window used for local embedding inference (default: 4096):
+
+```json5
+memorySearch: {
+  provider: "local",
+  local: {
+    contextSize: 2048   // Lower for memory-constrained hosts
+  }
+}
+```
+
+> **Version note (2026.4.23):** `memorySearch.local.contextSize` was added with a 4096 default. Tune it down on Raspberry Pi or other low-RAM hosts to prevent out-of-memory failures during embedding.
+
 #### Citations
 
 Control whether search results include source file citations in the agent's context. Note: this is a top-level `memory` option, not nested under `memorySearch`:
@@ -439,6 +457,8 @@ openclaw memory promote-explain
 ```
 
 > **Version note (2026.4.9):** `rem-harness --path` adds a grounded REM backfill lane — replay old daily notes into Dreams and durable `MEMORY.md` without needing a second memory stack. Pairs with the Control UI diary view (timeline navigation, backfill/reset controls, traceable summaries).
+
+> **Version note (2026.4.23):** Dreaming is now fully decoupled from heartbeat — it runs as an isolated lightweight agent turn even when `heartbeat` is disabled for the default agent and is no longer gated by `heartbeat.activeHours`. If you disabled heartbeat and dreaming was silently not running, upgrade and run `openclaw doctor --fix` to migrate stale dreaming cron jobs to the new shape.
 
 > **Version note (2026.4.15):** The default `dreaming.storage.mode` changed from `inline` to `separate`. Dreaming phase blocks (`## Light Sleep`, `## REM Sleep`) now land in `memory/dreaming/{phase}/YYYY-MM-DD.md` instead of being injected into `memory/YYYY-MM-DD.md`. Daily memory files no longer get dominated by structured candidate output. If you relied on the previous inline behavior, opt back in:
 > ```json5
@@ -835,7 +855,7 @@ After configuring memory search, verify everything works:
 - [ ] `openclaw memory search "test"` returns results (if you have memory files)
 - [ ] Send a message via chat, check that `memory/YYYY-MM-DD.md` is created
 - [ ] Pre-compaction flush: in a long conversation, verify memory is written before compaction (check logs: `openclaw logs | grep "memory flush"`)
-- [ ] For local provider: `npx pnpm approve-builds` and `npx pnpm rebuild node-llama-cpp` completed successfully
+- [ ] For local provider (2026.4.24+): `npx pnpm add node-llama-cpp`, `npx pnpm approve-builds`, and `npx pnpm rebuild node-llama-cpp` completed successfully (from OpenClaw install dir)
 
 ---
 

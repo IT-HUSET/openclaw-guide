@@ -115,6 +115,8 @@ How agents are defined, routed, and connected to each other.
 | System prompt override | Controlled prompt experiments and heartbeat prompt-section controls | `agents.defaults.systemPromptOverride` | 2026.4.7 | [Reference](reference.md#config-quick-reference) |
 | Local model lean mode (experimental) | Drop heavyweight default tools (`browser`, `cron`, `message`) to reduce prompt size for weaker local-model setups; has no effect on normal (non-local) paths | `agents.defaults.experimental.localModelLean: true` | 2026.4.15 | [Official docs](https://docs.openclaw.ai) |
 | Config validation | Validate config before gateway startup | CLI: `openclaw config validate` | 2026.3.2 | [Reference](reference.md#config-validation) |
+| DeepSeek V4 bundled catalog | DeepSeek V4 Flash and V4 Pro in bundled model catalog; V4 Flash is the onboarding default | `agents.list[].model` | 2026.4.24 | [Official docs](https://docs.openclaw.ai) |
+| Bootstrap context injection control | Disable workspace bootstrap file injection for agents that fully own their prompt lifecycle | `agents.defaults.contextInjection: "never"` | 2026.4.24 | [Reference](reference.md#config-quick-reference) |
 | Config schema | Print generated JSON schema for `openclaw.json` | CLI: `openclaw config schema` | 2026.3.28 | [Reference](reference.md#config-validation) |
 | Environment files | `.env` loading from CWD → `~/.openclaw/` → config `env` block | `.env` files | — | [Reference](reference.md#environment-files) |
 
@@ -162,6 +164,8 @@ How external users communicate with agents through messaging platforms.
 | QQ Bot | QQ Bot bundled channel with multi-account, slash commands, reminders, and media | `channels.qqbot` | 2026.3.31 | [Official docs](https://docs.openclaw.ai) |
 | WhatsApp emoji reactions | Agents can react to incoming WhatsApp messages with emoji; configure with `reactionLevel` | `channels.whatsapp.reactionLevel` | 2026.3.31 | [Official docs](https://docs.openclaw.ai) |
 | Channel context visibility | Filter supplemental quote/thread/history context by sender allowlist per channel | `channels.<ch>.contextVisibility` | 2026.4.5 | [Official docs](https://docs.openclaw.ai) |
+| WhatsApp native reply quoting | Configurable native reply-thread quoting for WhatsApp conversations | `channels.whatsapp.replyToMode` | 2026.4.22 | [Official docs](https://docs.openclaw.ai) |
+| WhatsApp per-chat system prompts | Per-group and per-direct `systemPrompt` injected as `GroupSystemPrompt` context; `"*"` wildcard fallback; account-scoped overrides | `channels.whatsapp.groups.<id>.systemPrompt`, `channels.whatsapp.direct.<id>.systemPrompt` | 2026.4.22 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -218,6 +222,9 @@ How conversations are scoped, persisted, and how agents remember across sessions
 | Compaction notify user | Control whether the "🧹 Compacting context..." notice is shown | `agents.defaults.compaction.notifyUser` | 2026.4.2 | [Phase 2](phases/phase-2-memory.md) |
 | Pluggable compaction provider | Replace built-in LLM summarization pipeline via plugin registry | `agents.defaults.compaction.provider` | 2026.4.7 | [Phase 2](phases/phase-2-memory.md) |
 | Memory CLI | Status, index, search from terminal | `openclaw memory *` | — | [Reference](reference.md#useful-commands) |
+| Local embedding context size | Tune local embedding context window for constrained hosts without patching memory host | `memorySearch.local.contextSize` | 2026.4.23 | [Phase 2](phases/phase-2-memory.md) |
+| Dreaming heartbeat-independent | Dreaming runs as an isolated lightweight agent turn regardless of whether heartbeat is enabled or what `heartbeat.activeHours` allows | `dreaming.enabled` | 2026.4.23 | [Phase 2](phases/phase-2-memory.md) |
+| Hybrid search raw scores | `vectorScore` and `textScore` exposed alongside combined `score` on hybrid results for retrieval contribution inspection | `memorySearch.query.hybrid` | 2026.4.24 | [Phase 2](phases/phase-2-memory.md) |
 
 ### Use Cases
 
@@ -285,6 +292,13 @@ Layers of protection from sandbox isolation to network controls.
 | WebSocket broadcast auth | `operator.read` required for chat, agent, and tool-result event frames; pairing-scoped sessions no longer receive session chat content passively | — | 2026.4.20 | [Phase 3](phases/phase-3-security.md) |
 | MCP stdio env injection blocked | Interpreter-startup env keys (`NODE_OPTIONS`, etc.) blocked for stdio MCP servers | — | 2026.4.20 | [Phase 3](phases/phase-3-security.md) |
 | `enforceOwnerForCommands` bypass fix | Owner identity required for owner-enforced commands; permissive `allowFrom` wildcards or empty `ownerAllowFrom` no longer bypass owner checks | — | 2026.4.21 | [Phase 3](phases/phase-3-security.md) |
+| Plugin update integrity fail-closed | Pinned plugin/hook-pack updates abort when exact integrity hash drift is detected; drift details exposed via `openclaw update --json` | — | 2026.4.22 | [Phase 3](phases/phase-3-security.md) |
+| Control UI config endpoint auth | `/__openclaw/control-ui-config.json` requires authenticated access when `gateway.auth` enabled | `gateway.auth` | 2026.4.22 | [Phase 3](phases/phase-3-security.md) |
+| WhatsApp/group-chat prompt injection fencing | Contact names, vCard fields, location labels, group names, and participant labels rendered through fenced untrusted metadata JSON instead of inline message body | — | 2026.4.23 | [Phase 3](phases/phase-3-security.md) |
+| Gateway config write lock (allowlist) | Agent-driven `config.apply`/`config.patch` fail closed against a narrow allowlist of operator-tunable paths (prompt, model, mention-gating) instead of a hand-maintained denylist | — | 2026.4.23 | [Phase 3](phases/phase-3-security.md) |
+| Exec-approval explicit enablement | Chat exec-approval gates require explicit enablement; auto-approval from config or owner allowlists alone is no longer sufficient | — | 2026.4.23 | [Phase 3](phases/phase-3-security.md) |
+| MCP owner-tool privilege escalation fix | ACPX OpenClaw tools bridge blocked from listing or invoking owner-only tools such as `cron` via non-owner MCP callers | — | 2026.4.23 | [Phase 3](phases/phase-3-security.md) |
+| Browser SSRF policy in sandboxed sessions | Resolved `browser.ssrfPolicy` passed into sandbox browser bridges; private-network opt-ins now cover sandboxed browser navigation | `browser.ssrfPolicy` | 2026.4.24 | [Phase 3](phases/phase-3-security.md) |
 
 ### Use Cases
 
@@ -338,6 +352,11 @@ The 44 built-in tools, cron scheduling, web search, browser, and extended capabi
 | Computer use | VM-based macOS interaction via 7 `vm_*` tools | `vm_*` tools (computer-use plugin) | — | [Phase 8](phases/phase-8-computer-use.md), [Extension](extensions/computer-use.md) |
 | `openclaw infer` | First-class CLI hub for provider-backed inference workflows: model, media, web, and embedding tasks | `openclaw infer` | 2026.4.7 | [Official docs](https://docs.openclaw.ai) |
 | Webhook ingress plugin | External automation creates and drives bound TaskFlows via per-route shared-secret endpoints | `plugins.entries.webhook-ingress` | 2026.4.7 | [Official docs](https://docs.openclaw.ai) |
+| Google Meet | Bundled participant plugin — personal Google auth, Chrome/Twilio realtime sessions, paired-node Chrome support, artifact/attendance exports, `googlemeet recover-tab` recovery | `plugins.entries.google-meet` | 2026.4.24 | [Official docs](https://docs.openclaw.ai) |
+| Browser coordinate clicks | Click at viewport coordinates for managed and existing-session browser automation | `browser` tool | 2026.4.24 | [Reference](reference.md#tool-list) |
+| Browser action timeout | Configurable per-action timeout with 60 s default so long waits do not fail at the transport boundary | `browser.actionTimeoutMs` | 2026.4.24 | [Reference](reference.md#tool-list) |
+| Browser per-profile headless | Override headless mode per locally launched browser profile | `browser.profiles.<name>.headless` | 2026.4.24 | [Official docs](https://docs.openclaw.ai) |
+| Talk WebRTC voice | Browser WebRTC realtime voice sessions in Control UI backed by OpenAI Realtime; `openclaw_agent_consult` handoff for tool-backed answers | — | 2026.4.24 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -384,6 +403,10 @@ Running OpenClaw in production: service management, infrastructure, and day-to-d
 | Light context heartbeat | Reduced context for heartbeat cycles to save tokens | `agents.*.heartbeat.lightContext` | 2026.3.1 | [Reference](reference.md#version-compatibility) |
 | Docker timezone support | `OPENCLAW_TZ` environment variable for container timezone | `OPENCLAW_TZ` env var | 2026.3.13-1 | [Phase 6](phases/phase-6-deployment.md) |
 | Node.js version guard | Runtime enforces Node.js 22.14+ minimum (Node 24 recommended) | — | 2026.3.13-1 (lowered 2026.3.24) | [Phase 1](phases/phase-1-getting-started.md) |
+| Gateway diagnostics export | Support-ready diagnostics export with sanitized logs, status, health, config, and stability snapshots | CLI: `openclaw diagnostics` | 2026.4.22 | [Official docs](https://docs.openclaw.ai) |
+| OTEL diagnostics | Opt-in OpenTelemetry span export for runs, model calls, and tool executions; content capture disabled by default | `diagnostics.otel.endpoint` | 2026.4.24 | [Official docs](https://docs.openclaw.ai) |
+| Matrix self device verification | Full cross-signing identity trust for self-device verification via CLI | CLI: `openclaw matrix verify self` | 2026.4.24 | [Official docs](https://docs.openclaw.ai) |
+| Node pairing auto-approve CIDRs | Disabled-by-default auto-approval for first-time node pairing from explicit trusted CIDRs; all upgrade flows remain manual | `gateway.nodes.pairing.autoApproveCidrs` | 2026.4.24 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 

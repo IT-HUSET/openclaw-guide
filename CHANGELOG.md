@@ -3,6 +3,18 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-04-27 — OpenClaw 2026.4.21 → 2026.4.24
+
+- Phase 2 memory: `node-llama-cpp` is no longer bundled by default (2026.4.24) — added explicit `npx pnpm add node-llama-cpp` install step to local embedding setup and updated verification checklist accordingly
+- Phase 2 memory: documented that dreaming is now fully decoupled from heartbeat (2026.4.23); added migration note to run `openclaw doctor --fix` for stale cron jobs
+- Phase 2 memory: documented new `memorySearch.local.contextSize` config option for tuning local embedding context on RAM-constrained hosts (2026.4.23)
+- Feature Atlas security: added 8 new hardening entries covering plugin integrity drift fail-closed, Control UI config endpoint auth, WhatsApp/group-chat prompt injection fencing, gateway config allowlist approach, exec-approval explicit enablement, MCP owner-tool privilege escalation fix, and browser SSRF policy in sandboxed sessions (2026.4.22–2026.4.24)
+- Feature Atlas channels: added WhatsApp native reply quoting (`replyToMode`) and per-group/direct system prompts injected as `GroupSystemPrompt` context (2026.4.22)
+- Feature Atlas tools: added Google Meet bundled plugin (personal auth, Chrome/Twilio, artifact/attendance exports), browser coordinate clicks, `browser.actionTimeoutMs` 60 s default, per-profile headless override, and Talk WebRTC realtime voice sessions (2026.4.24)
+- Feature Atlas agents: added DeepSeek V4 Flash/Pro bundled catalog (V4 Flash is new onboarding default) and `agents.defaults.contextInjection: "never"` bootstrap control (2026.4.24)
+- Feature Atlas memory: added `memorySearch.local.contextSize`, dreaming heartbeat-independence row, and hybrid search raw `vectorScore`/`textScore` exposure (2026.4.23–2026.4.24)
+- Feature Atlas deployment: added gateway diagnostics export (2026.4.22), OTEL span export, Matrix self-device verification (`openclaw matrix verify self`), and node pairing `autoApproveCidrs` (2026.4.24)
+
 ## 2026-04-23 — OpenClaw 2026.4.15 → 2026.4.21
 
 - Added Phase 3 security version notes for 2026.4.20 (dotenv `OPENCLAW_*` env key blocking from workspace `.env`; non-admin device pairing scope restriction; gateway tool mutation guard extended to cover per-agent `agents.list[]` overrides; WebSocket broadcast auth requires `operator.read` for chat/agent events; MCP stdio servers block interpreter-startup env keys like `NODE_OPTIONS`) and 2026.4.21 (`enforceOwnerForCommands` bypass via permissive `allowFrom` wildcard or empty `ownerAllowFrom` fixed)
