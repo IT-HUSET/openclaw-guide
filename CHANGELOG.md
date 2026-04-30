@@ -3,6 +3,20 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-04-30 — OpenClaw 2026.4.24 → 2026.4.27
+
+- Bumped guide baseline to **2026.4.27** — updated `.guide-version`, version callout in `content/docs/_index.md`, and prerequisite line in `content/docs/hardened-multi-agent.md`
+- Added **Security & Hardening** atlas entries (2026.4.25–4.27): device token scope containment (pairing-only sessions cannot mutate operator tokens), session transcript redaction applied to persisted JSONL, opt-in outbound proxy routing (`proxy.enabled` / `proxy.proxyUrl`), managed LaunchAgent secrets loaded from owner-only env files instead of plist `EnvironmentVariables`, and media MIME sanitization hardening
+- Added **Agents & Configuration** atlas entries: `agents.defaults.compaction.maxActiveTranscriptBytes` preflight compaction trigger (2026.4.26) and `models.pricing.enabled` for offline/restricted-network installs (2026.4.27)
+- Added **Channels & Messaging** atlas entry: Tencent Yuanbao channel via `openclaw-plugin-yuanbao` external plugin (2026.4.27)
+- Added **Sessions & Memory** atlas entries: asymmetric embedding config (`memorySearch.queryInputType` / `documentInputType`, 2026.4.26) and `dreaming.model` override for Dream Diary narrative subagents (2026.4.26)
+- Added **Tools & Automation** atlas entries: `openclaw migrate` config importer (2026.4.26), `sandbox.docker.gpus` passthrough (2026.4.27), and `cron.jobs[].failureAlert.includeSkipped` (2026.4.27)
+- Added **Deployment & Operations** atlas entries: `OPENCLAW_NO_AUTO_UPDATE=1` kill switch (2026.4.26), `openclaw matrix encryption setup` (2026.4.26), and `openclaw nodes remove --node` (2026.4.26)
+- Added **Plugin System** atlas entries: `before_agent_finalize` hook (2026.4.25) and explicit `activation.onStartup` plugin manifest declarations (2026.4.27)
+- Added Phase 6 deployment note on **`OPENCLAW_NO_AUTO_UPDATE=1`** in the Incident Response section — hold automatic package updates during incident recovery without editing config
+- Added Phase 6 deployment note on **`models.pricing.enabled: false`** for air-gapped / restricted-network VPS installs that cannot reach OpenRouter or LiteLLM pricing catalogs at startup
+- Note: `.claude/commands/security-review.md` could not be updated (write-protection hook blocks all writes to `.claude/`); the two new version checklist items (2026.4.25 and 2026.4.27) should be added manually
+
 ## 2026-04-27 — OpenClaw 2026.4.21 → 2026.4.24
 
 - Phase 2 memory: `node-llama-cpp` is no longer bundled by default (2026.4.24) — added explicit `npx pnpm add node-llama-cpp` install step to local embedding setup and updated verification checklist accordingly
