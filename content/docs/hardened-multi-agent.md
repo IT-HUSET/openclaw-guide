@@ -18,7 +18,7 @@ This page covers an optional hardened variant: **separating exec into a dedicate
 **Prerequisites:**
 - [Recommended configuration](examples/config.md) deployed and working (2-agent baseline)
 - Docker running
-- OpenClaw 2026.4.24+ recommended (guide baseline version)
+- OpenClaw 2026.4.27+ recommended (guide baseline version)
 
 **Version compatibility notes:**
 - Custom Docker networks (`docker.network: "openclaw-egress"`): Verify support with your OpenClaw version

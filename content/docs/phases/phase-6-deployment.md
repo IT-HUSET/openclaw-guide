@@ -195,6 +195,8 @@ For production deployments on dedicated hardware where you want per-agent isolat
 
 > **Timezone support (2026.3.13-1+):** Set `OPENCLAW_TZ` in the container environment to control the gateway's timezone (e.g., `OPENCLAW_TZ=Europe/Stockholm`). Without this, the container uses UTC. This affects daily memory file naming, session reset times, and cron job scheduling. Pass it via your Docker Compose `environment:` block or `docker run -e OPENCLAW_TZ=...`.
 
+> **Restricted-network / offline installs (2026.4.27+):** If your gateway cannot reach the internet at startup (air-gapped VPS, strict egress firewall), set `"models": { "pricing": { "enabled": false } }` in `openclaw.json` to skip the startup OpenRouter and LiteLLM pricing-catalog fetches. Explicit per-model pricing in `models.providers.*.pricing` continues to work regardless of this flag.
+
 > **Security — Docker build context token leak (2026.3.13-1+):** Do not pass `OPENCLAW_GATEWAY_TOKEN` or other secrets as Docker build arguments (`--build-arg`). Build args are embedded in the image layer cache and visible via `docker history`. Use runtime environment variables (`-e` / Compose `environment:`) or Docker secrets for all credential injection.
 
 > **Official docs:** See [docs.openclaw.ai](https://docs.openclaw.ai) for the latest Docker setup instructions and options.
@@ -1859,11 +1861,12 @@ sudo -u openclaw openclaw sessions reset
 If you suspect compromise, follow this sequence:
 
 1. **Contain** — stop the gateway immediately (see [Immediate Shutdown](#immediate-shutdown) above)
-2. **Rotate credentials:**
+2. **Hold updates** — set `OPENCLAW_NO_AUTO_UPDATE=1` in your service environment to prevent background package auto-updates while you investigate. This lets you stay on a known-good version during the incident without editing config. Remove the variable when recovery is complete. (2026.4.26+)
+3. **Rotate credentials:**
    - **Gateway token** — rotate in the LaunchAgent plist (macOS, or LaunchDaemon for hardened setup) or `/etc/openclaw/secrets.env` (Linux)
    - **API keys** — rotate Anthropic, Perplexity/Brave keys in the same plist or env file; also update `auth-profiles.json` if used
    - **Channel credentials** — re-pair WhatsApp (scan new QR) or re-link Signal
-3. **Audit** — review logs and session transcripts for unauthorized actions:
+4. **Audit** — review logs and session transcripts for unauthorized actions:
    ```bash
    # Recent gateway logs (macOS: /Users/openclaw, Linux: /home/openclaw)
    tail -100 ~openclaw/.openclaw/logs/gateway.log
@@ -1871,8 +1874,8 @@ If you suspect compromise, follow this sequence:
    # Session transcripts (look for unexpected tool calls)
    ls -lt ~openclaw/.openclaw/agents/*/sessions/*.jsonl | head -20
    ```
-4. **Restart** the gateway with rotated credentials
-5. **Report** vulnerabilities to security@openclaw.ai
+5. **Restart** the gateway with rotated credentials (remove `OPENCLAW_NO_AUTO_UPDATE=1` at this point if you want updates to resume)
+6. **Report** vulnerabilities to security@openclaw.ai
 
 See the [official security docs](https://docs.openclaw.ai/gateway/security) for additional context on known attack patterns.
 

@@ -117,6 +117,8 @@ How agents are defined, routed, and connected to each other.
 | Config validation | Validate config before gateway startup | CLI: `openclaw config validate` | 2026.3.2 | [Reference](reference.md#config-validation) |
 | DeepSeek V4 bundled catalog | DeepSeek V4 Flash and V4 Pro in bundled model catalog; V4 Flash is the onboarding default | `agents.list[].model` | 2026.4.24 | [Official docs](https://docs.openclaw.ai) |
 | Bootstrap context injection control | Disable workspace bootstrap file injection for agents that fully own their prompt lifecycle | `agents.defaults.contextInjection: "never"` | 2026.4.24 | [Reference](reference.md#config-quick-reference) |
+| Preflight compaction trigger | Opt-in preflight that runs local compaction when the active transcript JSONL grows past a byte limit, rotating the file before the next turn | `agents.defaults.compaction.maxActiveTranscriptBytes` | 2026.4.26 | [Phase 2](phases/phase-2-memory.md) |
+| Model pricing skip | Skip startup OpenRouter and LiteLLM pricing-catalog fetches for offline or restricted-network installs; explicit `models.providers.*.pricing` values continue to work | `models.pricing.enabled` | 2026.4.27 | [Phase 6](phases/phase-6-deployment.md) |
 | Config schema | Print generated JSON schema for `openclaw.json` | CLI: `openclaw config schema` | 2026.3.28 | [Reference](reference.md#config-validation) |
 | Environment files | `.env` loading from CWD → `~/.openclaw/` → config `env` block | `.env` files | — | [Reference](reference.md#environment-files) |
 
@@ -166,6 +168,7 @@ How external users communicate with agents through messaging platforms.
 | Channel context visibility | Filter supplemental quote/thread/history context by sender allowlist per channel | `channels.<ch>.contextVisibility` | 2026.4.5 | [Official docs](https://docs.openclaw.ai) |
 | WhatsApp native reply quoting | Configurable native reply-thread quoting for WhatsApp conversations | `channels.whatsapp.replyToMode` | 2026.4.22 | [Official docs](https://docs.openclaw.ai) |
 | WhatsApp per-chat system prompts | Per-group and per-direct `systemPrompt` injected as `GroupSystemPrompt` context; `"*"` wildcard fallback; account-scoped overrides | `channels.whatsapp.groups.<id>.systemPrompt`, `channels.whatsapp.direct.<id>.systemPrompt` | 2026.4.22 | [Official docs](https://docs.openclaw.ai) |
+| Tencent Yuanbao | Tencent Yuanbao channel via external `openclaw-plugin-yuanbao` plugin; WebSocket bot DMs and group chats | `channels.yuanbao` | 2026.4.27 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -225,6 +228,8 @@ How conversations are scoped, persisted, and how agents remember across sessions
 | Local embedding context size | Tune local embedding context window for constrained hosts without patching memory host | `memorySearch.local.contextSize` | 2026.4.23 | [Phase 2](phases/phase-2-memory.md) |
 | Dreaming heartbeat-independent | Dreaming runs as an isolated lightweight agent turn regardless of whether heartbeat is enabled or what `heartbeat.activeHours` allows | `dreaming.enabled` | 2026.4.23 | [Phase 2](phases/phase-2-memory.md) |
 | Hybrid search raw scores | `vectorScore` and `textScore` exposed alongside combined `score` on hybrid results for retrieval contribution inspection | `memorySearch.query.hybrid` | 2026.4.24 | [Phase 2](phases/phase-2-memory.md) |
+| Asymmetric embedding config | Separate `queryInputType` and `documentInputType` for OpenAI-compatible providers that use different input types for queries vs. documents (e.g., `query` vs. `passage`) | `memorySearch.queryInputType`, `memorySearch.documentInputType` | 2026.4.26 | [Phase 2](phases/phase-2-memory.md) |
+| Dream Diary model override | Dedicated `dreaming.model` knob for Dream Diary narrative subagents to avoid paid conversation models during memory housekeeping | `dreaming.model` | 2026.4.26 | [Phase 2](phases/phase-2-memory.md) |
 
 ### Use Cases
 
@@ -299,6 +304,11 @@ Layers of protection from sandbox isolation to network controls.
 | Exec-approval explicit enablement | Chat exec-approval gates require explicit enablement; auto-approval from config or owner allowlists alone is no longer sufficient | — | 2026.4.23 | [Phase 3](phases/phase-3-security.md) |
 | MCP owner-tool privilege escalation fix | ACPX OpenClaw tools bridge blocked from listing or invoking owner-only tools such as `cron` via non-owner MCP callers | — | 2026.4.23 | [Phase 3](phases/phase-3-security.md) |
 | Browser SSRF policy in sandboxed sessions | Resolved `browser.ssrfPolicy` passed into sandbox browser bridges; private-network opt-ins now cover sandboxed browser navigation | `browser.ssrfPolicy` | 2026.4.24 | [Phase 3](phases/phase-3-security.md) |
+| Device token scope containment | Pairing-only sessions cannot rotate or revoke higher-scope operator tokens; token rotation and revocation are caller-scope contained | — | 2026.4.25 | [Phase 3](phases/phase-3-security.md) |
+| Session transcript redaction | Configured `redactSensitive` patterns now also applied to persisted session transcript JSONL so secrets no longer appear in the clear in transcript files | `logging.redactSensitive` | 2026.4.25 | [Phase 3](phases/phase-3-security.md) |
+| Outbound proxy routing | Operator-managed opt-in proxy routing via `proxy.enabled` + `proxy.proxyUrl`/`OPENCLAW_PROXY_URL`; strict http:// forward-proxy validation, loopback-only gateway bypass | `proxy.enabled`, `proxy.proxyUrl` | 2026.4.26 | [Phase 6](phases/phase-6-deployment.md) |
+| LaunchAgent secrets hardening | Managed LaunchAgent/service installations load secrets from owner-only env files instead of plist `EnvironmentVariables`; secrets no longer visible in world-readable plist metadata | — | 2026.4.27 | [Phase 6](phases/phase-6-deployment.md) |
+| Media MIME sanitization | Media-understanding MIME type sanitization is end-anchored; parameterized MIME values, malformed whitespace, and suffix payloads are rejected before file-context handling | — | 2026.4.27 | [Phase 3](phases/phase-3-security.md) |
 
 ### Use Cases
 
@@ -357,6 +367,9 @@ The 44 built-in tools, cron scheduling, web search, browser, and extended capabi
 | Browser action timeout | Configurable per-action timeout with 60 s default so long waits do not fail at the transport boundary | `browser.actionTimeoutMs` | 2026.4.24 | [Reference](reference.md#tool-list) |
 | Browser per-profile headless | Override headless mode per locally launched browser profile | `browser.profiles.<name>.headless` | 2026.4.24 | [Official docs](https://docs.openclaw.ai) |
 | Talk WebRTC voice | Browser WebRTC realtime voice sessions in Control UI backed by OpenAI Realtime; `openclaw_agent_consult` handoff for tool-backed answers | — | 2026.4.24 | [Official docs](https://docs.openclaw.ai) |
+| Config migration | Import Claude Code, Claude Desktop, and Hermes configurations (instructions, MCP servers, skills, prompts, credentials) with dry-run preview and pre-migration backup | CLI: `openclaw migrate` | 2026.4.26 | [Official docs](https://docs.openclaw.ai) |
+| Docker sandbox GPU passthrough | Opt-in `sandbox.docker.gpus` passthrough for Docker sandbox containers when the host Docker runtime supports `--gpus` | `sandbox.docker.gpus` | 2026.4.27 | [Custom Sandbox Images](custom-sandbox-images.md) |
+| Cron failure alert for skipped jobs | Alert on persistently skipped jobs without counting skips as execution errors or affecting retry backoff | `cron.jobs[].failureAlert.includeSkipped` / `openclaw cron edit --failure-alert-include-skipped` | 2026.4.27 | [Reference](reference.md#cron-jobs) |
 
 ### Use Cases
 
@@ -407,6 +420,9 @@ Running OpenClaw in production: service management, infrastructure, and day-to-d
 | OTEL diagnostics | Opt-in OpenTelemetry span export for runs, model calls, and tool executions; content capture disabled by default | `diagnostics.otel.endpoint` | 2026.4.24 | [Official docs](https://docs.openclaw.ai) |
 | Matrix self device verification | Full cross-signing identity trust for self-device verification via CLI | CLI: `openclaw matrix verify self` | 2026.4.24 | [Official docs](https://docs.openclaw.ai) |
 | Node pairing auto-approve CIDRs | Disabled-by-default auto-approval for first-time node pairing from explicit trusted CIDRs; all upgrade flows remain manual | `gateway.nodes.pairing.autoApproveCidrs` | 2026.4.24 | [Official docs](https://docs.openclaw.ai) |
+| Auto-update kill switch | `OPENCLAW_NO_AUTO_UPDATE=1` disables background package auto-updates for deliberate version holds during incident recovery, without editing config | `OPENCLAW_NO_AUTO_UPDATE` env var | 2026.4.26 | [Phase 6](phases/phase-6-deployment.md) |
+| Matrix E2EE setup | One-command Matrix encryption setup, recovery bootstrap, and verification status via `openclaw matrix encryption setup` | CLI: `openclaw matrix encryption setup` | 2026.4.26 | [Official docs](https://docs.openclaw.ai) |
+| Node stale entry removal | Remove stale gateway-owned node pairing records without hand-editing state files | CLI: `openclaw nodes remove --node <id\|name\|ip>` | 2026.4.26 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -435,12 +451,14 @@ How the gateway works under the hood — the module system, plugin lifecycle, an
 | `before_dispatch` hook | Intercept inbound messages before routing with canonical metadata | Plugin API | 2026.3.24 | [Reference](reference.md#plugin-hooks) |
 | `before_tool_call` hook | Intercept tool calls before execution; supports async `requireApproval` to pause for user confirmation (used by content-guard, network-guard) | Plugin API | 2026.2.1 (`requireApproval`: 2026.3.28) | [Reference](reference.md#plugin-hooks) |
 | `before_agent_reply` hook | Short-circuit the LLM with synthetic replies after inline actions | Plugin API | 2026.4.2 | [Reference](reference.md#plugin-hooks) |
+| `before_agent_finalize` hook | Intercept and modify agent replies after generation but before finalization and delivery | Plugin API | 2026.4.25 | [Reference](reference.md#plugin-hooks) |
 | `message_received` hook | Intercept incoming channel messages (used by channel-guard) | Plugin API | — | [Reference](reference.md#plugin-hooks) |
 | `llm_input` hook | Intercept prompts before sending to model | Plugin API | 2026.2.16 | [Reference](reference.md#plugin-hooks) |
 | `llm_output` hook | Intercept model responses after receiving | Plugin API | 2026.2.16 | [Reference](reference.md#plugin-hooks) |
 | Plugin SDK | Public plugin SDK surface via `openclaw/plugin-sdk/*` subpaths (`openclaw/extension-api` removed) | `openclaw/plugin-sdk/*` | 2026.3.22 | [Reference](reference.md#plugin-installation) |
 | Plugin discovery | Workspace → user-level → bundled; first match wins | `~/.openclaw/extensions/` | — | [Reference](reference.md#plugin-installation) |
 | Plugin allow/deny | Allowlist + per-plugin enabled flag; both must pass | `plugins.allow`, `plugins.entries.*.enabled` | — | [Reference](reference.md#plugins) |
+| Plugin startup declaration | Explicit `activation.onStartup` metadata in plugin manifests so only plugins that intentionally register startup-time surfaces are loaded at boot | Plugin manifest | 2026.4.27 | [Official docs](https://docs.openclaw.ai) |
 | Plugin tool registration | Plugins can register custom tools (image-gen → `generate_image`, computer-use → `vm_*`) | Plugin API | — | [Reference](reference.md#plugins) |
 | Plugin configuration | Per-plugin config block with model, thresholds, timeouts | `plugins.entries.*` | — | [Reference](reference.md#plugin-installation) |
 | Single-process gateway | Node.js process handling all agents, channels, sessions, and UI | — | — | [Architecture](architecture.md) |
