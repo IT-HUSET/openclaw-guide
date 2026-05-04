@@ -3,6 +3,16 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-05-04 — OpenClaw 2026.4.27 → 2026.5.3-1
+
+- Updated `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md` to **OpenClaw 2026.5.3-1** (mechanical housekeeping)
+- Added `RestartPreventExitStatus=78` to the systemd unit in Phase 6 — prevents restart loops when the gateway exits due to a port conflict or lock file (v2026.4.29 fix)
+- Added `OPENCLAW_SKIP_ONBOARDING=1` env var note to Phase 6 Docker Containerized section for automated/CI installs (v2026.4.29)
+- Added 14 new rows to Feature Atlas across Agents, Channels, Tools, Deployment, and Security sections: commitments, thread-bound session spawning, `skipOptionalBootstrapFiles`, WhatsApp Newsletter targets, streaming progress drafts, Grok 4.3 catalog, file-transfer plugin, `/steer` + `/side` commands, `gateway restart --force/--wait`, gateway config fail-closed, `OPENCLAW_SKIP_ONBOARDING`, timing-safe credential compare, COMSPEC/CLOUDSDK_PYTHON env blocking, tool profile restriction narrowing, workspace state-dir env block, and Gateway env file secrets preservation
+- Added gotcha 6 to reference.md: `tools.exec`/`tools.fs` no longer implicitly widen restrictive profiles (`messaging`, `minimal`) — explicit `alsoAllow` required (v2026.4.29 breaking change)
+- Added gotcha 28b to reference.md: invalid config now fails closed on startup/hot-reload; `openclaw doctor --fix` owns last-known-good repair (v2026.5.3 behavior change)
+- Note: `.claude/commands/security-review.md` version checklist item (timing-safe compare, log sanitization, workspace env injection blocking) could not be written due to environment permission restrictions on the `.claude/` directory
+
 ## 2026-04-30 — OpenClaw 2026.4.24 → 2026.4.27
 
 - Bumped guide baseline to **2026.4.27** — updated `.guide-version`, version callout in `content/docs/_index.md`, and prerequisite line in `content/docs/hardened-multi-agent.md`
