@@ -499,15 +499,17 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 
 5. **`profile: "full"` means no restrictions** — `tools.profile: "full"` expands to an empty allow/deny set, bypassing all profile-level filtering entirely. Unlike `"coding"` (which includes a curated allow list), `"full"` is a footgun: every tool is reachable unless explicitly denied. Prefer explicit `tools.allow` lists over `"full"` when you need broad access.
 
-6. **`group:ui` deny includes `browser`** — if an agent allows `browser` but denies `group:ui`, browser is silently disabled. Deny `canvas` individually instead when browser should remain available.
+6. **`tools.exec`/`tools.fs` no longer widen restrictive profiles (2026.4.29+)** — setting `tools.exec` or `tools.fs` config while using a restrictive profile like `"messaging"` or `"minimal"` no longer implicitly adds those tools. Operators who need exec or fs tools under a restricted profile must add explicit `tools.alsoAllow: ["exec"]` / `tools.alsoAllow: ["group:fs"]` entries. Gateway logs a startup warning on affected configs.
 
-7. **`exec` allowlists don't catch shell builtins** — allowlists match resolved binary paths only. Shell builtins (`cd`, `export`, `source`) bypass the check entirely. `echo` is both a shell builtin and a standalone binary (`/bin/echo`) — behavior differs between them, and the builtin version varies by shell. If this matters, deny `exec` at the agent level.
+7. **`group:ui` deny includes `browser`** — if an agent allows `browser` but denies `group:ui`, browser is silently disabled. Deny `canvas` individually instead when browser should remain available.
+
+8. **`exec` allowlists don't catch shell builtins** — allowlists match resolved binary paths only. Shell builtins (`cd`, `export`, `source`) bypass the check entirely. `echo` is both a shell builtin and a standalone binary (`/bin/echo`) — behavior differs between them, and the builtin version varies by shell. If this matters, deny `exec` at the agent level.
 
 ### Agents & Sessions
 
-8. **Never share `agentDir` between agents** — causes auth collisions and session corruption.
+9. **Never share `agentDir` between agents** — causes auth collisions and session corruption.
 
-9. **`MEMORY.md` loads in main sessions only** (not groups or shared contexts) — don't put security-critical instructions there.
+10. **`MEMORY.md` loads in main sessions only** (not groups or shared contexts) — don't put security-critical instructions there.
 
 10. **Binding precedence is most-specific wins** — a peer-level binding beats a channel-level one.
 
@@ -556,6 +558,8 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 28. **`gateway.mode` is required** — the gateway refuses to start unless `gateway.mode: "local"` is set in config. Use `--allow-unconfigured` for ad-hoc/dev runs.
 
 28a. **Old legacy config keys fail after 2026.3.28** — automatic config migrations are only applied for keys introduced within the last two months. Very old legacy keys (older than 2 months) now fail validation instead of being silently rewritten on load or by `openclaw doctor`. Run `openclaw doctor --fix` on the old version before upgrading if your config predates 2026.1.28.
+
+28b. **Invalid config no longer auto-restores (2026.5.3+)** — previously the gateway would fall back to last-known-good config on startup or hot-reload. Now it fails closed: an invalid `openclaw.json` prevents startup or reload until corrected. Run `openclaw doctor` to diagnose and `openclaw doctor --fix` to repair.
 
 29. **Config validation is strict** — unknown keys, malformed types, or invalid values cause the gateway to refuse to start. Run `openclaw doctor` to diagnose.
 

@@ -119,6 +119,9 @@ How agents are defined, routed, and connected to each other.
 | Bootstrap context injection control | Disable workspace bootstrap file injection for agents that fully own their prompt lifecycle | `agents.defaults.contextInjection: "never"` | 2026.4.24 | [Reference](reference.md#config-quick-reference) |
 | Preflight compaction trigger | Opt-in preflight that runs local compaction when the active transcript JSONL grows past a byte limit, rotating the file before the next turn | `agents.defaults.compaction.maxActiveTranscriptBytes` | 2026.4.26 | [Phase 2](phases/phase-2-memory.md) |
 | Model pricing skip | Skip startup OpenRouter and LiteLLM pricing-catalog fetches for offline or restricted-network installs; explicit `models.providers.*.pricing` values continue to work | `models.pricing.enabled` | 2026.4.27 | [Phase 6](phases/phase-6-deployment.md) |
+| Opt-in follow-up commitments | Hidden extraction of inferred follow-up commitments from conversations, delivered via heartbeat; per-agent/per-channel scoping | `commitments.enabled`, `commitments.maxPerDay` | 2026.4.29 | [Official docs](https://docs.openclaw.ai) |
+| Thread-bound session spawning | `threadBindings.spawnSessions` replaces the legacy split subagent/ACP thread-spawn toggles; migrated automatically by `openclaw doctor --fix` | `threadBindings.spawnSessions` | 2026.5.2 | [Official docs](https://docs.openclaw.ai) |
+| Skip optional bootstrap files | Skip selected optional workspace bootstrap files without disabling required workspace setup | `agents.defaults.skipOptionalBootstrapFiles` | 2026.5.2 | [Official docs](https://docs.openclaw.ai) |
 | Config schema | Print generated JSON schema for `openclaw.json` | CLI: `openclaw config schema` | 2026.3.28 | [Reference](reference.md#config-validation) |
 | Environment files | `.env` loading from CWD → `~/.openclaw/` → config `env` block | `.env` files | — | [Reference](reference.md#environment-files) |
 
@@ -169,6 +172,8 @@ How external users communicate with agents through messaging platforms.
 | WhatsApp native reply quoting | Configurable native reply-thread quoting for WhatsApp conversations | `channels.whatsapp.replyToMode` | 2026.4.22 | [Official docs](https://docs.openclaw.ai) |
 | WhatsApp per-chat system prompts | Per-group and per-direct `systemPrompt` injected as `GroupSystemPrompt` context; `"*"` wildcard fallback; account-scoped overrides | `channels.whatsapp.groups.<id>.systemPrompt`, `channels.whatsapp.direct.<id>.systemPrompt` | 2026.4.22 | [Official docs](https://docs.openclaw.ai) |
 | Tencent Yuanbao | Tencent Yuanbao channel via external `openclaw-plugin-yuanbao` plugin; WebSocket bot DMs and group chats | `channels.yuanbao` | 2026.4.27 | [Official docs](https://docs.openclaw.ai) |
+| WhatsApp Channel/Newsletter targets | Send outbound messages to WhatsApp Channel or Newsletter feeds using `@newsletter` target syntax | `channels.whatsapp` — `@newsletter` target | 2026.5.2 | [Official docs](https://docs.openclaw.ai) |
+| Streaming progress drafts | Unified `streaming.mode: "progress"` with auto-labelled draft previews and shared `streaming.progress.*` config across Discord, Telegram, Matrix, Slack, and Microsoft Teams | `channels.<ch>.streaming.mode: "progress"` | 2026.5.3 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -309,6 +314,12 @@ Layers of protection from sandbox isolation to network controls.
 | Outbound proxy routing | Operator-managed opt-in proxy routing via `proxy.enabled` + `proxy.proxyUrl`/`OPENCLAW_PROXY_URL`; strict http:// forward-proxy validation, loopback-only gateway bypass | `proxy.enabled`, `proxy.proxyUrl` | 2026.4.26 | [Phase 6](phases/phase-6-deployment.md) |
 | LaunchAgent secrets hardening | Managed LaunchAgent/service installations load secrets from owner-only env files instead of plist `EnvironmentVariables`; secrets no longer visible in world-readable plist metadata | — | 2026.4.27 | [Phase 6](phases/phase-6-deployment.md) |
 | Media MIME sanitization | Media-understanding MIME type sanitization is end-anchored; parameterized MIME values, malformed whitespace, and suffix payloads are rejected before file-context handling | — | 2026.4.27 | [Phase 3](phases/phase-3-security.md) |
+| Timing-safe credential comparison | Credential bytes compared with padded timing-safe buffers instead of hashing before equality checks, preventing timing side-channel attacks | — | 2026.4.29 | [Phase 3](phases/phase-3-security.md) |
+| Debug-log argument sanitization | Debug log arguments sanitized before writing to `console.*` to prevent log forging via gateway payload fields | — | 2026.4.29 | [Phase 3](phases/phase-3-security.md) |
+| Workspace COMSPEC/CLOUDSDK_PYTHON blocking | `COMSPEC` and `CLOUDSDK_PYTHON` blocked from workspace `.env` to prevent Windows shell and Python interpreter redirection | — | 2026.4.29 | [Phase 3](phases/phase-3-security.md) |
+| Tool profile restriction narrowing | `tools.exec`/`tools.fs` config sections no longer implicitly widen restrictive profiles (`messaging`, `minimal`); explicit `alsoAllow` entries required; startup warning on affected configs | `tools.alsoAllow` | 2026.4.29 | [Reference](reference.md#tool-policy-precedence) |
+| Workspace state-directory env override blocked | Workspace `.env` cannot override the gateway state-directory path | — | 2026.5.2 | [Phase 3](phases/phase-3-security.md) |
+| Gateway env file operator secrets preservation | Operator-added secrets in the Gateway env file preserved across re-stage; only OpenClaw-managed keys are cleared | — | 2026.5.3 | [Phase 6](phases/phase-6-deployment.md) |
 
 ### Use Cases
 
@@ -370,6 +381,10 @@ The 44 built-in tools, cron scheduling, web search, browser, and extended capabi
 | Config migration | Import Claude Code, Claude Desktop, and Hermes configurations (instructions, MCP servers, skills, prompts, credentials) with dry-run preview and pre-migration backup | CLI: `openclaw migrate` | 2026.4.26 | [Official docs](https://docs.openclaw.ai) |
 | Docker sandbox GPU passthrough | Opt-in `sandbox.docker.gpus` passthrough for Docker sandbox containers when the host Docker runtime supports `--gpus` | `sandbox.docker.gpus` | 2026.4.27 | [Custom Sandbox Images](custom-sandbox-images.md) |
 | Cron failure alert for skipped jobs | Alert on persistently skipped jobs without counting skips as execution errors or affecting retry backoff | `cron.jobs[].failureAlert.includeSkipped` / `openclaw cron edit --failure-alert-include-skipped` | 2026.4.27 | [Reference](reference.md#cron-jobs) |
+| Grok 4.3 bundled catalog | Grok 4.3 added to the bundled xAI catalog and set as the xAI default chat model | `agents.list[].model` | 2026.5.2 | [Official docs](https://docs.openclaw.ai) |
+| File-transfer plugin | Bundled plugin with `file_fetch`, `dir_list`, `dir_fetch`, and `file_write` for binary file operations on paired nodes; path policy under `plugins.entries.file-transfer.config.nodes`; symlinks refused by default; 16 MB per-round-trip ceiling | `file_fetch`, `dir_list`, `dir_fetch`, `file_write` tools | 2026.5.3 | [Official docs](https://docs.openclaw.ai) |
+| `/steer` command | Queue-independent steering of the active current-session run without starting a new turn | CLI: `/steer <message>` | 2026.5.3 | [Official docs](https://docs.openclaw.ai) |
+| `/side` command alias | `/side` as a text and native slash-command alias for `/btw` side questions | CLI: `/side <message>` | 2026.5.3 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -423,6 +438,9 @@ Running OpenClaw in production: service management, infrastructure, and day-to-d
 | Auto-update kill switch | `OPENCLAW_NO_AUTO_UPDATE=1` disables background package auto-updates for deliberate version holds during incident recovery, without editing config | `OPENCLAW_NO_AUTO_UPDATE` env var | 2026.4.26 | [Phase 6](phases/phase-6-deployment.md) |
 | Matrix E2EE setup | One-command Matrix encryption setup, recovery bootstrap, and verification status via `openclaw matrix encryption setup` | CLI: `openclaw matrix encryption setup` | 2026.4.26 | [Official docs](https://docs.openclaw.ai) |
 | Node stale entry removal | Remove stale gateway-owned node pairing records without hand-editing state files | CLI: `openclaw nodes remove --node <id\|name\|ip>` | 2026.4.26 | [Official docs](https://docs.openclaw.ai) |
+| Gateway restart flags | `openclaw gateway restart --force` and `--wait <duration>` for immediate restarts or timed drain waits | CLI: `openclaw gateway restart --force/--wait` | 2026.5.2 | [Official docs](https://docs.openclaw.ai) |
+| Gateway config fail-closed | Invalid config now causes gateway startup and hot-reload to fail closed; `openclaw doctor --fix` owns last-known-good repair instead of auto-restore on load | — | 2026.5.3 | [Phase 6](phases/phase-6-deployment.md) |
+| `OPENCLAW_SKIP_ONBOARDING` | Skip the interactive onboarding wizard for automated Docker installs while still applying gateway defaults | `OPENCLAW_SKIP_ONBOARDING=1` env var | 2026.4.29 | [Phase 6](phases/phase-6-deployment.md) |
 
 ### Use Cases
 

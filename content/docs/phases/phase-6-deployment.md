@@ -195,6 +195,8 @@ For production deployments on dedicated hardware where you want per-agent isolat
 
 > **Timezone support (2026.3.13-1+):** Set `OPENCLAW_TZ` in the container environment to control the gateway's timezone (e.g., `OPENCLAW_TZ=Europe/Stockholm`). Without this, the container uses UTC. This affects daily memory file naming, session reset times, and cron job scheduling. Pass it via your Docker Compose `environment:` block or `docker run -e OPENCLAW_TZ=...`.
 
+> **Automated Docker installs (2026.4.29+):** Set `OPENCLAW_SKIP_ONBOARDING=1` in the container environment to skip the interactive onboarding wizard during automated or CI installs. Gateway defaults are still applied.
+
 > **Restricted-network / offline installs (2026.4.27+):** If your gateway cannot reach the internet at startup (air-gapped VPS, strict egress firewall), set `"models": { "pricing": { "enabled": false } }` in `openclaw.json` to skip the startup OpenRouter and LiteLLM pricing-catalog fetches. Explicit per-model pricing in `models.providers.*.pricing` continues to work regardless of this flag.
 
 > **Security — Docker build context token leak (2026.3.13-1+):** Do not pass `OPENCLAW_GATEWAY_TOKEN` or other secrets as Docker build arguments (`--build-arg`). Build args are embedded in the image layer cache and visible via `docker history`. Use runtime environment variables (`-e` / Compose `environment:`) or Docker secrets for all credential injection.
@@ -1218,6 +1220,7 @@ Group=openclaw
 ExecStart=/usr/bin/node /usr/lib/node_modules/openclaw/dist/index.js gateway --port 18789
 Restart=always
 RestartSec=5
+RestartPreventExitStatus=78  # Exit 78 = port in use or lock conflict — don't loop
 
 # Hardening
 NoNewPrivileges=true
