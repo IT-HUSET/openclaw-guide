@@ -17,7 +17,7 @@ This changelog tracks documentation changes — not OpenClaw releases themselves
 - Added Docker/Gateway security hardening callout to Phase 6 Docker Containerized section (2026.5.5 — regenerate compose file or add cap_drop/security_opt manually for older installs)
 - Note: `.claude/commands/security-review.md` Version ≥ 2026.5.5 checklist item (Docker gateway drops NET_RAW/NET_ADMIN + no-new-privileges) could not be written due to environment permission restrictions — add manually under "Version & Known Vulnerabilities"
 
-## 2026-05-07 — Search provider configuration correction
+## 2026-05-07 — Guard extensions, web search config, and personal assistant recipe
 
 - Bumped the guide baseline to **OpenClaw 2026.5.6** and updated the docs index, hardened multi-agent prerequisite, project memory, and security review checklist references
 - Patched guard extensions for the current OpenClaw plugin SDK: `channel-guard` now blocks via `before_dispatch`, queues medium-confidence warnings through `enqueueNextTurnInjection`, and fails closed when warning injection cannot be queued; `content-guard`, `file-guard`, and `network-guard` now use hook context for agent/workspace resolution instead of stale event fields
