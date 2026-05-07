@@ -40,7 +40,7 @@ Main Agent (exec, browser — egress-allowlisted network)
        Search Agent (web_search, web_fetch only — no filesystem)
             │
             ▼
-       Brave/Perplexity API → results → Main Agent
+       Search provider API → results → Main Agent
 ```
 
 `web_search` and `web_fetch` are both delegated to the search agent — this isolates web access and untrusted results from the main agent's filesystem and exec tools. Main has browser directly (for browser automation on the egress-allowlisted `openclaw-egress` Docker network) but no direct web fetch.
@@ -49,6 +49,7 @@ The search agent has no persistent memory — each request is stateless. This is
 
 The search agent:
 - Has `web_search` and `web_fetch` only — no filesystem tools at all
+- If you enable `x_search`, add it to the search agent's `allow` list; otherwise leave it unavailable
 - Has no code execution (`exec`, `process` denied)
 - Has no browser control (`browser` denied)
 - Unsandboxed — tool policy provides isolation (no filesystem tools to abuse). Workaround for [#9857](https://github.com/openclaw/openclaw/issues/9857) (`sessions_spawn` broken when both agents sandboxed + per-agent tools)
@@ -160,11 +161,11 @@ Add to `openclaw.json`:
   "agents": {
     "list": [
       {
-        // Main agent — web_search and web_fetch denied, both delegated to search agent.
+        // Main agent — web tools denied, delegated to search agent.
         "id": "main",
         "tools": {
           "allow": ["group:runtime", "group:fs", "group:sessions", "memory_search", "memory_get", "message", "browser"],
-          "deny": ["web_search", "web_fetch", "canvas", "group:automation"]
+          "deny": ["web_search", "web_fetch", "x_search", "canvas", "group:automation"]
         },
         "subagents": { "allowAgents": ["search"] }
       },
@@ -186,6 +187,7 @@ Key points:
 - Main agent denies both `web_search` and `web_fetch` — all web access goes through the isolated search agent. Main keeps `browser` (on egress-allowlisted network) for browser automation only
 - The search agent has both `allow` and `deny` lists — the `allow` list is the effective restriction (only these tools are available), while the `deny` list provides defense-in-depth by explicitly blocking dangerous tools even if `allow` is misconfigured
 - `search` agent has `web_search` and `web_fetch` via its `allow` list. No filesystem tools — eliminates any data exfiltration risk
+- If you enable X/Twitter post search, add `x_search` to the search agent's `allow` list and keep it denied everywhere else
 - `search` agent has `sessions_send` and `session_status` — to respond and check status
 - `search` agent denies all dangerous tools explicitly
 - Search agent runs unsandboxed — workaround for [#9857](https://github.com/openclaw/openclaw/issues/9857). Sandboxing is desired for defense-in-depth but not required since the search agent has no filesystem or exec tools
@@ -198,6 +200,13 @@ Key points:
 
 ### 6. Configure web search provider
 
+OpenClaw separates shared `web_search` settings from provider-specific plugin settings:
+
+- `tools.web.search.*` selects and tunes the search tool
+- `plugins.entries.<provider>.config.webSearch.*` stores provider credentials, base URLs, and modes
+
+If you use a restrictive `plugins.allow` list, include the selected provider plugin and set `plugins.bundledDiscovery: "allowlist"` to make the policy explicit. Otherwise the gateway may block the provider even though `tools.web.search.provider` is set.
+
 ```json
 {
   "tools": {
@@ -205,30 +214,46 @@ Key points:
     "web": {
       "search": {
         "enabled": true,
-        "provider": "brave",
-        "apiKey": "${BRAVE_API_KEY}"
+        "provider": "duckduckgo",
+        "maxResults": 5,
+        "timeoutSeconds": 30,
+        "cacheTtlMinutes": 15
       }
+    }
+  },
+  "plugins": {
+    "bundledDiscovery": "allowlist",
+    "allow": ["duckduckgo", "content-guard", "channel-guard"],
+    "entries": {
+      "duckduckgo": { "enabled": true }
     }
   }
 }
 ```
 
-**Brave Search** (recommended — free tier available):
+**DuckDuckGo** (default in this guide):
+- No API key required.
+- Bundled provider; include `"duckduckgo"` in `plugins.allow` when using a restrictive allowlist.
+
+**Brave Search** (optional external provider):
 1. Create account at https://brave.com/search/api/
 2. Choose the **Search** plan (free tier includes $5/month credits)
-3. Set `BRAVE_API_KEY` in `~/.openclaw/.env`
+3. Install/enable the official Brave provider plugin, set `tools.web.search.provider` to `"brave"`, include `"brave"` in `plugins.allow`, and set `BRAVE_API_KEY` in `~/.openclaw/.env`
 
 **Brave LLM Context mode** (opt-in, returns grounding snippets with source metadata instead of raw results):
 ```json
 {
-  "tools": {
-    "web": {
-      "search": {
+  "plugins": {
+    "bundledDiscovery": "allowlist",
+    "allow": ["brave"],
+    "entries": {
+      "brave": {
         "enabled": true,
-        "provider": "brave",
-        "apiKey": "${BRAVE_API_KEY}",
-        "brave": {
-          "mode": "llm-context"
+        "config": {
+          "webSearch": {
+            "apiKey": "${BRAVE_API_KEY}",
+            "mode": "llm-context"
+          }
         }
       }
     }
@@ -244,10 +269,22 @@ Key points:
       "search": {
         "enabled": true,
         "provider": "perplexity",
-        "perplexity": {
-          "apiKey": "${OPENROUTER_API_KEY}",
-          "baseUrl": "https://openrouter.ai/api/v1",
-          "model": "perplexity/sonar-pro"
+        "maxResults": 5
+      }
+    }
+  },
+  "plugins": {
+    "bundledDiscovery": "allowlist",
+    "allow": ["perplexity", "content-guard", "channel-guard"],
+    "entries": {
+      "perplexity": {
+        "enabled": true,
+        "config": {
+          "webSearch": {
+            "apiKey": "${OPENROUTER_API_KEY}",
+            "baseUrl": "https://openrouter.ai/api/v1",
+            "model": "perplexity/sonar-pro"
+          }
         }
       }
     }
@@ -255,9 +292,9 @@ Key points:
 }
 ```
 
-OpenRouter supports crypto/prepaid — no credit card needed.
+OpenRouter supports crypto/prepaid — no credit card needed. For native Perplexity, set a `PERPLEXITY_API_KEY` or put a `pplx-...` key at `plugins.entries.perplexity.config.webSearch.apiKey`.
 
-**xAI (Grok)** (added in 2026.2.9):
+**Grok via xAI** (AI-synthesized answers with citations):
 1. Create account at https://console.x.ai/
 2. Generate an API key under API Keys
 3. Set `XAI_API_KEY` in `~/.openclaw/.env`
@@ -268,26 +305,20 @@ OpenRouter supports crypto/prepaid — no credit card needed.
     "web": {
       "search": {
         "enabled": true,
-        "provider": "xai",
-        "apiKey": "${XAI_API_KEY}"
+        "provider": "grok"
       }
     }
-  }
-}
-```
-
-**SearXNG** (self-hosted, added in 2026.4.1 — no API key, no tracking):
-SearXNG is a self-hosted meta-search engine. Run your own instance (Docker: `docker run -d -p 8080:8080 searxng/searxng`) and point OpenClaw at it:
-
-```json
-{
-  "tools": {
-    "web": {
-      "search": {
+  },
+  "plugins": {
+    "bundledDiscovery": "allowlist",
+    "allow": ["xai", "content-guard", "channel-guard"],
+    "entries": {
+      "xai": {
         "enabled": true,
-        "provider": "searxng",
-        "searxng": {
-          "host": "http://localhost:8080"
+        "config": {
+          "webSearch": {
+            "apiKey": "${XAI_API_KEY}"
+          }
         }
       }
     }
@@ -295,7 +326,37 @@ SearXNG is a self-hosted meta-search engine. Run your own instance (Docker: `doc
 }
 ```
 
-No API key required. Searches stay on your infrastructure — results are fetched from many underlying engines without sending your queries to a commercial API. Ideal for privacy-first deployments.
+**SearXNG** (self-hosted, no API key, no tracking):
+SearXNG is a self-hosted meta-search engine. Run your own instance (Docker: `docker run -d -p 8888:8080 searxng/searxng`) and point OpenClaw at it:
+
+```json
+{
+  "tools": {
+    "web": {
+      "search": {
+        "enabled": true,
+        "provider": "searxng"
+      }
+    }
+  },
+  "plugins": {
+    "bundledDiscovery": "allowlist",
+    "allow": ["searxng", "content-guard", "channel-guard"],
+    "entries": {
+      "searxng": {
+        "enabled": true,
+        "config": {
+          "webSearch": {
+            "baseUrl": "http://localhost:8888"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+No API key required. Searches stay on your infrastructure — results are fetched from many underlying engines without sending your queries to a commercial API. Public SearXNG hosts must use `https://`; `http://` is accepted only for trusted private-network or loopback hosts.
 
 ### 7. No channel binding for search agent
 
@@ -511,7 +572,7 @@ Other OpenClaw security plugins worth evaluating:
 
 ## Inbound Message Guard (channel-guard)
 
-Channel messages from WhatsApp and Signal are another injection surface — adversarial users can craft prompts to manipulate channel agents. The [`channel-guard`](../extensions/channel-guard.md) plugin uses an OpenRouter LLM classifier, applied to incoming messages via the `message_received` hook. Compare: content-guard guards inter-agent communication (`sessions_send`); channel-guard guards the inbound channel perimeter (`message_received`).
+Channel messages from WhatsApp and Signal are another injection surface — adversarial users can craft prompts to manipulate channel agents. The [`channel-guard`](../extensions/channel-guard.md) plugin uses an OpenRouter LLM classifier, applied to incoming messages via the `before_dispatch` hook. Compare: content-guard guards inter-agent communication (`sessions_send`); channel-guard guards the inbound channel perimeter (`before_dispatch`).
 
 **Three-tier response:**
 
@@ -558,7 +619,7 @@ openclaw plugins install -l ./extensions/channel-guard
 
 ### Scope and limitations
 
-- **Channel messages only** — the `message_received` hook fires for WhatsApp/Signal bridge messages. It does **not** fire for HTTP API requests or Control UI messages. This is by design — channel-guard protects the channel perimeter.
+- **Channel messages only** — the `before_dispatch` hook applies to WhatsApp/Signal bridge messages before agent dispatch. It does **not** protect HTTP API requests or Control UI messages. This is by design — channel-guard protects the channel perimeter.
 - **Probabilistic** — LLM classification may still miss novel patterns or produce false positives. This is defense-in-depth, not a guarantee.
 - **Tuning** — if warnings/blocks are too aggressive, increase `warnThreshold`/`blockThreshold` rather than disabling the plugin.
 

@@ -277,7 +277,7 @@ graph LR
     subgraph "Optional Infrastructure"
         DOCKER["Docker<br/>(sandboxing)"]
         TS_CLI["Tailscale<br/>(remote access)"]
-        BRAVE["Brave Search API<br/>(web_search tool)"]
+        SEARCH["Search provider API<br/>(web_search tool)"]
         FIRE["Firecrawl<br/>(anti-bot fallback)"]
         ELEVEN["ElevenLabs<br/>(TTS)"]
     end
@@ -285,7 +285,7 @@ graph LR
     OC["OpenClaw<br/>Gateway"] --> Required
     OC --> ANTH & OPENAI & GEMINI & OPENR
     OC --> BAILEYS & GRAMMY & DISCORDJS & BOLT & SIGCLI
-    OC --> DOCKER & TS_CLI & BRAVE & FIRE & ELEVEN
+    OC --> DOCKER & TS_CLI & SEARCH & FIRE & ELEVEN
 
     classDef coredep fill:#1F4E79,stroke:#93C5FD,color:#F8FAFC,stroke-width:1.5px
     classDef providerdep fill:#5B3E8C,stroke:#C4B5FD,color:#F8FAFC,stroke-width:1.5px
@@ -295,7 +295,7 @@ graph LR
     class OC,NODE coredep
     class ANTH,OPENAI,GEMINI,OPENR providerdep
     class BAILEYS,GRAMMY,DISCORDJS,BOLT,SIGCLI channeldep
-    class DOCKER,TS_CLI,BRAVE,FIRE,ELEVEN optdep
+    class DOCKER,TS_CLI,SEARCH,FIRE,ELEVEN optdep
 ```
 
 ---
@@ -802,7 +802,7 @@ graph TD
 | `group:fs` | `read`, `write`, `edit`, `apply_patch` |
 | `group:sessions` | `sessions_list`, `sessions_history`, `sessions_send`, `sessions_spawn`, `session_status` |
 | `group:memory` | `memory_search`, `memory_get` |
-| `group:web` | `web_search`, `web_fetch` |
+| `group:web` | `web_search`, `web_fetch`, `x_search` |
 | `group:ui` | `browser`, `canvas` |
 | `group:automation` | `cron`, `gateway` |
 | `group:messaging` | `message` |

@@ -17,6 +17,13 @@ This changelog tracks documentation changes — not OpenClaw releases themselves
 - Added Docker/Gateway security hardening callout to Phase 6 Docker Containerized section (2026.5.5 — regenerate compose file or add cap_drop/security_opt manually for older installs)
 - Note: `.claude/commands/security-review.md` Version ≥ 2026.5.5 checklist item (Docker gateway drops NET_RAW/NET_ADMIN + no-new-privileges) could not be written due to environment permission restrictions — add manually under "Version & Known Vulnerabilities"
 
+## 2026-05-07 — Search provider configuration correction
+
+- Updated Phase 5 web search setup to match current OpenClaw docs: shared search settings stay under `tools.web.search.*`, while provider credentials and provider-specific options live under `plugins.entries.<provider>.config.webSearch.*`
+- Updated DuckDuckGo, Brave, Perplexity/OpenRouter, Grok/xAI, and SearXNG examples, including Brave `llm-context` mode and SearXNG `baseUrl`
+- Updated recommended, basic, and pragmatic example configs to use DuckDuckGo by default, explicitly enable `plugins.bundledDiscovery: "allowlist"`, and include the selected `web_search` provider plugin in restrictive `plugins.allow` lists
+- Updated tool group references so `group:web` includes `x_search`
+
 ## 2026-05-04 — OpenClaw 2026.4.27 → 2026.5.3-1
 
 - Updated `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md` to **OpenClaw 2026.5.3-1** (mechanical housekeeping)

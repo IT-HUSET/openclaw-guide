@@ -37,8 +37,8 @@
   // Windows .env file, or LaunchDaemon for hardened setup):
   //   OPENCLAW_GATEWAY_TOKEN
   //   ANTHROPIC_API_KEY
-  //   BRAVE_API_KEY (or OPENROUTER_API_KEY for Perplexity)
-  //   OPENROUTER_API_KEY (required for content-guard)
+  //   OPENROUTER_API_KEY (required for guards; also used by Perplexity)
+  //   BRAVE_API_KEY (optional, only if you switch web_search to Brave)
   // See Phase 6 — Deployment > Secrets Management for details.
   // ============================================================
 
@@ -64,20 +64,15 @@
     // Disable elevated mode — prevents sandbox escape
     "elevated": { "enabled": false },
 
-    // Web search provider config
+    // Web search shared config. Provider-specific credentials live under
+    // plugins.entries.<provider>.config.webSearch.* below.
     "web": {
       "search": {
         "enabled": true,
-        "provider": "brave",
-        "apiKey": "${BRAVE_API_KEY}"
-
-        // Alternative: Perplexity via OpenRouter
-        // "provider": "perplexity",
-        // "perplexity": {
-        //   "apiKey": "${OPENROUTER_API_KEY}",
-        //   "baseUrl": "https://openrouter.ai/api/v1",
-        //   "model": "perplexity/sonar-pro"
-        // }
+        "provider": "duckduckgo",
+        "maxResults": 5,
+        "timeoutSeconds": 30,
+        "cacheTtlMinutes": 15
       }
     }
   },
@@ -149,8 +144,8 @@
         "default": true,
         "workspace": "/Users/openclaw/.openclaw/workspaces/main",
         "tools": {
-          "allow": ["group:runtime", "group:fs", "group:sessions", "memory_search", "memory_get", "message", "browser", "web_fetch"],
-          "deny": ["web_search", "canvas", "gateway"]
+          "allow": ["group:runtime", "group:fs", "group:sessions", "memory_search", "memory_get", "message", "browser"],
+          "deny": ["web_search", "web_fetch", "x_search", "canvas", "gateway"]
         },
         "subagents": { "allowAgents": ["search"] },
         "sandbox": { "mode": "off" }
@@ -221,12 +216,40 @@
   "plugins": {
     // Only allow these plugins to load. Without this, any plugin dropped into
     // ~/.openclaw/extensions/ loads automatically at startup.
+    // Include the selected web_search provider plugin (duckduckgo by default).
+    "bundledDiscovery": "allowlist",
     "allow": [
-      "whatsapp",
+      "whatsapp", "duckduckgo",
       "channel-guard", "content-guard",
       "file-guard", "network-guard", "command-guard"
     ],
     "entries": {
+      "duckduckgo": { "enabled": true },
+      // Alternative: Brave Search. Install the official Brave provider plugin,
+      // change tools.web.search.provider to "brave", and replace "duckduckgo"
+      // with "brave" in plugins.allow.
+      // "brave": {
+      //   "enabled": true,
+      //   "config": {
+      //     "webSearch": {
+      //       "apiKey": "${BRAVE_API_KEY}",
+      //       "mode": "web"
+      //     }
+      //   }
+      // },
+      // Alternative: Perplexity via OpenRouter or native Perplexity.
+      // If enabled, change tools.web.search.provider to "perplexity" and
+      // replace "duckduckgo" with "perplexity" in plugins.allow.
+      // "perplexity": {
+      //   "enabled": true,
+      //   "config": {
+      //     "webSearch": {
+      //       "apiKey": "${OPENROUTER_API_KEY}",
+      //       "baseUrl": "https://openrouter.ai/api/v1",
+      //       "model": "perplexity/sonar-pro"
+      //     }
+      //   }
+      // },
       "whatsapp": { "enabled": true },
 
       // LLM-based: scans incoming channel messages for prompt injection.

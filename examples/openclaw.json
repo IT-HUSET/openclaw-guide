@@ -48,8 +48,8 @@
   // Windows .env file, or LaunchDaemon for hardened setup):
   //   OPENCLAW_GATEWAY_TOKEN
   //   ANTHROPIC_API_KEY
-  //   BRAVE_API_KEY (or OPENROUTER_API_KEY for Perplexity)
-  //   OPENROUTER_API_KEY (required for content-guard and image-gen; also used by Perplexity)
+  //   OPENROUTER_API_KEY (required for guards and image-gen; also used by Perplexity)
+  //   BRAVE_API_KEY (optional, only if you switch web_search to Brave)
   //   GITHUB_TOKEN
   //   GOOGLE_CHAT_SERVICE_ACCOUNT_FILE (path to service account JSON key)
   // See Phase 6 — Deployment > Secrets Management for details.
@@ -94,20 +94,15 @@
       }
     },
 
-    // Web search provider config (accessible only to agents that allow web_search)
+    // Web search shared config. Provider-specific credentials live under
+    // plugins.entries.<provider>.config.webSearch.* below.
     "web": {
       "search": {
         "enabled": true,
-        "provider": "brave",
-        "apiKey": "${BRAVE_API_KEY}"
-
-        // Alternative: Perplexity via OpenRouter
-        // "provider": "perplexity",
-        // "perplexity": {
-        //   "apiKey": "${OPENROUTER_API_KEY}",
-        //   "baseUrl": "https://openrouter.ai/api/v1",
-        //   "model": "perplexity/sonar-pro"
-        // }
+        "provider": "duckduckgo",
+        "maxResults": 5,
+        "timeoutSeconds": 30,
+        "cacheTtlMinutes": 15
       }
     }
   },
@@ -183,7 +178,7 @@
         // MAIN AGENT — channel-facing, full exec + browser on egress-allowlisted network
         // mode:"non-main" — Control UI/HTTP API session runs on host (operator trusted);
         // all channel sessions (WhatsApp DMs, groups, cron) sandboxed in Docker on openclaw-egress.
-        // web_search and web_fetch denied — all web content goes through search agent + content-guard.
+        // Web tools denied — all web content goes through search agent + content-guard.
         // IMPORTANT: Create network FIRST: docker network create openclaw-egress
         // Gateway startup will fail if network doesn't exist.
         // See scripts/network-egress/ for egress allowlisting setup.
@@ -193,7 +188,7 @@
         "agentDir": "/Users/openclaw/.openclaw/agents/main/agent",
         "tools": {
           "allow": ["group:runtime", "group:fs", "group:sessions", "memory_search", "memory_get", "message", "browser"],
-          "deny": ["web_search", "web_fetch", "canvas", "group:automation"],
+          "deny": ["web_search", "web_fetch", "x_search", "canvas", "group:automation"],
           "elevated": { "enabled": false }
         },
         "subagents": { "allowAgents": ["search"] },
@@ -238,7 +233,7 @@
       //   "workspace": "/Users/openclaw/.openclaw/workspaces/whatsapp",
       //   "agentDir": "/Users/openclaw/.openclaw/agents/whatsapp/agent",
       //   "tools": {
-      //     "deny": ["web_search", "web_fetch", "browser", "exec", "process"],
+      //     "deny": ["web_search", "web_fetch", "x_search", "browser", "exec", "process"],
       //     "elevated": { "enabled": false }
       //   },
       //   "subagents": { "allowAgents": ["main", "search"] }
@@ -248,7 +243,7 @@
       //   "workspace": "/Users/openclaw/.openclaw/workspaces/signal",
       //   "agentDir": "/Users/openclaw/.openclaw/agents/signal/agent",
       //   "tools": {
-      //     "deny": ["web_search", "web_fetch", "browser", "exec", "process"],
+      //     "deny": ["web_search", "web_fetch", "x_search", "browser", "exec", "process"],
       //     "elevated": { "enabled": false }
       //   },
       //   "subagents": { "allowAgents": ["main", "search"] }
@@ -258,7 +253,7 @@
       //   "workspace": "/Users/openclaw/.openclaw/workspaces/googlechat",
       //   "agentDir": "/Users/openclaw/.openclaw/agents/googlechat/agent",
       //   "tools": {
-      //     "deny": ["web_search", "web_fetch", "browser", "exec", "process"],
+      //     "deny": ["web_search", "web_fetch", "x_search", "browser", "exec", "process"],
       //     "elevated": { "enabled": false }
       //   },
       //   "subagents": { "allowAgents": ["main", "search"] }
@@ -353,13 +348,45 @@
   "plugins": {
     // Only allow these plugins to load. Without this, any plugin dropped into
     // ~/.openclaw/extensions/ loads automatically at startup.
+    // Include the selected web_search provider plugin (duckduckgo by default).
+    "bundledDiscovery": "allowlist",
     "allow": [
       "whatsapp", "signal", "googlechat",
-      "channel-guard", "content-guard", "image-gen"
+      "duckduckgo",
+      "channel-guard", "content-guard", "image-gen",
       // Add when using hardening plugins:
       // "file-guard", "network-guard", "command-guard"
+      // Add/swap when using alternate search providers:
+      // "perplexity", "xai", "searxng", "firecrawl", "exa", "gemini", "kimi", "tavily"
     ],
     "entries": {
+      "duckduckgo": { "enabled": true },
+      // Alternative: Brave Search. Install the official Brave provider plugin,
+      // change tools.web.search.provider to "brave", and add "brave" to
+      // plugins.allow.
+      // "brave": {
+      //   "enabled": true,
+      //   "config": {
+      //     "webSearch": {
+      //       "apiKey": "${BRAVE_API_KEY}",
+      //       "mode": "web"
+      //       // "mode": "llm-context"  // Brave LLM Context mode
+      //     }
+      //   }
+      // },
+      // Alternative: Perplexity via OpenRouter or native Perplexity.
+      // If enabled, change tools.web.search.provider to "perplexity" and
+      // add "perplexity" to plugins.allow.
+      // "perplexity": {
+      //   "enabled": true,
+      //   "config": {
+      //     "webSearch": {
+      //       "apiKey": "${OPENROUTER_API_KEY}",
+      //       "baseUrl": "https://openrouter.ai/api/v1",
+      //       "model": "perplexity/sonar-pro"
+      //     }
+      //   }
+      // },
       "whatsapp": { "enabled": true },
       "signal": { "enabled": true },
       "googlechat": { "enabled": true },

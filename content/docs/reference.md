@@ -53,7 +53,7 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
 | `group:fs` | `read`, `write`, `edit`, `apply_patch` |
 | `group:sessions` | `sessions_list`, `sessions_history`, `sessions_send`, `sessions_spawn`, `subagents`, `session_status` |
 | `group:memory` | `memory_search`, `memory_get` |
-| `group:web` | `web_search`, `web_fetch` |
+| `group:web` | `web_search`, `web_fetch`, `x_search` |
 | `group:ui` | `browser`, `canvas` |
 | `group:automation` | `cron`, `gateway` — can be used individually: deny `gateway` while keeping `cron` for conversational job management |
 | `group:messaging` | `message` |
@@ -122,7 +122,7 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
       host: "sandbox",  // Route exec to sandbox container (when sandbox.mode: "all")
       // safeBinTrustedDirs: ["/usr/local/bin"],  // Trusted dirs for safeBins path resolution (added 2026.2.22)
     },
-    web: { search: { enabled: true, provider: "brave", apiKey: "..." } },
+    web: { search: { enabled: true, provider: "duckduckgo", maxResults: 5 } },
     agentToAgent: { enabled: false, allow: [], maxPingPongTurns: 2 },
     // loopDetection: {
     //   enabled: true,
@@ -151,7 +151,13 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
   discovery: { mdns: { mode: "minimal" } },
 
   // Plugin allowlist
-  plugins: { allow: ["whatsapp", "channel-guard", "content-guard"] },
+  plugins: {
+    bundledDiscovery: "allowlist",
+    allow: ["whatsapp", "duckduckgo", "channel-guard", "content-guard"],
+    entries: {
+      duckduckgo: { enabled: true }
+    }
+  },
 
   // Logging
   logging: {
@@ -272,7 +278,7 @@ When a session is sandboxed, a separate tool policy applies — **distinct from 
 
 **Default allow:** `exec`, `process`, `read`, `write`, `edit`, `apply_patch`, `image`, `sessions_list`, `sessions_history`, `sessions_send`, `sessions_spawn`, `subagents`, `session_status`
 
-**Implicitly denied** (not in default allow): `message`, `browser`, `memory_search`, `memory_get`, `web_search`, `web_fetch`, `agents_list`
+**Implicitly denied** (not in default allow): `message`, `browser`, `memory_search`, `memory_get`, `web_search`, `web_fetch`, `x_search`, `agents_list`
 
 The default allow list is a **closed set** — a tool not listed is denied in sandboxed sessions, even if the agent-level policy allows it.
 

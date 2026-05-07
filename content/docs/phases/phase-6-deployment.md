@@ -84,12 +84,12 @@ Keep `openclaw.json` secrets-free — use `${ENV_VAR}` references in config, sto
 |--------|---------|-------|
 | Gateway token | `OPENCLAW_GATEWAY_TOKEN` | Included in all plist/systemd/Task Scheduler examples below |
 | Anthropic API key | `ANTHROPIC_API_KEY` | SDK reads from env directly |
-| Brave search key | `BRAVE_API_KEY` | Referenced as `${BRAVE_API_KEY}` in config |
+| Brave search key | `BRAVE_API_KEY` | Only needed if you switch from the default DuckDuckGo provider to Brave |
 | OpenRouter key | `OPENROUTER_API_KEY` | If using Perplexity via OpenRouter |
 | GitHub token | `GITHUB_TOKEN` | Fine-grained PAT — see [GitHub token setup](#github-token-setup) below |
 | *(channel-guard and content-guard both require OPENROUTER_API_KEY)* | | See [plugin setup](phase-5-web-search.md#advanced-prompt-injection-guard) |
 
-> **Empty env vars cause startup failure.** If a `${VAR}` reference resolves to an empty string, the gateway exits with `EX_CONFIG` (exit 78). For optional keys not yet provisioned (e.g., `BRAVE_API_KEY` when using Perplexity instead), use a non-empty placeholder like `"not-configured"` rather than leaving the variable empty or unset.
+> **Empty env vars cause startup failure.** If a `${VAR}` reference resolves to an empty string, the gateway exits with `EX_CONFIG` (exit 78). For optional keys not yet provisioned (for example, `BRAVE_API_KEY` when using DuckDuckGo), remove the reference from config or use a non-empty placeholder like `"not-configured"` rather than leaving the variable empty or unset.
 >
 > **Version note (2026.2.16):** Telegram bot tokens are now auto-redacted from gateway logs (same mechanism as `redactSensitive: "tools"` for other secrets).
 >
@@ -125,7 +125,14 @@ In `openclaw.json`, reference secrets with `${...}` — OpenClaw substitutes at 
 ```json
 {
   "tools": {
-    "web": { "search": { "apiKey": "${BRAVE_API_KEY}" } }
+    "web": { "search": { "provider": "duckduckgo" } }
+  },
+  "plugins": {
+    "bundledDiscovery": "allowlist",
+    "allow": ["duckduckgo"],
+    "entries": {
+      "duckduckgo": { "enabled": true }
+    }
   },
   "gateway": {
     "auth": { "token": "${OPENCLAW_GATEWAY_TOKEN}" }

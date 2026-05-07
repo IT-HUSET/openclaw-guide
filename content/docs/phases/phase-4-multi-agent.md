@@ -389,7 +389,7 @@ Use group shorthands to deny/allow entire categories:
 | `group:fs` | `read`, `write`, `edit`, `apply_patch` |
 | `group:sessions` | `sessions_list`, `sessions_history`, `sessions_send`, `sessions_spawn`, `session_status` |
 | `group:memory` | `memory_search`, `memory_get` |
-| `group:web` | `web_search`, `web_fetch` |
+| `group:web` | `web_search`, `web_fetch`, `x_search` |
 | `group:ui` | `browser`, `canvas` |
 | `group:automation` | `cron`, `gateway` |
 | `group:messaging` | `message` |
