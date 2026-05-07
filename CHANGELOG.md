@@ -3,6 +3,20 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-05-07 — OpenClaw 2026.5.3-1 → 2026.5.6
+
+- Bumped guide version to 2026.5.6 in `.guide-version`, `_index.md` callout, and `hardened-multi-agent.md` prerequisite line
+- Added `openclaw models auth list [--provider <id>] [--json]` CLI command to reference.md Useful Commands (2026.5.4 — inspect saved per-agent auth profiles without exposing secrets)
+- Added `openclaw sessions list --limit <n|all>` flag to reference.md (2026.5.4 — sessions output now capped at 100 rows by default)
+- Added `agents.defaults.toolProgressDetail: "compact"|"raw"` config option to reference.md Config Quick Reference (2026.5.4 — control tool-progress verbosity in channel streaming progress drafts)
+- Added `tools.loopDetection.postCompactionGuard.windowSize` config option to reference.md (2026.5.4 — abort agent runs that emit the same tool/args/result triple N times after auto-compaction)
+- Added three new Feature Atlas rows in Agents & Configuration: tool progress verbosity and post-compaction loop guard (both 2026.5.4)
+- Added streaming command-text control Feature Atlas row in Channels & Messaging: `streaming.preview.commandText` / `streaming.progress.commandText: "status"` (2026.5.4 — hide exec text in preview progress lines)
+- Added Docker gateway container hardening Feature Atlas row in Security & Hardening (2026.5.5 — bundled docker-compose.yml drops NET_RAW/NET_ADMIN, enables no-new-privileges)
+- Added models auth list and sessions list pagination Feature Atlas rows in Deployment & Operations (2026.5.4)
+- Added Docker/Gateway security hardening callout to Phase 6 Docker Containerized section (2026.5.5 — regenerate compose file or add cap_drop/security_opt manually for older installs)
+- Note: `.claude/commands/security-review.md` Version ≥ 2026.5.5 checklist item (Docker gateway drops NET_RAW/NET_ADMIN + no-new-privileges) could not be written due to environment permission restrictions — add manually under "Version & Known Vulnerabilities"
+
 ## 2026-05-04 — OpenClaw 2026.4.27 → 2026.5.3-1
 
 - Updated `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md` to **OpenClaw 2026.5.3-1** (mechanical housekeeping)
