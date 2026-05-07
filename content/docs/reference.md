@@ -98,6 +98,7 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
         // announceTimeoutMs: 60000,   // Announce call timeout in ms (added 2026.2.22)
       },
       // params: {},                   // Global default provider parameters applied to all agents (added 2026.4.1)
+      // toolProgressDetail: "compact",  // Tool progress verbosity in progress drafts: "compact" (default) | "raw" (added 2026.5.4)
     },
     list: [{
       id: "main", default: true, workspace: "...",
@@ -122,7 +123,11 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
       // safeBinTrustedDirs: ["/usr/local/bin"],  // Trusted dirs for safeBins path resolution (added 2026.2.22)
     },
     web: { search: { enabled: true, provider: "brave", apiKey: "..." } },
-    agentToAgent: { enabled: false, allow: [], maxPingPongTurns: 2 }
+    agentToAgent: { enabled: false, allow: [], maxPingPongTurns: 2 },
+    // loopDetection: {
+    //   enabled: true,
+    //   postCompactionGuard: { windowSize: 3 }  // Abort run after same (tool,args,result) triple N times post-compaction (added 2026.5.4)
+    // }
   },
 
   // Skills
@@ -788,10 +793,16 @@ openclaw memory search "<query>"            # Search memory from terminal
 openclaw memory search --query "<query>"    # Equivalent long-form (2026.2.24+)
 
 # Session management
-openclaw sessions list                      # List active sessions
+openclaw sessions list                      # List active sessions (newest 100 by default)
+openclaw sessions list --limit <n|all>      # Override row cap (2026.5.4+)
 openclaw sessions reset                     # Reset all sessions
 openclaw sessions cleanup                   # Clean up disk + orphaned sessions (2026.2.23+)
 openclaw sessions cleanup --fix-missing     # Prune store entries with missing transcripts (2026.2.26+)
+
+# Models & auth
+openclaw models auth list                   # List saved per-agent auth profiles (2026.5.4+)
+openclaw models auth list --provider <id>   # Filter by provider
+openclaw models auth list --json            # Machine-readable output
 
 # Agent routing
 openclaw agents bindings                    # List account-scoped route bindings (2026.2.26+)

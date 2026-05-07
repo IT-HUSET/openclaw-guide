@@ -122,6 +122,8 @@ How agents are defined, routed, and connected to each other.
 | Opt-in follow-up commitments | Hidden extraction of inferred follow-up commitments from conversations, delivered via heartbeat; per-agent/per-channel scoping | `commitments.enabled`, `commitments.maxPerDay` | 2026.4.29 | [Official docs](https://docs.openclaw.ai) |
 | Thread-bound session spawning | `threadBindings.spawnSessions` replaces the legacy split subagent/ACP thread-spawn toggles; migrated automatically by `openclaw doctor --fix` | `threadBindings.spawnSessions` | 2026.5.2 | [Official docs](https://docs.openclaw.ai) |
 | Skip optional bootstrap files | Skip selected optional workspace bootstrap files without disabling required workspace setup | `agents.defaults.skipOptionalBootstrapFiles` | 2026.5.2 | [Official docs](https://docs.openclaw.ai) |
+| Tool progress verbosity | Set channel streaming tool-progress detail: `"compact"` (default, explain-mode summaries) or `"raw"` (full command/output for debugging); per-agent overrides supported | `agents.defaults.toolProgressDetail` | 2026.5.4 | [Reference](reference.md#config-quick-reference) |
+| Post-compaction loop guard | Abort agent run with `compaction_loop_persisted` after same `(tool, args, result)` triple repeats N times following auto-compaction-retry; tunable window size | `tools.loopDetection.postCompactionGuard.windowSize` | 2026.5.4 | [Reference](reference.md#config-quick-reference) |
 | Config schema | Print generated JSON schema for `openclaw.json` | CLI: `openclaw config schema` | 2026.3.28 | [Reference](reference.md#config-validation) |
 | Environment files | `.env` loading from CWD → `~/.openclaw/` → config `env` block | `.env` files | — | [Reference](reference.md#environment-files) |
 
@@ -174,6 +176,7 @@ How external users communicate with agents through messaging platforms.
 | Tencent Yuanbao | Tencent Yuanbao channel via external `openclaw-plugin-yuanbao` plugin; WebSocket bot DMs and group chats | `channels.yuanbao` | 2026.4.27 | [Official docs](https://docs.openclaw.ai) |
 | WhatsApp Channel/Newsletter targets | Send outbound messages to WhatsApp Channel or Newsletter feeds using `@newsletter` target syntax | `channels.whatsapp` — `@newsletter` target | 2026.5.2 | [Official docs](https://docs.openclaw.ai) |
 | Streaming progress drafts | Unified `streaming.mode: "progress"` with auto-labelled draft previews and shared `streaming.progress.*` config across Discord, Telegram, Matrix, Slack, and Microsoft Teams | `channels.<ch>.streaming.mode: "progress"` | 2026.5.3 | [Official docs](https://docs.openclaw.ai) |
+| Streaming command-text control | Hide exec/command text in preview progress lines (`"status"`) while keeping full command visible in raw progress mode; separate preview and progress controls | `streaming.preview.commandText`, `streaming.progress.commandText` | 2026.5.4 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -320,6 +323,7 @@ Layers of protection from sandbox isolation to network controls.
 | Tool profile restriction narrowing | `tools.exec`/`tools.fs` config sections no longer implicitly widen restrictive profiles (`messaging`, `minimal`); explicit `alsoAllow` entries required; startup warning on affected configs | `tools.alsoAllow` | 2026.4.29 | [Reference](reference.md#tool-policy-precedence) |
 | Workspace state-directory env override blocked | Workspace `.env` cannot override the gateway state-directory path | — | 2026.5.2 | [Phase 3](phases/phase-3-security.md) |
 | Gateway env file operator secrets preservation | Operator-added secrets in the Gateway env file preserved across re-stage; only OpenClaw-managed keys are cleared | — | 2026.5.3 | [Phase 6](phases/phase-6-deployment.md) |
+| Docker gateway container hardening | Bundled `docker-compose.yml` drops `NET_RAW` and `NET_ADMIN` capabilities and enables `no-new-privileges` for the gateway container | `docker-compose.yml` | 2026.5.5 | [Phase 6](phases/phase-6-deployment.md) |
 
 ### Use Cases
 
@@ -441,6 +445,8 @@ Running OpenClaw in production: service management, infrastructure, and day-to-d
 | Gateway restart flags | `openclaw gateway restart --force` and `--wait <duration>` for immediate restarts or timed drain waits | CLI: `openclaw gateway restart --force/--wait` | 2026.5.2 | [Official docs](https://docs.openclaw.ai) |
 | Gateway config fail-closed | Invalid config now causes gateway startup and hot-reload to fail closed; `openclaw doctor --fix` owns last-known-good repair instead of auto-restore on load | — | 2026.5.3 | [Phase 6](phases/phase-6-deployment.md) |
 | `OPENCLAW_SKIP_ONBOARDING` | Skip the interactive onboarding wizard for automated Docker installs while still applying gateway defaults | `OPENCLAW_SKIP_ONBOARDING=1` env var | 2026.4.29 | [Phase 6](phases/phase-6-deployment.md) |
+| Models auth list | Inspect saved per-agent auth profiles without dumping secrets; filterable by provider | CLI: `openclaw models auth list [--provider <id>] [--json]` | 2026.5.4 | [Reference](reference.md#useful-commands) |
+| Sessions list pagination | `openclaw sessions` capped at 100 rows by default with `--limit <n\|all>` override to control output size on large stores | CLI: `openclaw sessions list --limit` | 2026.5.4 | [Reference](reference.md#useful-commands) |
 
 ### Use Cases
 
