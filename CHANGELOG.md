@@ -23,6 +23,10 @@ This changelog tracks documentation changes — not OpenClaw releases themselves
 - Updated DuckDuckGo, Brave, Perplexity/OpenRouter, Grok/xAI, and SearXNG examples, including Brave `llm-context` mode and SearXNG `baseUrl`
 - Updated recommended, basic, and pragmatic example configs to use DuckDuckGo by default, explicitly enable `plugins.bundledDiscovery: "allowlist"`, and include the selected `web_search` provider plugin in restrictive `plugins.allow` lists
 - Updated tool group references so `group:web` includes `x_search`
+- Added a Personal Assistant Setup recipe for a private OpenClaw assistant reachable from WhatsApp, Signal, Slack, or Telegram
+- Included channel-specific starter blocks for WhatsApp, Signal, Slack, and Telegram with conservative allowlist, group policy, and mention-gating guidance
+- Added reusable AGENTS.md operating instructions for personal-assistant behavior, privacy boundaries, memory use, task/reminder conventions, outbound-message confirmation, and group-chat etiquette
+- Added verification steps and cautious heartbeat/proactive-mode setup, and linked the recipe from the Recipes index
 
 ## 2026-05-04 — OpenClaw 2026.4.27 → 2026.5.3-1
 

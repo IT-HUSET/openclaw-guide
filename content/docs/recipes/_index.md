@@ -10,6 +10,7 @@ Practical setups that extend your OpenClaw deployment beyond the basics. Each re
 
 | Recipe | What it does | Prereqs |
 |---|---|---|
+| [Personal Assistant Setup]({{< relref "personal-assistant" >}}) | Private assistant reachable from WhatsApp, Signal, Slack, or Telegram with conservative channel and proactive-mode defaults | Phases 1-5, one channel |
 | [Knowledge Vault]({{< relref "knowledge-vault" >}}) | Persistent knowledge base with semantic search and cron-driven autonomous research | Phases 1–5, search agent |
 | [Morning Briefing]({{< relref "morning-briefing" >}}) | Scheduled daily briefing — weather, calendar, inbox, tasks, and news — delivered to your channel | Phases 1–5, search agent |
 
