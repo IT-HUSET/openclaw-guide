@@ -25,7 +25,7 @@ Primarily documentation (Markdown + annotated JSON config examples), plus TypeSc
 - `content/docs/phases/phase-3-security.md` — Phase 3: Threat model, security baseline, SOUL.md, file permissions
 - `content/docs/phases/phase-4-multi-agent.md` — Phase 4: Channel connections (WhatsApp/Signal), multiple agents, routing, workspace isolation
 - `content/docs/phases/phase-5-web-search.md` — Phase 5: Isolated search agent, browser on main, content-guard plugin
-- `content/docs/phases/phase-6-deployment.md` — Phase 6: VM isolation, LaunchAgent/systemd, LaunchDaemon (hardened alternative), secrets management, firewall, Tailscale, Signal setup
+- `content/docs/phases/phase-6-deployment.md` — Phase 6: VM isolation, LaunchAgent/systemd/Task Scheduler, LaunchDaemon (hardened alternative), secrets management, firewall, Tailscale, Signal setup
 - `content/docs/phases/phase-7-migration.md` — Phase 7: Moving a deployment to a new machine — config, credentials, memory, channels, services, cron jobs
 - `content/docs/google-chat.md` — Google Chat: GCP setup, webhook exposure, multi-agent, multi-org, known issues
 - `content/docs/multi-gateway.md` — Multi-Gateway: profiles, multi-user, VM variants for running multiple gateway instances
@@ -66,11 +66,11 @@ Primarily documentation (Markdown + annotated JSON config examples), plus TypeSc
 
 ## Key Context
 
-- Target deployment: macOS (Apple Silicon) or Linux
-- Four deployment postures: **Pragmatic single agent** (single unsandboxed agent, guard plugins + non-admin user or VM), **Docker isolation** (recommended — dedicated OS user + Docker), **VM: macOS VMs** (Lume / Parallels, stronger host isolation, no Docker inside), **VM: Linux VMs** (Multipass / KVM, strongest combined — VM boundary + Docker inside)
-- **Docker isolation:** single gateway on host, core agents (main + search) plus optional channel agents, Docker sandboxing
+- Target deployment: macOS (Apple Silicon), Linux, or Windows
+- Four deployment postures: **Pragmatic single agent** (single unsandboxed agent, guard plugins + non-admin user or VM), **Docker isolation** (recommended — dedicated OS user + Docker), **VM: macOS VMs** (Lume / Parallels, stronger host isolation, no Docker inside), **VM: Linux VMs** (Multipass / KVM / Hyper-V, strongest combined — VM boundary + Docker inside)
+- **Docker isolation:** single gateway on host, core agents (main + search) plus optional channel agents, Docker sandboxing. Windows uses Docker Desktop with the WSL2 backend; strict egress allowlisting should run inside a Linux VM/WSL2 environment.
 - **VM: macOS VMs:** single macOS VM, dedicated standard user (auto-login), multi-agent gateway, no Docker. macOS hosts only. Optional: 2 VMs for channel separation
-- **VM: Linux VMs:** single Linux VM with Docker inside, dedicated user (docker group, no sudo), multi-agent gateway. macOS or Linux hosts. No VM count limit
+- **VM: Linux VMs:** single Linux VM with Docker inside, dedicated user (docker group, no sudo), multi-agent gateway. macOS, Linux, or Windows hosts. No VM count limit
 - **Multi-gateway options:** profiles (`--profile` flag, simplest), multi-user (separate OS users), VM variants (one VM per channel)
 - Official docs: https://docs.openclaw.ai
 - **Guide baseline version:** stored in `.guide-version` (currently 2026.2.22). The changelog review workflow (`.github/workflows/changelog-review.yml`) runs weekly to detect drift
@@ -107,8 +107,8 @@ Starts an OpenClaw gateway, sends messages via HTTP chat completions API, verifi
 
 ## Conventions
 
-- macOS primary with Linux equivalents noted inline
-- Shell commands assume macOS with Homebrew at `/opt/homebrew`
+- macOS, Linux, and Windows equivalents noted inline where service management, paths, or firewall commands differ
+- Shell commands default to macOS/Linux unless marked Windows; Windows examples use PowerShell and forward-slash paths in JSON config
 - Phone numbers and tokens redacted with placeholders (`+46XXXXXXXXX`, `YOUR_GATEWAY_TOKEN_HERE`)
 - Config examples use JSON5 comments for annotations (OpenClaw supports JSON5 natively)
 - Cross-references between documents use relative markdown links

@@ -1,6 +1,6 @@
 ---
 title: "Phase 6 — Deployment"
-description: "Deployment methods, isolation models, LaunchAgent/systemd, secrets, firewall, Tailscale, Signal."
+description: "Deployment methods, isolation models, LaunchAgent/systemd/Task Scheduler, secrets, firewall, Tailscale, Signal."
 weight: 60
 ---
 
@@ -12,11 +12,11 @@ Run OpenClaw as a system service that starts at boot, survives reboots, and is l
 **Choose your deployment method and skip the others** — each section is self-contained:
 - [Docker Containerized](#docker-containerized-gateway) — official Docker setup, simplest path
 - [Pragmatic Single Agent](../pragmatic-single-agent.md) — two-agent (main + search), guard plugins, full native OS access, no Docker
-- [Docker Isolation](#docker-isolation) *(recommended)* — macOS or Linux, dedicated OS user with Docker sandboxing
+- [Docker Isolation](#docker-isolation) *(recommended)* — macOS, Linux, or Windows, dedicated OS user with Docker sandboxing
 - [VM: macOS VMs](#vm-isolation-macos-vms) — macOS hosts, stronger host isolation, no Docker inside
 - [VM: Linux VMs](#vm-isolation-linux-vms) — any host, strongest combined (VM + Docker)
 
-**Shared sections** (apply to all methods): [Secrets Management](#secrets-management-all-methods) (read first) | [Firewall](#macos-firewall) | [Tailscale ACLs](#tailscale-acls) | [Signal Setup](#signal-setup) | [Verification](#verification-checklist) | [Emergency](#emergency-procedures)
+**Shared sections** (apply to all methods): [Secrets Management](#secrets-management-all-methods) (read first) | [Firewall](#host-firewall) | [Tailscale ACLs](#tailscale-acls) | [Signal Setup](#signal-setup) | [Verification](#verification-checklist) | [Emergency](#emergency-procedures)
 
 ### Deployment Methods Overview
 
@@ -56,12 +56,13 @@ Before setting up the service, choose your deployment method. See [Security: Dep
 
 - **[Pragmatic Single Agent](../pragmatic-single-agent.md)** — two-agent setup (main + search), all five guard plugins, no Docker. Full native OS access. See the dedicated guide for setup.
 - **Docker Containerized** — official `docker-setup.sh`, gateway runs inside a Docker container. Simplest path.
-- **Docker Isolation** *(recommended)* — multi-agent gateway as `openclaw` user with Docker sandboxing. macOS or Linux.
+- **Docker Isolation** *(recommended)* — multi-agent gateway as `openclaw` user with Docker sandboxing. macOS, Linux, or Windows.
 - **VM: macOS VMs** (Lume / Parallels) — single macOS VM, multi-agent gateway, no Docker inside VM. macOS hosts only.
-- **VM: Linux VMs** (Multipass / KVM / UTM) — Linux VM with Docker inside. Strongest combined posture (VM boundary + Docker sandbox). macOS or Linux hosts.
+- **VM: Linux VMs** (Multipass / KVM / UTM / Hyper-V) — Linux VM with Docker inside. Strongest combined posture (VM boundary + Docker sandbox). macOS, Linux, or Windows hosts.
 
 The multi-agent isolation models (Docker Isolation, macOS VMs, Linux VMs) all use the same multi-agent architecture with `sessions_send` delegation. They differ in the outer boundary and internal sandboxing. The Pragmatic Single Agent is a simpler alternative that trades container isolation for full native OS access — it still uses a search agent for web delegation (and content-guard at that boundary) but runs without Docker. See [Phase 3: Deployment Isolation Options](phase-3-security.md#deployment-isolation-options) for the full comparison.
 - **Docker Isolation:** OS user boundary + Docker sandbox. LaunchDaemon/systemd on host (LaunchAgent for auto-login setups).
+- **Docker Isolation on Windows:** OS user boundary + Docker Desktop WSL2 Linux containers. Task Scheduler on host. Use a Linux VM/WSL2-side firewall for strict egress allowlisting.
 - **VM: macOS VMs:** Kernel-level VM boundary + standard user (no sudo). LaunchAgent inside VM (auto-login required). No Docker.
 - **VM: Linux VMs:** Kernel-level VM boundary + Docker sandbox inside VM. systemd inside VM.
 
@@ -69,18 +70,19 @@ The multi-agent isolation models (Docker Isolation, macOS VMs, Linux VMs) all us
 
 ## Secrets Management (All Methods)
 
-Keep `openclaw.json` secrets-free — use `${ENV_VAR}` references in config, store actual values in the service plist (macOS) or environment file (Linux). This applies to all deployment methods.
+Keep `openclaw.json` secrets-free — use `${ENV_VAR}` references in config, store actual values in the service plist (macOS), environment file (Linux), or a locked-down `.env` file loaded by the service user (Windows). This applies to all deployment methods.
 
 **Choose your secrets method:**
 - **Docker isolation (macOS)** → LaunchDaemon `EnvironmentVariables` block (or LaunchAgent for auto-login setups)
 - **Docker isolation (Linux)** → `/etc/openclaw/secrets.env` file
+- **Docker isolation (Windows)** → `C:\Users\openclaw\.openclaw\.env` with NTFS ACLs
 - **VM: macOS/Linux** → SSH-load secrets before gateway start
 
 ### Secrets to externalize
 
 | Secret | Env var | Notes |
 |--------|---------|-------|
-| Gateway token | `OPENCLAW_GATEWAY_TOKEN` | Included in all plist/systemd examples below |
+| Gateway token | `OPENCLAW_GATEWAY_TOKEN` | Included in all plist/systemd/Task Scheduler examples below |
 | Anthropic API key | `ANTHROPIC_API_KEY` | SDK reads from env directly |
 | Brave search key | `BRAVE_API_KEY` | Referenced as `${BRAVE_API_KEY}` in config |
 | OpenRouter key | `OPENROUTER_API_KEY` | If using Perplexity via OpenRouter |
@@ -150,6 +152,16 @@ The `${VAR}` substitution happens at config load time — not just for the gatew
    EOF
    sudo chmod 600 /Users/openclaw/.openclaw/.env
    ```
+   Windows equivalent (PowerShell as Administrator):
+   ```powershell
+   New-Item -ItemType Directory -Force "C:\Users\openclaw\.openclaw" | Out-Null
+   @"
+   ANTHROPIC_API_KEY=sk-ant-...
+   OPENCLAW_GATEWAY_TOKEN=...
+   BRAVE_API_KEY=BSA...
+   "@ | Set-Content -Encoding utf8 "C:\Users\openclaw\.openclaw\.env"
+   icacls "C:\Users\openclaw\.openclaw\.env" /inheritance:r /grant:r "openclaw:F" "Administrators:F"
+   ```
    > **Note:** `.env` files are non-overriding — plist env vars take precedence if both are set.
 
 2. **Pass vars inline** — for one-off commands:
@@ -189,7 +201,7 @@ This creates a Docker Compose setup with:
 **What it doesn't provide** (compared to Docker Isolation below):
 - No dedicated OS user — the container runs as whatever user Docker assigns
 - No per-agent sandboxing — all agents share the same container filesystem and network
-- No LaunchAgent/systemd integration — relies on Docker's restart policy
+- No LaunchAgent/systemd/Task Scheduler integration — relies on Docker's restart policy
 
 For production deployments on dedicated hardware where you want per-agent isolation and OS-level service management, use Docker Isolation below instead.
 
@@ -207,9 +219,11 @@ For production deployments on dedicated hardware where you want per-agent isolat
 
 ## Docker Isolation
 
-> **Recommended approach.** Works on both macOS and Linux. Single gateway, multi-agent, Docker sandboxing for internal isolation.
+> **Recommended approach.** Works on macOS, Linux, and Windows. Single gateway, multi-agent, Docker sandboxing for internal isolation.
 >
-> **Automated setup:** For a fresh dedicated macOS machine, see [`scripts/docker-isolation/`](https://github.com/IT-HUSET/openclaw-guide/tree/main/scripts/docker-isolation/) — three scripts that automate everything below.
+> **Windows support:** Works with Docker Desktop using the WSL2 backend. Per-agent Linux containers work normally, but host-level Windows Firewall does not provide the same Docker bridge egress allowlisting as pf/nftables. If strict egress allowlisting is required, run the gateway and Docker inside a Linux VM or WSL2 environment and apply Linux firewall rules there.
+>
+> **Automated setup:** For a fresh dedicated macOS machine, see [`scripts/docker-isolation/`](https://github.com/IT-HUSET/openclaw-guide/tree/main/scripts/docker-isolation/) — three scripts that automate the macOS path below. Linux and Windows setup is documented manually in this section.
 
 ### Installation Scope
 
@@ -218,7 +232,7 @@ The OpenClaw installer (`curl ... | bash`) runs `npm install -g openclaw`, placi
 - **Global install (recommended):** Admin installs OpenClaw once. The `openclaw` user — in the `staff` group by default on macOS — can run `/opt/homebrew/bin/openclaw` without its own Node.js install. The LaunchAgent plist references these paths directly.
 - **Per-user install:** Alternative if you can't modify global packages. Requires updating `ProgramArguments` in the plist to point at the user's local npm prefix (e.g., `/Users/openclaw/.npm-global/...`).
 
-On Linux, global install places the binary at `/usr/local/bin/openclaw` — accessible to all users by default.
+On Linux, global install places the binary at `/usr/local/bin/openclaw` — accessible to all users by default. On Windows, install Node.js and OpenClaw for the dedicated `openclaw` user or install globally via an elevated PowerShell; verify the scheduled task's user can run `node` and `openclaw`.
 
 > **Warning:** On macOS, the `staff` group has **write** access to `/opt/homebrew` by default. Any user in `staff` (including the `openclaw` user) can modify binaries there — a compromised `openclaw` user could trojan `/opt/homebrew/bin/node`, affecting all users who run it. Mitigations: (1) `sudo chown root:wheel /opt/homebrew/bin/node` to remove group write (re-apply after `brew upgrade`), or (2) install Node.js per-user via [nvm](https://github.com/nvm-sh/nvm) so each user runs their own copy. This is lower risk for single-user deployments where only the `openclaw` user runs Node.js.
 
@@ -247,6 +261,20 @@ sudo useradd -m -s /bin/bash openclaw
 sudo passwd openclaw
 ```
 
+**Windows (PowerShell as Administrator):**
+```powershell
+New-LocalUser -Name "openclaw" -FullName "OpenClaw" -Password (Read-Host -AsSecureString "Temporary password")
+Add-LocalGroupMember -Group "Users" -Member "openclaw"
+
+# Create the Windows profile directory. New-LocalUser does not create C:\Users\openclaw
+# until first logon/profile load.
+runas /profile /user:.\openclaw "cmd /c exit"
+if (!(Test-Path "C:\Users\openclaw")) { throw "Profile not created; log in once as .\openclaw and retry" }
+
+# Lock the profile directory to this user and Administrators.
+icacls "C:\Users\openclaw" /inheritance:r /grant:r "openclaw:(OI)(CI)F" "Administrators:(OI)(CI)F"
+```
+
 > **Mixed-use machine (personal data on host)?** Creating a dedicated `openclaw` user doesn't automatically protect your personal files. Lock down your admin home directory:
 > ```bash
 > chmod 700 /Users/youradmin    # macOS — replace with your username
@@ -273,11 +301,24 @@ sudo dseditgroup -o edit -a openclaw -t user docker
 sudo usermod -aG docker openclaw
 ```
 
+**Windows:**
+```powershell
+# Docker Desktop creates this group. Add the service user so it can use the Docker CLI.
+Add-LocalGroupMember -Group "docker-users" -Member "openclaw"
+```
+
 > **Security note:** On **Linux**, the `docker` group grants effective root access on the host via the Docker socket. For bare Linux deployments, this is an accepted risk — see the warning at [Linux VM isolation](#vm-isolation-linux-vms). The dedicated machine posture or VM boundary contains this risk. On **macOS**, Docker Desktop manages access through its own application model — the `docker` group controls CLI access but doesn't grant the same host-level root equivalent.
+>
+> On **Windows**, Docker Desktop also grants broad control over Linux containers and mounted paths to members of `docker-users`. Treat this as a privileged group and use a dedicated machine or VM boundary for high-risk deployments.
 
 **Verify access:**
 ```bash
 sudo -u openclaw docker ps
+```
+
+Windows:
+```powershell
+runas /user:openclaw "powershell -NoProfile -Command docker ps"
 ```
 
 This should list running containers (or show an empty list if none running) without errors. If you see "permission denied", the group membership hasn't taken effect — log out and back in, or restart the daemon.
@@ -303,6 +344,14 @@ Otherwise, install as the `openclaw` user:
 sudo -u openclaw bash -c 'curl -fsSL https://openclaw.ai/install.sh | bash'
 sudo -u openclaw openclaw --version
 sudo -u openclaw openclaw doctor
+```
+
+Windows PowerShell as the `openclaw` user:
+```powershell
+winget install OpenJS.NodeJS.LTS
+npm i -g openclaw
+openclaw --version
+openclaw doctor
 ```
 
 > Download and review the script before running, or verify the source URL.
@@ -343,12 +392,25 @@ sudo chown -R openclaw:staff /Users/openclaw/.openclaw
 
 Update all paths in `openclaw.json` to use `/Users/openclaw/.openclaw/...` (macOS) or `/home/openclaw/.openclaw/...` (Linux).
 
+On Windows, use forward slashes in JSON to avoid escaping backslashes:
+```json
+{
+  "workspace": "C:/Users/openclaw/.openclaw/workspaces/main",
+  "agentDir": "C:/Users/openclaw/.openclaw/agents/main/agent"
+}
+```
+
 #### Log directory
 
 The gateway auto-creates agent, workspace, and session directories on startup. The log directory must exist before the service starts (launchd won't create it):
 
 ```bash
 sudo -u openclaw mkdir -p /Users/openclaw/.openclaw/logs
+```
+
+Windows:
+```powershell
+New-Item -ItemType Directory -Force "C:\Users\openclaw\.openclaw\logs" | Out-Null
 ```
 
 #### File permissions
@@ -368,6 +430,13 @@ sudo chmod 600 /Users/openclaw/.openclaw/agents/*/agent/auth-profiles.json
 sudo chmod 600 /Users/openclaw/.openclaw/identity/*.json
 sudo chmod -R 600 /Users/openclaw/.openclaw/credentials/whatsapp/default/*
 sudo chmod 700 /Users/openclaw/.openclaw/credentials/whatsapp
+```
+
+Windows:
+```powershell
+icacls "C:\Users\openclaw\.openclaw" /inheritance:r /grant:r "openclaw:(OI)(CI)F" "Administrators:(OI)(CI)F"
+icacls "C:\Users\openclaw\.openclaw\openclaw.json" /inheritance:r /grant:r "openclaw:F" "Administrators:F"
+icacls "C:\Users\openclaw\.openclaw\.env" /inheritance:r /grant:r "openclaw:F" "Administrators:F"
 ```
 
 ### macOS: LaunchDaemon
@@ -625,6 +694,7 @@ Docker provides an additional isolation layer for agents.
 
 - **macOS:** [OrbStack](https://orbstack.dev) is recommended over Docker Desktop — lighter, faster, and integrates well with macOS networking.
 - **Linux:** Docker Engine (via `apt`/`dnf`) is all you need — no Docker Desktop required. See [Docker Engine install docs](https://docs.docker.com/engine/install/).
+- **Windows:** Docker Desktop with the WSL2 backend is the supported path for Linux containers. Keep Docker Desktop running before the scheduled gateway task starts, or configure Docker Desktop to start at login.
 
 > **Warning (bare Linux hosts):** Adding a user to the `docker` group grants effective root access on the host. For bare-metal Linux deployments, consider rootless Docker or Podman as alternatives.
 
@@ -703,7 +773,7 @@ The [recommended configuration](../examples/config.md) sandboxes the main agent 
 1. Docker network created: `docker network create openclaw-egress`
 2. Egress allowlist configured — see [`scripts/network-egress/`](https://github.com/IT-HUSET/openclaw-guide/tree/main/scripts/network-egress/) for setup
 
-> **macOS with Docker Desktop or OrbStack:** Egress allowlisting via pf rules does not work — these tools run containers inside a Linux VM where the bridge interface is inaccessible to host-level pf. Options: (1) use a Linux VM deployment with `apply-rules-linux.sh` inside the VM, (2) use colima with bridged networking, or (3) accept no egress filtering and rely on tool policy as the primary defense.
+> **macOS with Docker Desktop or OrbStack / Windows with Docker Desktop:** Host firewall egress allowlisting does not target the Linux bridge interface used by Docker's VM/WSL2 backend. Options: (1) use a Linux VM deployment with `apply-rules-linux.sh` inside the VM, (2) on macOS use colima with bridged networking, or (3) accept no firewall-level egress filtering and rely on tool policy plus `network-guard` as the primary defense.
 
 **Trade-off:** Sandboxed channel sessions (WhatsApp DMs, groups, cron) run inside Docker — host-native tools (Xcode, Homebrew binaries) are unavailable there. The Control UI session runs on host and has full access. For an even more isolated architecture with a dedicated computer agent, see [Hardened Multi-Agent](../hardened-multi-agent.md).
 
@@ -715,7 +785,7 @@ For running multiple gateway instances — profiles, multi-user separation, or V
 
 ## VM Isolation
 
-Run OpenClaw inside a VM for kernel-level host isolation. Your host is untouched — no access to personal files, external drives, or other host resources. Two sub-variants: macOS VMs (macOS hosts) and Linux VMs (any host).
+Run OpenClaw inside a VM for kernel-level host isolation. Your host is untouched — no access to personal files, external drives, or other host resources. Two sub-variants: macOS VMs (macOS hosts) and Linux VMs (macOS, Linux, or Windows hosts).
 
 ### VM Isolation: macOS VMs
 
@@ -1031,18 +1101,18 @@ OpenClaw watches `openclaw.json` for changes automatically — same behavior as 
 - **No Docker** — `sandbox` blocks in `openclaw.json` have no effect. Tool policy + SOUL.md provide internal isolation. The `read→exfiltrate` chain is open within the VM (channel agents can read `~/.openclaw/openclaw.json`), but only OpenClaw data is at risk.
 - **Standard user** — the `openclaw` user has no sudo access. Even within the VM, privilege escalation is blocked.
 - **No interactive login** — the `openclaw` user never logs in interactively. Auto-login creates the `gui/<uid>` domain for the LaunchAgent automatically at boot, but shell RC files (`.zshrc`) are never sourced in non-interactive sessions. For defense-in-depth against LaunchAgent persistence within the VM, use the hardened LaunchDaemon alternative.
-- **VM is the outer boundary** — your host macOS is untouched. A full compromise of the VM doesn't affect the host.
+- **VM is the outer boundary** — your host is untouched. A full compromise of the VM doesn't affect the host.
 
 For channel separation with two macOS VMs, see [Multi-Gateway: VM Variants](../multi-gateway.md#vm-variants).
 
 ### VM Isolation: Linux VMs
 
-> **Works on macOS and Linux hosts.** Combines VM host boundary with Docker sandbox inside.
+> **Works on macOS, Linux, and Windows hosts.** Combines VM host boundary with Docker sandbox inside.
 
 Run OpenClaw inside a Linux VM with Docker. This gives the strongest combined isolation posture — kernel-level VM boundary from the host, plus Docker sandboxing for internal agent isolation.
 
 ```
-Host (macOS or Linux, untouched)
+Host (macOS, Linux, or Windows, untouched)
   └── Linux VM — "openclaw-vm"
        └── openclaw user (no sudo, docker group)
             └── Gateway (port 18789): main + search (+ optional channel agents)
@@ -1054,12 +1124,12 @@ Same multi-agent architecture as Docker isolation, but running inside a VM. Dock
 
 #### Hypervisor options
 
-| | **Multipass** | **UTM** | **KVM/libvirt** |
-|--|---|---|---|
-| Host OS | macOS or Linux | macOS only | Linux only |
-| Interface | CLI | GUI + CLI | CLI (`virsh`) |
-| Best for | Headless/server (recommended) | macOS users wanting GUI | Linux-native deployments |
-| Install | `brew install multipass` / `snap install multipass` | `brew install --cask utm` | `apt install qemu-kvm libvirt-daemon-system` |
+| | **Multipass** | **UTM** | **KVM/libvirt** | **Hyper-V / WSL2** |
+|--|---|---|---|---|
+| Host OS | macOS, Linux, or Windows | macOS only | Linux only | Windows only |
+| Interface | CLI | GUI + CLI | CLI (`virsh`) | GUI + PowerShell / `wsl.exe` |
+| Best for | Headless/server (recommended) | macOS users wanting GUI | Linux-native deployments | Windows users who want Linux isolation |
+| Install | `brew install multipass` / `snap install multipass` / Windows installer | `brew install --cask utm` | `apt install qemu-kvm libvirt-daemon-system` | Enable Hyper-V or WSL2; install Ubuntu |
 
 #### Create the VM
 
@@ -1080,6 +1150,19 @@ virt-install --name openclaw-vm --os-variant ubuntu24.04 \
 ```
 
 > For headless (no GUI) installs, use [autoinstall](https://canonical-subiquity.readthedocs-hosted.com/en/latest/howto/autoinstall-quickstart.html) with a cloud-init seed instead of `--cdrom`.
+
+**Windows options:**
+```powershell
+# WSL2 Ubuntu (lightweight; not a full VM boundary, but keeps Docker/firewall rules on Linux side)
+wsl --install -d Ubuntu-24.04
+
+# Multipass on Windows (full VM)
+# Install from https://multipass.run/install, then:
+multipass launch --name openclaw-vm --cpus 4 --memory 4G --disk 40G
+multipass shell openclaw-vm
+```
+
+Use a full Hyper-V or Multipass VM when you want a stronger boundary than WSL2. WSL2 is operationally convenient and can run Linux firewall rules, but it shares more integration surface with the Windows host.
 
 Resource guidance:
 - **CPU 4** — adjust based on your host (leave cores for host workloads)
@@ -1182,7 +1265,7 @@ Use the [Linux: systemd](#linux-systemd) section below — it applies identicall
 
 #### Firewall and Tailscale
 
-Same configuration as Docker isolation — see [macOS Firewall](#macos-firewall) and [Tailscale ACLs](#tailscale-acls). Apply inside the Linux VM (UFW/iptables) and optionally install Tailscale inside the VM for remote access.
+Same configuration as Docker isolation — see [Host Firewall](#host-firewall) and [Tailscale ACLs](#tailscale-acls). Apply inside the Linux VM (UFW/iptables) and optionally install Tailscale inside the VM for remote access.
 
 For multiple Linux VMs, see [Multi-Gateway: VM Variants](../multi-gateway.md#vm-variants).
 
@@ -1190,13 +1273,127 @@ For multiple Linux VMs, see [Multi-Gateway: VM Variants](../multi-gateway.md#vm-
 
 ## Service Management Comparison
 
-| | LaunchDaemon (macOS) | LaunchAgent (macOS, auto-login) | systemd (Linux) |
-|--|---|---|---|
-| Runs as | Dedicated user (`UserName` key) | Dedicated user | Dedicated user |
-| Starts at | Boot — no GUI session required | Boot (requires GUI auto-login configured) | Boot |
-| `openclaw gateway` compat | No (use `launchctl` instead) | Yes | N/A |
-| OrbStack Docker | Via `/var/run/docker.sock` (OrbStack must run) | Automatic — same user session | N/A |
-| Security | Strongest (macOS) | Standard | Strongest (Linux) |
+| | LaunchDaemon (macOS) | LaunchAgent (macOS, auto-login) | systemd (Linux) | Task Scheduler (Windows) |
+|--|---|---|---|---|
+| Runs as | Dedicated user (`UserName` key) | Dedicated user | Dedicated user | Dedicated user |
+| Starts at | Boot — no GUI session required | Boot (requires GUI auto-login configured) | Boot | User logon for Docker Desktop; boot only for non-Docker setups |
+| `openclaw gateway` compat | No (use `launchctl` instead) | Yes | N/A | N/A |
+| Docker runtime | OrbStack via `/var/run/docker.sock` (OrbStack must run) | Automatic — same user session | Docker Engine | Docker Desktop WSL2 backend |
+| Secrets | Plist env vars | Plist env vars | `/etc/openclaw/secrets.env` | Locked-down `.env` file |
+| Security | Strongest (macOS) | Standard | Strongest (Linux) | Standard (Windows) |
+
+## Windows: Task Scheduler
+
+> **Applies to:** Docker isolation and pragmatic Windows-native deployments. For strongest isolation on Windows hosts, prefer [VM Isolation: Linux VMs](#vm-isolation-linux-vms) and run the systemd setup inside the VM.
+
+Task Scheduler is the built-in Windows service manager. With Docker Desktop, use a logon trigger for the `openclaw` user so the WSL2 backend and Docker Desktop user session are available before the gateway starts. For unattended boot without a logged-in Windows user, prefer the Linux VM/systemd deployment. Use a dedicated `openclaw` user, a locked-down `.env` file for secrets, and forward-slash paths in `openclaw.json`.
+
+### Install dependencies
+
+Run these commands as the `openclaw` user:
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+npm i -g openclaw
+openclaw --version
+openclaw doctor
+```
+
+Install Docker Desktop and enable **Use the WSL 2 based engine**. Add the `openclaw` user to the `docker-users` group as shown in [Docker Group Membership](#docker-group-membership).
+
+### Create the gateway start script
+
+```powershell
+New-Item -ItemType Directory -Force "C:\Users\openclaw\.openclaw\logs" | Out-Null
+
+@'
+$ErrorActionPreference = "Stop"
+Set-Location "C:\Users\openclaw"
+
+$env:HOME = "C:\Users\openclaw"
+$env:USERPROFILE = "C:\Users\openclaw"
+$env:OPENCLAW_HOME = "C:\Users\openclaw"
+$env:OPENCLAW_GATEWAY_PORT = "18789"
+
+openclaw gateway --port 18789 *> "C:\Users\openclaw\.openclaw\logs\gateway.log"
+'@ | Set-Content -Encoding utf8 "C:\Users\openclaw\.openclaw\start-gateway.ps1"
+
+icacls "C:\Users\openclaw\.openclaw\start-gateway.ps1" /inheritance:r /grant:r "openclaw:F" "Administrators:F"
+```
+
+Keep secrets in `C:\Users\openclaw\.openclaw\.env` as described in [Secrets Management](#secrets-management-all-methods). OpenClaw loads it when the scheduled task starts.
+
+### Register the task
+
+Run as Administrator:
+
+```powershell
+$Action = New-ScheduledTaskAction `
+  -Execute "powershell.exe" `
+  -Argument "-NoProfile -ExecutionPolicy Bypass -File C:\Users\openclaw\.openclaw\start-gateway.ps1"
+
+$Trigger = New-ScheduledTaskTrigger -AtLogOn -User ".\openclaw"
+$Settings = New-ScheduledTaskSettingsSet `
+  -RestartCount 3 `
+  -RestartInterval (New-TimeSpan -Minutes 1) `
+  -ExecutionTimeLimit (New-TimeSpan -Days 0)
+
+$Password = Read-Host -AsSecureString "Password for .\openclaw"
+$PlainPassword = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+  [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)
+)
+
+Register-ScheduledTask `
+  -TaskName "OpenClaw Gateway" `
+  -Action $Action `
+  -Trigger $Trigger `
+  -Settings $Settings `
+  -User ".\openclaw" `
+  -Password $PlainPassword `
+  -RunLevel LeastPrivilege `
+  -Description "OpenClaw gateway running as dedicated openclaw user"
+
+Remove-Variable PlainPassword
+```
+
+Start and inspect it:
+
+```powershell
+Start-ScheduledTask -TaskName "OpenClaw Gateway"
+Get-ScheduledTaskInfo -TaskName "OpenClaw Gateway"
+Get-Content -Tail 50 "C:\Users\openclaw\.openclaw\logs\gateway.log"
+```
+
+Configure Docker Desktop to start at login for the `openclaw` user. If you need the gateway to start at boot with no Windows user session, run OpenClaw inside a Linux VM where Docker Engine starts under systemd. For a pragmatic no-Docker Windows-native deployment, an `-AtStartup` trigger can work because it does not depend on Docker Desktop.
+
+### Windows Firewall
+
+Keep the gateway bound to loopback. If you must bind to LAN, restrict port `18789` to specific administrator machines:
+
+```powershell
+# Default-deny inbound first, then add the narrow allow rule.
+Set-NetFirewallProfile -Profile Domain,Private,Public `
+  -Enabled True `
+  -DefaultInboundAction Block `
+  -DefaultOutboundAction Allow
+
+# Disable any existing broad allow rules for this port before adding the scoped rule.
+Get-NetFirewallRule -Direction Inbound -Enabled True |
+  Where-Object {
+    (Get-NetFirewallPortFilter -AssociatedNetFirewallRule $_).LocalPort -contains "18789"
+  } |
+  Disable-NetFirewallRule
+
+New-NetFirewallRule `
+  -DisplayName "OpenClaw Gateway inbound from admin machine" `
+  -Direction Inbound `
+  -Action Allow `
+  -Protocol TCP `
+  -LocalPort 18789 `
+  -RemoteAddress 192.168.1.100
+```
+
+Do not use Windows Firewall as the only control for Docker container egress. Docker Desktop routes Linux container traffic through WSL2/Hyper-V networking, so host rules do not map cleanly to Docker bridge interfaces. Use a Linux VM/WSL2-side firewall for strict container egress filtering.
 
 ## Linux: systemd
 
@@ -1349,14 +1546,32 @@ sudo chmod 600 /etc/openclaw/secrets.env
 sudo chown root:root /etc/openclaw/secrets.env
 ```
 
+### Windows: `.env` file
+
+Task Scheduler does not provide a clean native environment-file mechanism. Store service secrets in the `openclaw` user's `.env` file and lock it down with NTFS ACLs:
+
+```powershell
+New-Item -ItemType Directory -Force "C:\Users\openclaw\.openclaw" | Out-Null
+@"
+OPENCLAW_GATEWAY_TOKEN=your-gateway-token
+ANTHROPIC_API_KEY=sk-ant-...
+BRAVE_API_KEY=BSA...
+GITHUB_TOKEN=github_pat_...
+# channel-guard and content-guard both require OPENROUTER_API_KEY
+"@ | Set-Content -Encoding utf8 "C:\Users\openclaw\.openclaw\.env"
+
+icacls "C:\Users\openclaw\.openclaw\.env" /inheritance:r /grant:r "openclaw:F" "Administrators:F"
+```
+
 ### What stays in openclaw.json
 
 Channel config (`allowFrom`, `dmPolicy`), agent definitions, tool policies, workspace paths — structural config, not secrets. Channel credentials (WhatsApp session, Signal auth) are managed by their plugins in `~/.openclaw/credentials/`.
 
 ---
 
-## macOS Firewall
+## Host Firewall
 
+**macOS:**
 ```bash
 sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
 sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on
@@ -1373,6 +1588,14 @@ Also disable unneeded sharing services in **System Settings > General > Sharing*
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw enable
+```
+
+**Windows PowerShell:**
+```powershell
+Set-NetFirewallProfile -Profile Domain,Private,Public `
+  -Enabled True `
+  -DefaultInboundAction Block `
+  -DefaultOutboundAction Allow
 ```
 
 ---
@@ -1448,6 +1671,28 @@ Prefer Tailscale Serve or an SSH tunnel over binding to `0.0.0.0`. If LAN bindin
    sudo ufw allow in on eth0 from 192.168.1.100 to any port 18789
    ```
 
+   **Windows PowerShell:**
+   ```powershell
+   Set-NetFirewallProfile -Profile Domain,Private,Public `
+     -Enabled True `
+     -DefaultInboundAction Block `
+     -DefaultOutboundAction Allow
+
+   Get-NetFirewallRule -Direction Inbound -Enabled True |
+     Where-Object {
+       (Get-NetFirewallPortFilter -AssociatedNetFirewallRule $_).LocalPort -contains "18789"
+     } |
+     Disable-NetFirewallRule
+
+   New-NetFirewallRule `
+     -DisplayName "OpenClaw Gateway inbound from admin machine" `
+     -Direction Inbound `
+     -Action Allow `
+     -Protocol TCP `
+     -LocalPort 18789 `
+     -RemoteAddress 192.168.1.100
+   ```
+
 3. **Never port-forward broadly** — don't expose 18789 on your router
 
 > **What's exposed on port 18789:** Control UI, WebSocket protocol, HTTP API (`/v1/chat/completions`), and all webhook endpoints. Binding to `0.0.0.0` without a source-IP firewall exposes all of these to every device on your network.
@@ -1503,7 +1748,7 @@ Signal device links are host-specific. If migrating to new hardware, you'll need
 
 Signal requires `signal-cli` (Java-based) linked as a device.
 
-> **Prerequisite:** Signal requires Java 21+. Install via `brew install openjdk@21` (macOS) or your distro's package manager (Linux, e.g., `sudo apt install openjdk-21-jre`).
+> **Prerequisite:** Signal requires Java 21+. Install via `brew install openjdk@21` (macOS), your distro's package manager (Linux, e.g., `sudo apt install openjdk-21-jre`), or `winget install EclipseAdoptium.Temurin.21.JRE` (Windows).
 
 ### Install
 
@@ -1521,6 +1766,18 @@ curl -L -o signal-cli.tar.gz \
   "https://github.com/AsamK/signal-cli/releases/download/v${SIGNAL_CLI_VERSION}/signal-cli-${SIGNAL_CLI_VERSION}-Linux.tar.gz"
 sudo tar xf signal-cli.tar.gz -C /opt
 sudo ln -sf /opt/signal-cli-${SIGNAL_CLI_VERSION}/bin/signal-cli /usr/local/bin/signal-cli
+```
+
+**Windows PowerShell:**
+```powershell
+winget install EclipseAdoptium.Temurin.21.JRE
+$SignalCliVersion = "0.13.12"  # Update to latest
+Invoke-WebRequest `
+  -Uri "https://github.com/AsamK/signal-cli/releases/download/v$SignalCliVersion/signal-cli-$SignalCliVersion.tar.gz" `
+  -OutFile "$env:TEMP\signal-cli.tar.gz"
+New-Item -ItemType Directory -Force "C:\Tools\signal-cli" | Out-Null
+tar -xzf "$env:TEMP\signal-cli.tar.gz" -C "C:\Tools\signal-cli" --strip-components 1
+setx PATH "$env:PATH;C:\Tools\signal-cli\bin"
 ```
 
 ### Link to Signal account
@@ -1542,6 +1799,7 @@ img.save('signal-link-qr.png')
 "
 open signal-link-qr.png    # macOS
 # xdg-open signal-link-qr.png  # Linux
+# start signal-link-qr.png     # Windows PowerShell
 ```
 
 Scan with **Signal > Settings > Linked Devices > Link New Device**. Do this quickly — links expire fast.
@@ -1594,9 +1852,11 @@ After deployment, verify everything works:
 sudo launchctl print gui/$(id -u openclaw)/ai.openclaw.gateway 2>&1 | head -10  # macOS (LaunchAgent)
 sudo launchctl print system/ai.openclaw.gateway 2>&1 | head -10                # macOS (LaunchDaemon, hardened)
 sudo systemctl status openclaw-gateway                            # Linux
+Get-ScheduledTaskInfo -TaskName "OpenClaw Gateway"                # Windows PowerShell
 
 # Gateway is listening
 sudo lsof -i :18789
+Get-NetTCPConnection -LocalPort 18789                             # Windows PowerShell
 
 # Health check (replace <token> with your OPENCLAW_GATEWAY_TOKEN value)
 curl -s -H "Authorization: Bearer <token>" http://127.0.0.1:18789/health
@@ -1604,6 +1864,7 @@ curl -s -H "Authorization: Bearer <token>" http://127.0.0.1:18789/health
 # Recent logs
 tail -20 /Users/openclaw/.openclaw/logs/gateway.log    # macOS (VM / Docker isolation)
 tail -20 /home/openclaw/.openclaw/logs/gateway.log     # Linux
+Get-Content -Tail 20 "C:\Users\openclaw\.openclaw\logs\gateway.log"  # Windows PowerShell
 ```
 
 - [ ] Gateway starts at boot (both options)
@@ -1634,6 +1895,10 @@ sudo launchctl bootstrap gui/$OPENCLAW_UID /Users/openclaw/Library/LaunchAgents/
 
 # Restart (Linux)
 sudo systemctl restart openclaw-gateway
+
+# Restart (Windows PowerShell)
+Stop-ScheduledTask -TaskName "OpenClaw Gateway"
+Start-ScheduledTask -TaskName "OpenClaw Gateway"
 ```
 
 ### Updating OpenClaw
@@ -1641,6 +1906,8 @@ sudo systemctl restart openclaw-gateway
 ```bash
 # Backup before upgrading
 sudo cp -r /Users/openclaw/.openclaw /Users/openclaw/.openclaw.bak
+# Windows PowerShell:
+# Copy-Item -Recurse "C:\Users\openclaw\.openclaw" "C:\Users\openclaw\.openclaw.bak"
 
 # Update (either method works)
 openclaw update                                  # Built-in updater
@@ -1678,6 +1945,17 @@ Gateway logs grow indefinitely. Set up rotation:
 }
 ```
 
+**Windows** — create a scheduled cleanup task or use PowerShell rotation:
+```powershell
+Get-ChildItem "C:\Users\openclaw\.openclaw\logs\*.log" |
+  Where-Object Length -gt 10MB |
+  ForEach-Object {
+    $Archive = "$($_.FullName).$(Get-Date -Format yyyyMMddHHmmss)"
+    Rename-Item $_.FullName $Archive
+    New-Item -ItemType File $_.FullName | Out-Null
+  }
+```
+
 ### Session Transcript Pruning
 
 Session files (`agents/<id>/sessions/*.jsonl`) contain full message history including tool output. Prune old sessions periodically:
@@ -1708,6 +1986,13 @@ sudo -u openclaw crontab -e
 sudo crontab -u openclaw -e
 # Add line (weekly, Sunday at 3am):
 0 3 * * 0 find /home/openclaw/.openclaw/agents/*/sessions -name "*.jsonl" -type f -mtime +30 -delete
+```
+
+*Windows PowerShell:*
+```powershell
+Get-ChildItem "C:\Users\openclaw\.openclaw\agents\*\sessions\*.jsonl" |
+  Where-Object LastWriteTime -lt (Get-Date).AddDays(-30) |
+  Remove-Item
 ```
 
 **macOS LaunchDaemon alternative** (more Mac-native):
@@ -1749,7 +2034,7 @@ sudo launchctl bootstrap system /Library/LaunchDaemons/com.openclaw.session-prun
 
 ## Deployment Gotchas
 
-Operational issues discovered during real deployments. Most are macOS-specific.
+Operational issues discovered during real deployments. Some are OS-specific.
 
 ### macOS Service User Setup
 
@@ -1787,6 +2072,13 @@ Use the `bash -c` pattern for interactive setup, `openclaw doctor`, `openclaw se
 ### Docker/OrbStack
 
 - **OrbStack docker CLI not in PATH** — OrbStack installs at `/usr/local/bin/docker`, which may not be in PATH for dedicated users or non-interactive shells. Use the full path, ensure the engine is running with `orbctl start`, or symlink: `sudo ln -sf /Applications/OrbStack.app/Contents/MacOS/orbctl /usr/local/bin/docker`
+
+### Windows Service User Setup
+
+- **Task runs but `openclaw` is not found** — install Node.js/OpenClaw as the `openclaw` user, or add the global npm prefix to the task script's `PATH`.
+- **Docker unavailable at startup** — Docker Desktop may not start before a boot-time scheduled task. Keep the documented logon trigger for Docker Desktop deployments, configure Docker Desktop to start at login for the `openclaw` user, or move the deployment into a Linux VM with Docker Engine and systemd.
+- **Backslashes in JSON paths** — prefer `C:/Users/openclaw/...` in `openclaw.json`. If you use backslashes, every slash must be escaped as `\\`.
+- **ACL inheritance reappears after copy/migration** — re-run `icacls "C:\Users\openclaw\.openclaw" /inheritance:r /grant:r "openclaw:(OI)(CI)F" "Administrators:(OI)(CI)F"` after restoring backups.
 
 ### Playwright
 
@@ -1830,6 +2122,9 @@ sudo launchctl bootout system/ai.openclaw.gateway
 
 # Linux (Docker isolation on Linux host)
 sudo systemctl stop openclaw-gateway
+
+# Windows (Task Scheduler)
+Stop-ScheduledTask -TaskName "OpenClaw Gateway"
 ```
 
 ### Remote Shutdown (via Tailscale SSH)
@@ -1851,6 +2146,9 @@ ssh user@<tailscale-ip> 'sudo launchctl bootout system/ai.openclaw.gateway'
 
 # Docker isolation (Linux host)
 ssh user@<tailscale-ip> 'sudo systemctl stop openclaw-gateway'
+
+# Docker isolation (Windows host, PowerShell remoting)
+Invoke-Command -ComputerName <hostname> -ScriptBlock { Stop-ScheduledTask -TaskName "OpenClaw Gateway" }
 ```
 
 ### Session Reset
@@ -1866,12 +2164,12 @@ If you suspect compromise, follow this sequence:
 1. **Contain** — stop the gateway immediately (see [Immediate Shutdown](#immediate-shutdown) above)
 2. **Hold updates** — set `OPENCLAW_NO_AUTO_UPDATE=1` in your service environment to prevent background package auto-updates while you investigate. This lets you stay on a known-good version during the incident without editing config. Remove the variable when recovery is complete. (2026.4.26+)
 3. **Rotate credentials:**
-   - **Gateway token** — rotate in the LaunchAgent plist (macOS, or LaunchDaemon for hardened setup) or `/etc/openclaw/secrets.env` (Linux)
+   - **Gateway token** — rotate in the LaunchAgent plist (macOS, or LaunchDaemon for hardened setup), `/etc/openclaw/secrets.env` (Linux), or `C:\Users\openclaw\.openclaw\.env` (Windows)
    - **API keys** — rotate Anthropic, Perplexity/Brave keys in the same plist or env file; also update `auth-profiles.json` if used
    - **Channel credentials** — re-pair WhatsApp (scan new QR) or re-link Signal
 4. **Audit** — review logs and session transcripts for unauthorized actions:
    ```bash
-   # Recent gateway logs (macOS: /Users/openclaw, Linux: /home/openclaw)
+   # Recent gateway logs (macOS: /Users/openclaw, Linux: /home/openclaw, Windows: C:\Users\openclaw)
    tail -100 ~openclaw/.openclaw/logs/gateway.log
 
    # Session transcripts (look for unexpected tool calls)

@@ -14,7 +14,7 @@ A pragmatic, security-first guide to [OpenClaw](https://docs.openclaw.ai) — th
 
 **Includes runnable security plugins:** Five OpenClaw guard plugins — one LLM-based ([content-guard](extensions/content-guard/)), one ML-based ([channel-guard](extensions/channel-guard/)), and three deterministic ([file-guard](extensions/file-guard/), [network-guard](extensions/network-guard/), [command-guard](extensions/command-guard/)). Drop them into any OpenClaw gateway.
 
-**Based on:** OpenClaw 2026.2.x, macOS primary, Linux equivalents included. Covers WhatsApp, Signal, and Google Chat channels — for Telegram, Discord, Slack, and others see the [official docs](https://docs.openclaw.ai/channels).
+**Based on:** OpenClaw 2026.2.x, with deployment guidance for macOS, Linux, and Windows. Covers WhatsApp, Signal, and Google Chat channels — for Telegram, Discord, Slack, and others see the [official docs](https://docs.openclaw.ai/channels).
 
 ---
 

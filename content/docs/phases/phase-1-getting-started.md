@@ -13,7 +13,7 @@ Get a working OpenClaw agent in minutes — no channels, no external exposure.
 ## Prerequisites
 
 - **Node.js 22.14+** and npm (Node 24 recommended; 22.14 is the minimum)
-- **macOS** (primary) or Linux
+- **macOS, Linux, or Windows**
 
 {{% details title="macOS Setup" %}}
 
@@ -53,6 +53,19 @@ sudo useradd -m -s /bin/bash openclaw
 Verify `node` and `npm` are on PATH: `node -v && npm -v`. All commands below work identically on Linux.
 {{% /details %}}
 
+{{% details title="Windows Setup" %}}
+
+Install Node.js 22.14+ via `winget` or the official installer:
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+node -v
+npm -v
+```
+
+For production, run OpenClaw as a dedicated non-admin user through Task Scheduler; see [Phase 6](phase-6-deployment.md#windows-task-scheduler). In JSON config, prefer forward-slash paths such as `C:/Users/openclaw/.openclaw/workspaces/main`.
+{{% /details %}}
+
 ---
 
 ## Deployment Decision
@@ -79,8 +92,9 @@ curl -fsSL https://openclaw.ai/install.sh | bash
 The installer runs `npm install -g openclaw`, placing it in the global npm prefix:
 - **macOS (Homebrew Node):** binary at `/opt/homebrew/bin/openclaw`, package in `/opt/homebrew/lib/node_modules/openclaw`
 - **Linux:** typically `/usr/local/bin/openclaw` and `/usr/local/lib/node_modules/openclaw`
+- **Windows:** depends on the npm global prefix; check with `npm prefix -g` and `where openclaw`
 
-All users in the `staff` group (macOS default) can run the binary — relevant if you later create a dedicated `openclaw` user (see [Phase 6](phase-6-deployment.md)).
+All users in the `staff` group (macOS default) can run the binary — relevant if you later create a dedicated `openclaw` user (see [Phase 6](phase-6-deployment.md)). On Windows, verify the dedicated user can run `node` and `openclaw` before creating the scheduled task.
 
 Verify:
 ```bash

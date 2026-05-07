@@ -690,7 +690,7 @@ graph TB
 
 > **Custom images:** The default image includes bash, curl, git, jq, python3, and ripgrep. For agents that need additional tools (Node.js, build toolchains, etc.), build a [custom sandbox image](custom-sandbox-images.md) rather than using `setupCommand` — this preserves `network: "none"` and `readOnlyRoot: true`.
 
-> **Custom networks with egress allowlisting:** Set `docker.network` to a custom Docker network name (e.g., `"openclaw-egress"`) combined with host-level firewall rules (pf on macOS, nftables on Linux) to restrict outbound traffic to an allowlist. This gives the main agent network access for browsing, package installs, and git while blocking exfiltration to arbitrary hosts. See [Hardened Multi-Agent](hardened-multi-agent.md) for the full architecture.
+> **Custom networks with egress allowlisting:** Set `docker.network` to a custom Docker network name (e.g., `"openclaw-egress"`) combined with firewall rules (pf on macOS, nftables on Linux) to restrict outbound traffic to an allowlist. On Windows Docker Desktop, enforce these rules inside the WSL2/Linux VM layer rather than with Windows Firewall. This gives the main agent network access for browsing, package installs, and git while blocking exfiltration to arbitrary hosts. See [Hardened Multi-Agent](hardened-multi-agent.md) for the full architecture.
 
 ---
 

@@ -174,7 +174,7 @@ Add to `openclaw.json`:
 }
 ```
 
-For local, OpenClaw downloads a GGUF embedding model (~600MB) on first use. Run the following from the OpenClaw install directory — typically `/opt/homebrew/lib/node_modules/openclaw` on macOS or `/usr/local/lib/node_modules/openclaw` on Linux:
+For local, OpenClaw downloads a GGUF embedding model (~600MB) on first use. Run the following from the OpenClaw install directory — typically `/opt/homebrew/lib/node_modules/openclaw` on macOS, `/usr/local/lib/node_modules/openclaw` on Linux, or the path reported by `npm root -g` on Windows:
 
 ```bash
 npx pnpm add node-llama-cpp      # Install optional local embedding runtime

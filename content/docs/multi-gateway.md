@@ -53,7 +53,7 @@ openclaw --profile wa channels login
 ### Architecture
 
 ```
-Host (macOS or Linux)
+Host (macOS, Linux, or Windows)
   └── openclaw user (non-admin)
        ├── ~/.openclaw-wa/     ← Profile "wa" (port 18789)
        │    └── Gateway: main + whatsapp + search
@@ -90,7 +90,7 @@ Each gateway needs a unique port. Leave a gap of >= 20 between ports to accommod
 
 **4. Service files:**
 
-Create one LaunchAgent (macOS) or systemd unit (Linux) per profile. Since profiles run under your own personal account (always logged in), use the LaunchAgent template from [Phase 6](phases/phase-6-deployment.md#alternative-launchagent-auto-login-sessions-only), adding `--profile` to the program arguments.
+Create one LaunchAgent (macOS), systemd unit (Linux), or scheduled task (Windows) per profile. Since profiles run under your own personal account (always logged in), use the LaunchAgent template from [Phase 6](phases/phase-6-deployment.md#alternative-launchagent-auto-login-sessions-only), adding `--profile` to the program arguments. On Windows, use the [Task Scheduler](phases/phase-6-deployment.md#windows-task-scheduler) pattern and add `--profile <name>` before `gateway`.
 
 **macOS LaunchAgent** (`~/Library/LaunchAgents/ai.openclaw.gateway.wa.plist`):
 
@@ -158,6 +158,12 @@ Same as the [standard systemd unit](phases/phase-6-deployment.md#linux-systemd),
 ExecStart=/usr/bin/node /usr/lib/node_modules/openclaw/dist/index.js --profile wa gateway --port 18789
 ```
 
+**Windows Task Scheduler:** use the same `start-gateway.ps1` pattern from [Phase 6](phases/phase-6-deployment.md#windows-task-scheduler), changing the final line:
+
+```powershell
+openclaw --profile wa gateway --port 18789 *> "C:\Users\openclaw\.openclaw-wa\logs\gateway.log"
+```
+
 **5. Git config per profile:**
 
 Profile state directories don't inherit the user's global `~/.gitconfig`. Set `GIT_CONFIG_GLOBAL` in each service file's environment to point at a shared or per-profile git config:
@@ -218,7 +224,7 @@ For stricter channel isolation without VMs, run one gateway per channel under se
 ### Architecture
 
 ```
-Host (macOS or Linux)
+Host (macOS, Linux, or Windows)
   ├── openclaw-wa user (non-admin)
   │    └── Gateway (port 18789): main + whatsapp + search
   └── openclaw-sig user (non-admin)
@@ -255,6 +261,22 @@ sudo usermod -aG docker openclaw-wa
 sudo usermod -aG docker openclaw-sig
 ```
 
+**Windows (PowerShell as Administrator):**
+```powershell
+New-LocalUser -Name "openclaw-wa" -FullName "OpenClaw WhatsApp" -Password (Read-Host -AsSecureString "Temporary password")
+New-LocalUser -Name "openclaw-sig" -FullName "OpenClaw Signal" -Password (Read-Host -AsSecureString "Temporary password")
+Add-LocalGroupMember -Group "Users" -Member "openclaw-wa"
+Add-LocalGroupMember -Group "Users" -Member "openclaw-sig"
+Add-LocalGroupMember -Group "docker-users" -Member "openclaw-wa"
+Add-LocalGroupMember -Group "docker-users" -Member "openclaw-sig"
+runas /profile /user:.\openclaw-wa "cmd /c exit"
+runas /profile /user:.\openclaw-sig "cmd /c exit"
+if (!(Test-Path "C:\Users\openclaw-wa")) { throw "Profile not created for .\openclaw-wa" }
+if (!(Test-Path "C:\Users\openclaw-sig")) { throw "Profile not created for .\openclaw-sig" }
+icacls "C:\Users\openclaw-wa" /inheritance:r /grant:r "openclaw-wa:(OI)(CI)F" "Administrators:(OI)(CI)F"
+icacls "C:\Users\openclaw-sig" /inheritance:r /grant:r "openclaw-sig:(OI)(CI)F" "Administrators:(OI)(CI)F"
+```
+
 Follow the standard [Install OpenClaw](phases/phase-6-deployment.md#install-openclaw), [gateway.mode](phases/phase-6-deployment.md#required-config-gatewaymode), [log directory](phases/phase-6-deployment.md#log-directory), and [file permissions](phases/phase-6-deployment.md#file-permissions) steps for each user — substituting `openclaw-wa`/`openclaw-sig` for `openclaw` and using the appropriate home directory.
 
 > **Homebrew shared binaries:** In a multi-user setup, all users share `/opt/homebrew`. See the [Homebrew warning](phases/phase-6-deployment.md#installation-scope) for mitigation.
@@ -263,18 +285,19 @@ Follow the standard [Install OpenClaw](phases/phase-6-deployment.md#install-open
 
 Each gateway needs a unique port:
 
-| User | Port | Label (macOS) | Service (Linux) |
-|------|------|---------------|-----------------|
-| `openclaw-wa` | 18789 | `ai.openclaw.gateway.wa` | `openclaw-gateway-wa` |
-| `openclaw-sig` | 18810 | `ai.openclaw.gateway.sig` | `openclaw-gateway-sig` |
+| User | Port | Label (macOS) | Service (Linux) | Task (Windows) |
+|------|------|---------------|-----------------|----------------|
+| `openclaw-wa` | 18789 | `ai.openclaw.gateway.wa` | `openclaw-gateway-wa` | `OpenClaw Gateway WA` |
+| `openclaw-sig` | 18810 | `ai.openclaw.gateway.sig` | `openclaw-gateway-sig` | `OpenClaw Gateway Signal` |
 
 > **Port spacing:** Leave a gap of >= 20 between gateway ports to accommodate CDP port ranges — see the [port spacing reference](#port-spacing-reference) table below.
 
 ### Service files
 
-Create one LaunchDaemon (macOS) or systemd unit (Linux) per user. Use the same templates from the [LaunchDaemon](phases/phase-6-deployment.md#macos-launchdaemon) / [systemd](phases/phase-6-deployment.md#linux-systemd) sections, changing per instance:
+Create one LaunchDaemon (macOS), systemd unit (Linux), or scheduled task (Windows) per user. Use the same templates from the [LaunchDaemon](phases/phase-6-deployment.md#macos-launchdaemon) / [systemd](phases/phase-6-deployment.md#linux-systemd) / [Task Scheduler](phases/phase-6-deployment.md#windows-task-scheduler) sections, changing per instance:
 
 - `UserName` (LaunchDaemon) or `User` (systemd) → channel-specific user (`openclaw-wa` or `openclaw-sig`)
+- Windows task principal → channel-specific user (`openclaw-wa` or `openclaw-sig`)
 - `--port` and `OPENCLAW_GATEWAY_PORT` → assigned port
 - `Label` / service name → channel-specific (see table above)
 - `HOME`, `OPENCLAW_HOME`, log paths → user's home directory
@@ -329,7 +352,7 @@ Follow the same [dedicated user + LaunchAgent](phases/phase-6-deployment.md#laun
 
 ### Multiple Linux VMs
 
-Unlike macOS VMs (limited to 2 per host), Linux VMs have no artificial limit. Run one VM per channel for maximum isolation:
+Unlike macOS VMs (limited to 2 per host), Linux VMs have no artificial limit and can run on macOS, Linux, or Windows hosts. Run one VM per channel for maximum isolation:
 
 ```bash
 multipass launch --name openclaw-wa --cpus 2 --memory 2G --disk 20G
@@ -422,11 +445,11 @@ Leave a gap of >= 20 between gateway ports to accommodate CDP port ranges:
 Per gateway instance, regardless of approach:
 
 - [ ] Separate state directory (profile), OS user, or VM
-- [ ] Separate LaunchDaemon/systemd unit (or LaunchAgent for auto-login setups) with unique label/name and port
+- [ ] Separate LaunchDaemon/systemd unit/Task Scheduler task (or LaunchAgent for auto-login setups) with unique label/name and port
 - [ ] Separate `openclaw.json` with only the relevant channels and agents
 - [ ] Separate secrets (unique `OPENCLAW_GATEWAY_TOKEN` per instance)
 - [ ] File permissions locked down (`chmod 700` home directory, `chmod 600` sensitive files)
 - [ ] Port spacing verified (>= 20 gap for CDP ranges)
 - [ ] Health check passing per instance
 
-For automated Docker isolation setup on macOS, see the [setup scripts](https://github.com/IT-HUSET/openclaw-guide/tree/main/scripts/docker-isolation/).
+For automated Docker isolation setup on macOS, see the [setup scripts](https://github.com/IT-HUSET/openclaw-guide/tree/main/scripts/docker-isolation/). Linux and Windows multi-gateway deployments use the manual service patterns above.

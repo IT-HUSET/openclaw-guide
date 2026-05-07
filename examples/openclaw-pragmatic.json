@@ -24,14 +24,17 @@
   // DEPLOYMENT OPTIONS:
   //   Dedicated machine — non-admin OS user, chmod 700 home directory.
   //   Lume VM (macOS)   — macOS VM on macOS host, non-admin user inside VM.
-  //   Multipass VM (Linux) — Linux VM on any host, non-admin user inside VM.
+  //   Multipass/Hyper-V VM (Linux) — Linux VM on any host, non-admin user inside VM.
+  //   Windows native — non-admin local user + Task Scheduler, no Docker.
   //   See pragmatic-single-agent.md for setup instructions.
   //
   // Replace placeholder values:
   //   +46XXXXXXXXX  → your phone number
   //   /Users/openclaw → your actual home directory path
+  //   Windows paths → use forward slashes, e.g. C:/Users/openclaw/.openclaw/...
   //
-  // Environment variables (set in LaunchAgent plist or systemd EnvironmentFile, or LaunchDaemon for hardened setup):
+  // Environment variables (set in LaunchAgent plist, systemd EnvironmentFile,
+  // Windows .env file, or LaunchDaemon for hardened setup):
   //   OPENCLAW_GATEWAY_TOKEN
   //   ANTHROPIC_API_KEY
   //   BRAVE_API_KEY (or OPENROUTER_API_KEY for Perplexity)

@@ -469,6 +469,10 @@ This ensures only your user (or the dedicated `openclaw` user — see [Phase 6](
 > sudo chown -R openclaw:staff /Users/openclaw/.openclaw  # macOS (staff = default group for standard users)
 > sudo chown -R openclaw:openclaw /home/openclaw/.openclaw # Linux
 > ```
+> ```powershell
+> # Windows PowerShell (run as Administrator)
+> icacls "C:\Users\openclaw\.openclaw" /inheritance:r /grant:r "openclaw:(OI)(CI)F" "Administrators:(OI)(CI)F"
+> ```
 > See [Phase 6](phase-6-deployment.md) for the full dedicated user setup.
 
 ---
@@ -490,6 +494,13 @@ sudo useradd -m -s /bin/bash openclaw
 sudo passwd openclaw
 ```
 
+**Windows (PowerShell as Administrator):**
+```powershell
+New-LocalUser -Name "openclaw" -FullName "OpenClaw" -Password (Read-Host -AsSecureString "Temporary password")
+Add-LocalGroupMember -Group "Users" -Member "openclaw"
+runas /profile /user:.\openclaw "cmd /c exit"  # creates C:\Users\openclaw before ACL/path steps
+```
+
 Full dedicated user setup is covered in [Phase 6: Deployment](phase-6-deployment.md).
 
 ---
@@ -509,8 +520,8 @@ Four deployment postures, trading off between simplicity, native OS access, host
 Run a **single multi-agent OpenClaw gateway** as a non-admin `openclaw` user with Docker sandboxing for all agents and `sessions_send` delegation for search isolation.
 
 ```
-Host (macOS or Linux)
-  └── Dedicated `openclaw` user (non-admin, chmod 700 home)
+Host (macOS, Linux, or Windows)
+  └── Dedicated `openclaw` user (non-admin, locked-down home)
        └── Single OpenClaw gateway
             ├── main (Docker sandbox, workspace rw, egress-allowlisted network)
             ├── search (isolated — web_search only, no filesystem)
@@ -528,7 +539,7 @@ See [Phase 6: Docker Isolation](phase-6-deployment.md#docker-isolation) for setu
 
 ### VM Isolation
 
-Run OpenClaw inside a VM for kernel-level host isolation. Two sub-variants: **macOS VMs** (Lume / Parallels) and **Linux VMs** (Multipass, KVM/libvirt, UTM).
+Run OpenClaw inside a VM for kernel-level host isolation. Two sub-variants: **macOS VMs** (Lume / Parallels) and **Linux VMs** (Multipass, KVM/libvirt, UTM, Hyper-V).
 
 #### macOS VMs (Lume / Parallels)
 
@@ -551,10 +562,10 @@ See [Phase 6: VM Isolation — macOS VMs](phase-6-deployment.md#vm-isolation-mac
 
 #### Linux VMs (Multipass / KVM / UTM)
 
-Works on both macOS and Linux hosts. Docker runs inside the VM, enabling the strongest combined posture: VM boundary + Docker sandbox.
+Works on macOS, Linux, and Windows hosts. Docker runs inside the VM, enabling the strongest combined posture: VM boundary + Docker sandbox.
 
 ```
-Host (macOS or Linux, untouched)
+Host (macOS, Linux, or Windows, untouched)
   └── Linux VM — "openclaw-vm"
        └── openclaw user (no sudo, docker group)
             └── Gateway: main + search (+ optional channel agents)
@@ -580,14 +591,15 @@ See [Phase 6: VM Isolation — Linux VMs](phase-6-deployment.md#vm-isolation-lin
 
 |  | **[Pragmatic Single Agent](../pragmatic-single-agent.md)** | **Docker isolation** *(recommended)* | **VM: macOS VMs** | **VM: Linux VMs** |
 |--|---|---|---|---|
-| Host OS | macOS or Linux | macOS or Linux | macOS only | macOS or Linux |
+| Host OS | macOS, Linux, or Windows | macOS, Linux, or Windows | macOS only | macOS, Linux, or Windows |
 | Agents | 2 (main + search) | 2+ (main + search) | 2+ (main + search) | 2+ (main + search) |
 | Gateways | 1 | 1 (multi-agent) — or [multi-gateway](../multi-gateway.md) | 1 — or 2 with [two-VM option](../multi-gateway.md#vm-variants) | 1 — [unlimited VMs](../multi-gateway.md#vm-variants) |
 | Isolation from host | Process-level (OS user) or VM | Process-level (OS user) | Kernel-level (VM) | Kernel-level (VM) |
 | Internal agent isolation | Guard plugins + tool policy (no Docker) | Docker sandbox | Tool policy + SOUL.md (no Docker) | Docker sandbox |
 | `read→exfiltrate` within platform | Open (guard plugins block known paths) | Closed (Docker roots filesystem) | Open within VM (only OpenClaw data at risk) | Closed (Docker roots filesystem) |
 | Privilege escalation within platform | Non-admin user, no sudo (or VM user) | `openclaw` user has no sudo | Standard user has no sudo + no GUI session | `openclaw` user has no sudo (docker group only) |
-| Native OS access | Full (macOS or Linux native) | No (Linux containers) | Full (macOS native inside VM) | No (Linux inside VM) |
+| Native OS access | Full (macOS, Linux, or Windows native) | No (Linux containers) | Full (macOS native inside VM) | No (Linux inside VM) |
+| Service manager | LaunchAgent/LaunchDaemon, systemd, or Task Scheduler | LaunchAgent/LaunchDaemon, systemd, or Task Scheduler | LaunchAgent/LaunchDaemon inside VM | systemd inside VM |
 | If fully compromised | OS user access (or VM contents) | Attacker on host as `openclaw` user | Attacker in VM, host untouched | Attacker in VM, host untouched |
 | Resource overhead | Minimal (no containers/VMs) | ~100MB per container | 8-16GB RAM per VM | 2-4GB RAM per VM |
 | Setup complexity | Low | Low-medium | Medium | Medium-high |
@@ -596,7 +608,7 @@ See [Phase 6: VM Isolation — Linux VMs](phase-6-deployment.md#vm-isolation-lin
 
 > **Dedicated machine with no personal data?** The comparison above assumes personal data on the host — which is what makes the VM's host boundary valuable. On a **dedicated machine** (no personal files, no external drives, no browser sessions), Docker isolation is actually the stronger choice: Docker closes `read→exfiltrate` for credentials while the VM protects an empty host. macOS VMs are weaker internally — no Docker means no agent sandboxing (the `read→exfiltrate` chain is open within the VM). For dedicated machines, use **Docker isolation** (simplest), **Linux VMs** (VM boundary + Docker inside), or the **[Pragmatic Single Agent](../pragmatic-single-agent.md)** if you value simplicity and full native OS access over Docker-level isolation.
 
-**In plain terms:** The pragmatic single agent is the simplest option — one agent, no Docker, full native OS access, with guard plugins as the safety net. Docker isolation gives you Docker-level internal isolation with a single gateway — the recommended approach for most deployments. macOS VM isolation gives the strongest host boundary at the cost of running a macOS VM, but with no Docker inside. Linux VM isolation combines both — VM host boundary *and* Docker sandbox inside — giving the strongest overall posture, at the cost of more moving parts and no native macOS tooling (Xcode, etc.) inside the VM.
+**In plain terms:** The pragmatic single agent is the simplest option — one agent, no Docker, full native OS access, with guard plugins as the safety net. Docker isolation gives you Docker-level internal isolation with a single gateway — the recommended approach for most deployments. On Windows, Docker isolation depends on Docker Desktop's WSL2 backend; use a Linux VM if you need strict firewall-level egress allowlisting. macOS VM isolation gives the strongest host boundary at the cost of running a macOS VM, but with no Docker inside. Linux VM isolation combines both — VM host boundary *and* Docker sandbox inside — giving the strongest overall posture, at the cost of more moving parts and no native macOS tooling (Xcode, etc.) inside the VM.
 
 For adding macOS-native tooling (Xcode, iOS Simulator, macOS apps) via Lume VMs, see [Phase 8: Computer Use](phase-8-computer-use.md).
 
@@ -615,6 +627,11 @@ For adding macOS-native tooling (Xcode, iOS Simulator, macOS apps) via Lume VMs,
 **VM isolation (Linux VMs):**
 - **More moving parts** — Linux guest OS + Docker inside VM adds operational surface (package updates, Docker daemon management). Mitigated by the simplicity of headless Linux (e.g., Ubuntu Server).
 - **No macOS tooling** — Xcode, Homebrew-native tools, and macOS-specific coding workflows aren't available inside the VM. Use if your agents don't need macOS-specific capabilities.
+
+**Windows native deployments:**
+- **Docker Desktop hides the Linux bridge inside WSL2** — Windows Firewall can protect inbound gateway access, but it does not give the same Docker bridge egress controls as pf/nftables on a directly managed bridge. For strict egress allowlisting, run Docker and the gateway inside a Linux VM or WSL2 environment where Linux firewall rules can target the bridge.
+- **NTFS ACLs replace chmod** — use `icacls` to remove inheritance and grant access only to the service user plus Administrators. Avoid running OpenClaw from a personal Windows account with broad profile access.
+- **Task Scheduler is the built-in service manager** — use a startup task running as the dedicated `openclaw` user. NSSM/WinSW are viable alternatives if your environment standardizes on Windows services.
 
 **All models:**
 - **`sessions_send` trust chain (dominant residual risk)** — agents delegate to each other via `sessions_send`. In the recommended 2-agent config, main delegates web search to search. If using [optional dedicated channel agents](phase-4-multi-agent.md#optional-channel-agents), those also delegate to main and search. A prompt-injected agent can:

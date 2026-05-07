@@ -27,8 +27,8 @@ This page covers an optional hardened variant: **separating exec into a dedicate
 - Check [reference.md](reference.md#version-notes) for version-specific feature availability
 
 **Deployment compatibility:**
-- **Docker isolation** (macOS/Linux host + Docker): Fully supported — egress allowlisting via custom Docker network
-- **VM: Linux VMs** (host → Linux VM + Docker inside): Fully supported — run setup scripts inside the VM
+- **Docker isolation** (macOS/Linux/Windows host + Docker): Supported — egress allowlisting via custom Docker network on directly managed Linux bridges. On Windows Docker Desktop, apply strict egress rules inside WSL2/Linux VM instead of relying on Windows Firewall.
+- **VM: Linux VMs** (host → Linux VM + Docker inside): Fully supported on macOS, Linux, and Windows hosts — run setup scripts inside the VM
 - **VM: macOS VMs** (macOS host → macOS VM, no Docker inside): Egress allowlisting **not supported** (requires Docker bridge interface). Alternative: run computer agent unsandboxed (`sandbox.mode: "off"`) — see [Host-Native Tools](#host-native-tools-xcode-homebrew-etc) below
 
 ---
@@ -89,7 +89,7 @@ The **computer agent** does the actual work — full runtime access + browser au
 | Tool policy (main) | Direct exec/web/browser from main | `tools.deny` — hard enforcement |
 | Tool policy (computer) | Web search on computer agent | `tools.deny` — hard enforcement |
 | Docker `network:none` (main) | All outbound from main (downgraded from egress-allowlisted in recommended config) | Docker runtime |
-| Network egress allowlist (computer) | Exfiltration to arbitrary hosts from computer agent | nftables/pf + Docker custom network (reuses `openclaw-egress` from recommended config) |
+| Network egress allowlist (computer) | Exfiltration to arbitrary hosts from computer agent | nftables/pf + Docker custom network; Windows hosts should enforce inside Linux VM/WSL2 |
 | Workspace isolation | Cross-agent file access | Separate workspace paths |
 
 > **Dominant residual risk:** `sessions_send` remains the primary attack vector. A compromised main agent can send arbitrary payloads to the computer agent. Tool policy restrictions + SOUL.md behavioral guidance + network egress allowlisting provide defense in depth. Network egress allowlisting ensures that even if the computer agent is fully compromised, it can only reach pre-approved hosts.
@@ -153,7 +153,7 @@ storage.googleapis.com:443
 sudo bash scripts/network-egress/apply-rules.sh
 ```
 
-**Linux (nftables):**
+**Linux (nftables, including Linux VMs on Windows hosts):**
 ```bash
 sudo bash scripts/network-egress/apply-rules-linux.sh
 ```
@@ -166,6 +166,8 @@ Both scripts read `allowlist.conf`, resolve hostnames to IPs, and install rules 
 > **macOS:** pf rules don't survive reboot. Add `apply-rules.sh` to a LaunchDaemon that runs before the OpenClaw gateway starts. See [Phase 6: LaunchDaemon](phases/phase-6-deployment.md#macos-launchdaemon) for the pattern.
 
 > **Linux:** nftables rules don't survive reboot either. Use `nft list ruleset > /etc/nftables.conf` to persist, or add `apply-rules-linux.sh` to a systemd unit that runs before the gateway.
+>
+> **Windows Docker Desktop:** Do not treat Windows Firewall as equivalent to these bridge rules. Docker traffic exits through the WSL2/Hyper-V Linux networking layer. For this hardened architecture, run the gateway inside a Linux VM/WSL2 distribution and apply the Linux rules there.
 
 ---
 
@@ -494,9 +496,9 @@ from the main agent and execute them using your full set of development tools.
 
 ---
 
-## Host-Native Tools (Xcode, Homebrew, etc.)
+## Host-Native Tools (Xcode, Homebrew, PowerShell, etc.)
 
-If you need access to host-level tools that don't work in Docker (Xcode, Homebrew binaries, host Python/Node environments), you have two options:
+If you need access to host-level tools that don't work in Docker (Xcode, Homebrew binaries, PowerShell, Visual Studio Build Tools, host Python/Node environments), you have two options:
 
 ### Option A: Separate Dev Agent (Recommended)
 
@@ -562,7 +564,7 @@ main (sandboxed, network:none, channels) → computer (unsandboxed, host network
 - ❌ Simpler cleanup (no containers to manage, but also no automatic cleanup)
 
 **What you gain:**
-- ✅ Access to Xcode, Homebrew, host Python/Node, mounted drives
+- ✅ Access to Xcode, Homebrew, PowerShell, Visual Studio Build Tools, host Python/Node, mounted drives
 - ✅ Simpler architecture (no Docker required)
 - ✅ **Works in macOS VMs** (no Docker required)
 - ✅ Still have main → computer delegation barrier with tool policy + SOUL.md
@@ -608,7 +610,7 @@ In the recommended 2-agent config, main has both exec and browser on the egress-
 ## Accepted Risks
 
 - **DNS resolution is point-in-time.** IP changes (CDN rotation) can break allowed hosts. Re-run `apply-rules.sh` on a schedule or after DNS changes.
-- **pf/nftables rules don't survive reboot.** Persist via LaunchDaemon (macOS) or systemd unit (Linux).
+- **pf/nftables rules don't survive reboot.** Persist via LaunchDaemon (macOS) or systemd unit (Linux, including Linux VM/WSL2 on Windows).
 - **`sessions_send` remains the dominant residual risk.** A compromised main agent can send arbitrary payloads to the computer agent. Tool policy restrictions and SOUL.md behavioral guidance mitigate this by limiting what the computer agent will do, but they rely on LLM compliance rather than hard enforcement. Network egress allowlisting provides defense-in-depth — even if the computer agent is fully compromised, exfiltration is limited to pre-approved hosts.
 - **Allowlist maintenance is ongoing.** Adding new package registries, APIs, or services requires updating `allowlist.conf` and re-applying rules.
 - **DNS tunneling is possible.** Firewall rules allow DNS (port 53) to any destination. A compromised agent could encode data in DNS queries. To restrict DNS to Docker's internal resolver only, replace the DNS allow rules in the apply scripts with destination-specific rules (e.g., `pass out quick on $IFACE proto udp to 127.0.0.11 port 53` for pf, or `udp dport 53 ip daddr 127.0.0.11 accept` for nftables). Trade-off: may break container name resolution that uses external DNS.
@@ -728,6 +730,6 @@ Starting from the [recommended configuration](examples/config.md), follow these 
 ## Next Steps
 
 - [Recommended Configuration](examples/config.md) — the 2-agent baseline this page builds on
-- [Phase 6: Deployment](phases/phase-6-deployment.md) — run as a system service (LaunchAgent/systemd), persist firewall rules via LaunchDaemon/systemd
+- [Phase 6: Deployment](phases/phase-6-deployment.md) — run as a system service (LaunchAgent/systemd/Task Scheduler), persist firewall rules via LaunchDaemon/systemd
 - [Reference](reference.md) — full config cheat sheet, plugin table, egress allowlisting notes
 - [Architecture](architecture.md) — system internals, hardened variant diagram

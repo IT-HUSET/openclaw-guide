@@ -10,6 +10,6 @@ Two-agent setup (main + search), no Docker. Security comes from guard plugins (c
 
 > For the recommended 2-agent Docker-sandboxed setup, see [Recommended Configuration](config.md). For maximum hardening with exec isolation, see [Hardened Multi-Agent](../hardened-multi-agent.md). For a minimal starting point, see [Basic Configuration](basic-config.md).
 
-Deploy as a non-admin OS user on a dedicated machine, or inside a Lume VM (macOS) / Multipass VM (Linux). See [Pragmatic Single Agent — Deployment Target](../pragmatic-single-agent.md#step-1-deployment-target) for setup instructions.
+Deploy as a non-admin OS user on a dedicated machine, inside a Lume VM (macOS), inside a Linux VM (Multipass/KVM/Hyper-V), or as a Windows-native Task Scheduler deployment. See [Pragmatic Single Agent — Deployment Target](../pragmatic-single-agent.md#step-1-deployment-target) for setup instructions.
 
 {{< readfile "examples/openclaw-pragmatic.json" "json5" >}}

@@ -28,8 +28,8 @@ An OpenClaw deployment consists of these components:
 | **Search agentDir** | `~/.openclaw/agents/search/` | Yes | Sessions, auth profiles |
 | **Extensions** | `~/.openclaw/extensions/` | Yes | Plugin source + node_modules |
 | **Memory search index** | Internal (architecture-dependent) | No | Rebuild on target: `openclaw memory index` |
-| **Secrets** | Plist env vars / `secrets.env` | Manual | Re-enter on target (never copy plists with secrets over network) |
-| **Service files** | LaunchAgent/systemd (or LaunchDaemon for hardened) | Recreate | Paths and users differ per host |
+| **Secrets** | Plist env vars / `secrets.env` / Windows `.env` | Manual | Re-enter on target (never copy service files with secrets over network) |
+| **Service files** | LaunchAgent/systemd/Task Scheduler (or LaunchDaemon for hardened) | Recreate | Paths and users differ per host |
 | **Cron job definitions** | `~/.openclaw/cron/jobs.json` | Yes | Git-trackable job definitions; copy to target. Do **not** copy `cron/jobs-state.json` (runtime execution state — auto-rebuilt) |
 | **Cron jobs / scheduled tasks** | `/etc/newsyslog.d/`, `/etc/logrotate.d/`, crontab | Recreate | Log rotation, session pruning, temp cleanup |
 
@@ -48,6 +48,9 @@ sudo launchctl bootout system/ai.openclaw.gateway
 
 # Linux (systemd)
 sudo systemctl stop openclaw-gateway
+
+# Windows (Task Scheduler, PowerShell as Administrator)
+Stop-ScheduledTask -TaskName "OpenClaw Gateway"
 ```
 
 ### Create a backup
@@ -73,6 +76,9 @@ sudo tar czf openclaw-backup-$(date +%Y%m%d).tar.gz -C /Users/openclaw .openclaw
 
 # Or for Linux
 sudo tar czf openclaw-backup-$(date +%Y%m%d).tar.gz -C /home/openclaw .openclaw
+
+# Or for Windows PowerShell
+tar -czf openclaw-backup-$(Get-Date -Format yyyyMMdd).tar.gz -C C:\Users\openclaw .openclaw
 ```
 
 > **Session files can be large.** If you don't need conversation history, exclude them with `--no-include-workspace` (CLI) or `--exclude='.openclaw/agents/*/sessions'` (tar). Memory files (in workspaces) are separate and much smaller.
@@ -88,6 +94,10 @@ sudo -u openclaw /usr/libexec/PlistBuddy -c "Print :EnvironmentVariables" \
 
 # Linux: list env var keys from secrets file
 sudo grep -oP '^\w+' /etc/openclaw/secrets.env
+
+# Windows: list env var keys from .env file
+Select-String -Path "C:\Users\openclaw\.openclaw\.env" -Pattern "^[A-Z_][A-Z0-9_]*" |
+  ForEach-Object { ($_.Line -split "=", 2)[0] }
 ```
 
 Common secrets to track:
@@ -116,6 +126,10 @@ cat /etc/logrotate.d/openclaw 2>/dev/null
 sudo crontab -l 2>/dev/null | grep -i openclaw
 sudo -u openclaw crontab -l 2>/dev/null
 systemctl list-timers | grep openclaw
+
+# Windows: scheduled tasks
+Get-ScheduledTask | Where-Object TaskName -like "*OpenClaw*"
+Get-ScheduledTaskInfo -TaskName "OpenClaw Gateway"
 ```
 
 Also check for:
@@ -151,6 +165,13 @@ sudo apt install -y nodejs
 curl -fsSL https://get.docker.com | sudo sh
 ```
 
+**Windows:**
+```powershell
+winget install OpenJS.NodeJS.LTS
+winget install Docker.DockerDesktop
+# Enable Docker Desktop's WSL2 backend in Docker Desktop settings.
+```
+
 ### Create the dedicated user
 
 Follow the [Dedicated OS User](phase-6-deployment.md#dedicated-os-user) instructions from Phase 6.
@@ -165,6 +186,12 @@ curl -fsSL https://openclaw.ai/install.sh | bash
 
 # Verify the dedicated user can access it
 sudo -u openclaw openclaw --version
+```
+
+Windows PowerShell as the `openclaw` user:
+```powershell
+npm i -g openclaw
+openclaw --version
 ```
 
 ### Build the sandbox image
@@ -212,6 +239,10 @@ sudo chown -R openclaw:staff /Users/openclaw/.openclaw
 sudo mkdir -p /home/openclaw/.openclaw
 sudo tar xzf /tmp/openclaw-backup-*.tar.gz -C /home/openclaw/
 sudo chown -R openclaw:openclaw /home/openclaw/.openclaw
+
+# Windows PowerShell
+tar -xzf C:\Temp\openclaw-backup-*.tar.gz -C C:\Users\openclaw
+icacls "C:\Users\openclaw\.openclaw" /inheritance:r /grant:r "openclaw:(OI)(CI)F" "Administrators:(OI)(CI)F"
 ```
 
 ### Update paths in config
@@ -230,9 +261,20 @@ sudo -u openclaw sed -i 's|/Users/old-user|/home/openclaw|g' \
 # Linux → macOS
 sudo -u openclaw sed -i '' 's|/home/old-user|/Users/openclaw|g' \
   /Users/openclaw/.openclaw/openclaw.json
+
+# macOS/Linux → Windows (PowerShell)
+$OldWindowsHomeSlash = "C:/Users/old-openclaw"
+$OldWindowsHomeJson = 'C:\\Users\\old-openclaw'
+$NewWindowsHome = "C:/Users/openclaw"
+(Get-Content "C:\Users\openclaw\.openclaw\openclaw.json") `
+  -replace "/Users/old-user", $NewWindowsHome `
+  -replace "/home/old-user", $NewWindowsHome `
+  -replace [regex]::Escape($OldWindowsHomeSlash), $NewWindowsHome `
+  -replace [regex]::Escape($OldWindowsHomeJson), $NewWindowsHome |
+  Set-Content -Encoding utf8 "C:\Users\openclaw\.openclaw\openclaw.json"
 ```
 
-> **`sed -i` differs by OS.** On macOS, use `sed -i ''` (empty quotes required). On Linux, use `sed -i` (no quotes). The examples above show the correct syntax for each platform.
+> **Path replacement differs by OS.** On macOS, use `sed -i ''` (empty quotes required). On Linux, use `sed -i` (no quotes). On Windows, use PowerShell string replacement and prefer forward slashes in JSON paths (`C:/Users/openclaw/...`) to avoid escaping backslashes. Set `$OldWindowsHomeSlash` / `$OldWindowsHomeJson` to the source Windows profile path when migrating Windows → Windows or Windows → another OS.
 
 > **Review the config manually after `sed`.** Automated path replacement can miss embedded paths or catch false positives. Open `openclaw.json` and verify: workspace paths, `agentDir` paths, extension paths, `$include` paths, and any absolute paths in tool configurations all point to valid locations on the target.
 
@@ -363,11 +405,11 @@ sudo -u openclaw grep -rl "media_type" /Users/openclaw/.openclaw/agents/*/sessio
 
 ## Step 5 — Set Up Services
 
-### LaunchAgent / systemd
+### LaunchAgent / systemd / Task Scheduler
 
 Create new service files on the target — **don't copy plists or unit files** from the source, as they contain secrets and host-specific paths.
 
-Follow the [LaunchDaemon](phase-6-deployment.md#macos-launchdaemon) (macOS) or [systemd](phase-6-deployment.md#linux-systemd) instructions from Phase 6. For the LaunchAgent alternative (auto-login setups), see [LaunchAgent](phase-6-deployment.md#alternative-launchagent-auto-login-sessions-only).
+Follow the [LaunchDaemon](phase-6-deployment.md#macos-launchdaemon) (macOS), [systemd](phase-6-deployment.md#linux-systemd) (Linux), or [Task Scheduler](phase-6-deployment.md#windows-task-scheduler) (Windows) instructions from Phase 6. For the LaunchAgent alternative (auto-login setups), see [LaunchAgent](phase-6-deployment.md#alternative-launchagent-auto-login-sessions-only).
 
 ### Enter secrets
 
@@ -391,6 +433,17 @@ GITHUB_TOKEN=github_pat_...
 EOF
 sudo chown root:root /etc/openclaw/secrets.env
 sudo chmod 600 /etc/openclaw/secrets.env
+```
+
+**Windows:** Create the locked-down `.env` file:
+```powershell
+@"
+ANTHROPIC_API_KEY=sk-ant-...
+OPENCLAW_GATEWAY_TOKEN=<generate with openssl rand -hex 32 or another secure generator>
+BRAVE_API_KEY=...
+GITHUB_TOKEN=github_pat_...
+"@ | Set-Content -Encoding utf8 "C:\Users\openclaw\.openclaw\.env"
+icacls "C:\Users\openclaw\.openclaw\.env" /inheritance:r /grant:r "openclaw:F" "Administrators:F"
 ```
 
 > **Empty env vars cause startup failure.** For optional keys not yet provisioned, use a non-empty placeholder like `"not-configured"` — not an empty string.
@@ -442,6 +495,8 @@ sudo -u openclaw bash -c 'cd /Users/openclaw && HOME=/Users/openclaw npx -y play
 }
 ```
 
+**Windows** — recreate a scheduled cleanup/rotation task if you had one, or use the PowerShell rotation snippet from [Phase 6](phase-6-deployment.md#log-rotation).
+
 ### Session pruning
 
 Recreate any session cleanup cron from the source:
@@ -463,6 +518,7 @@ If using the image-gen plugin, add cleanup for generated temp images:
 ```
 
 > **macOS clears `/tmp` on reboot**, so this is mainly needed for long-running Linux servers.
+> **Windows:** Use `$env:TEMP\openclaw-image-gen` if the plugin writes under the service user's temp directory.
 
 ### Workspace git sync
 
@@ -508,6 +564,14 @@ sudo chmod -R 600 /home/openclaw/.openclaw/credentials/whatsapp/default/*
 sudo chmod 700 /home/openclaw/.openclaw/credentials/whatsapp
 ```
 
+**Windows:**
+```powershell
+icacls "C:\Users\openclaw" /inheritance:r /grant:r "openclaw:(OI)(CI)F" "Administrators:(OI)(CI)F"
+icacls "C:\Users\openclaw\.openclaw" /inheritance:r /grant:r "openclaw:(OI)(CI)F" "Administrators:(OI)(CI)F"
+icacls "C:\Users\openclaw\.openclaw\openclaw.json" /inheritance:r /grant:r "openclaw:F" "Administrators:F"
+icacls "C:\Users\openclaw\.openclaw\.env" /inheritance:r /grant:r "openclaw:F" "Administrators:F"
+```
+
 ### Admin access (optional)
 
 If you need to manage the service user's files from your admin account:
@@ -533,6 +597,9 @@ sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw enable
+
+# Windows
+Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True
 ```
 
 ### Tailscale (if applicable)
@@ -568,6 +635,9 @@ sudo launchctl bootstrap system /Library/LaunchDaemons/ai.openclaw.gateway.plist
 
 # Linux
 sudo systemctl enable --now openclaw-gateway
+
+# Windows PowerShell
+Start-ScheduledTask -TaskName "OpenClaw Gateway"
 ```
 
 ### Verification checklist
@@ -576,9 +646,11 @@ sudo systemctl enable --now openclaw-gateway
 # Gateway is running
 sudo launchctl print system/ai.openclaw.gateway 2>&1 | head -10  # macOS (LaunchDaemon)
 sudo systemctl status openclaw-gateway                            # Linux
+Get-ScheduledTaskInfo -TaskName "OpenClaw Gateway"                # Windows
 
 # Listening on correct port
 sudo lsof -i :18789
+Get-NetTCPConnection -LocalPort 18789                             # Windows
 
 # Health check
 curl -s -H "Authorization: Bearer <token>" http://127.0.0.1:18789/health
@@ -588,6 +660,7 @@ sudo -u openclaw bash -c 'cd /Users/openclaw && HOME=/Users/openclaw openclaw do
 
 # Recent logs (look for errors)
 tail -50 /Users/openclaw/.openclaw/logs/gateway.log
+Get-Content -Tail 50 "C:\Users\openclaw\.openclaw\logs\gateway.log"
 ```
 
 - [ ] Gateway starts and stays running (check logs for crash loops)
@@ -624,6 +697,7 @@ rm /tmp/openclaw-backup-*.tar.gz
 # On source: keep the backup, stop and disable the old service
 sudo launchctl bootout system/ai.openclaw.gateway  # macOS (LaunchDaemon)
 sudo systemctl disable --now openclaw-gateway       # Linux
+Stop-ScheduledTask -TaskName "OpenClaw Gateway"     # Windows
 ```
 
 > **Keep the source backup** for at least a few weeks. Channel sessions (especially WhatsApp) can silently fail days later if the credential migration has subtle issues.
@@ -636,7 +710,7 @@ For [multi-gateway deployments](../multi-gateway.md), repeat the process per ins
 
 - Its own OS user (e.g., `openclaw-bob`, `openclaw-tibra`)
 - Its own `.openclaw/` directory, config, and secrets
-- Its own LaunchAgent (or LaunchDaemon) with a unique label and port
+- Its own LaunchAgent, LaunchDaemon, systemd unit, or scheduled task with a unique label/name and port
 - Its own cron jobs for log rotation, session pruning, etc.
 
 Migrate instances independently — they share no state. The only shared components are host-level installs (Node.js, OrbStack, signal-cli).

@@ -14,7 +14,7 @@ Channel (WhatsApp / Signal / Google Chat / Control UI)
     v
 Main Agent (unsandboxed, all tools, no Docker)
     |
-    |-- exec (native: brew, xcode, python, node, git, ...)
+    |-- exec (native: brew, xcode, apt, PowerShell, python, node, git, ...)
     |-- browser (Playwright, screenshots, web automation)
     |-- sessions_send → Search Agent (web search delegation)
     |-- group:fs (full filesystem, file-guard blocks sensitive paths)
@@ -41,7 +41,7 @@ Main Agent (unsandboxed, all tools, no Docker)
 ## When to Choose This
 
 **This setup is for you when:**
-- You want full native macOS (or Linux) access — Xcode, Homebrew, GUI apps, ARM binaries
+- You want full native macOS, Linux, or Windows access — Xcode, Homebrew, apt packages, PowerShell, GUI apps, ARM binaries
 - Docker isn't practical or desired (macOS VM without nested virtualization, resource constraints)
 - Operational simplicity matters — one agent, one config, no delegation
 - You're running on a dedicated machine or inside a VM (not your daily-driver laptop with personal data)
@@ -98,7 +98,8 @@ Choose where to run the gateway:
 |--------|----------------|-------------|
 | **Dedicated machine** (non-admin user) | OS user boundary only | Machine has no personal data, dedicated to OpenClaw |
 | **Lume VM** (macOS in macOS) | Hypervisor boundary | Personal Mac, need macOS tools inside VM |
-| **Multipass/KVM VM** (Linux) | Hypervisor boundary | Any host, Linux tooling sufficient |
+| **Multipass/KVM/Hyper-V VM** (Linux) | Hypervisor boundary | Any host, Linux tooling sufficient |
+| **Windows native** (non-admin user) | OS user boundary only | Dedicated Windows machine, PowerShell/Windows tools needed |
 
 {{< callout type="warning" >}}
 **Don't run this unsandboxed on your daily-driver machine without a VM.** A compromised agent with full OS access can read anything the user can — browser cookies, SSH keys (unless file-guard is configured), documents, etc.
@@ -118,6 +119,15 @@ sudo chmod 700 /Users/openclaw
 # Linux
 sudo useradd -m -s /bin/bash openclaw
 sudo chmod 700 /home/openclaw
+```
+
+```powershell
+# Windows PowerShell as Administrator
+New-LocalUser -Name "openclaw" -FullName "OpenClaw" -Password (Read-Host -AsSecureString "Temporary password")
+Add-LocalGroupMember -Group "Users" -Member "openclaw"
+runas /profile /user:.\openclaw "cmd /c exit"
+if (!(Test-Path "C:\Users\openclaw")) { throw "Profile not created; log in once as .\openclaw and retry" }
+icacls "C:\Users\openclaw" /inheritance:r /grant:r "openclaw:(OI)(CI)F" "Administrators:(OI)(CI)F"
 ```
 
 ### Lume VM (macOS)
@@ -148,6 +158,18 @@ multipass shell openclaw-vm
 # Inside VM: create non-admin user (same as above)
 ```
 
+### Windows Native
+
+Use this only on a dedicated Windows machine or inside a Windows VM. Run the gateway as the non-admin `openclaw` user through Task Scheduler; see [Phase 6 — Windows: Task Scheduler](phases/phase-6-deployment.md#windows-task-scheduler).
+
+Use forward-slash paths in `openclaw.json`:
+
+```json
+{
+  "workspace": "C:/Users/openclaw/.openclaw/workspaces/main"
+}
+```
+
 ---
 
 ## Step 2: Install OpenClaw
@@ -162,6 +184,9 @@ brew install node@22
 # Linux:
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt-get install -y nodejs
+
+# Windows PowerShell:
+winget install OpenJS.NodeJS.LTS
 
 # Install OpenClaw
 npm i -g openclaw
@@ -353,5 +378,5 @@ openclaw plugin list
 
 - [Guard extension docs]({{< relref "extensions" >}}) — full configuration reference for each plugin
 - [Phase 3 — Security]({{< relref "phases/phase-3-security" >}}) — threat model and security baseline
-- [Phase 6 — Deployment]({{< relref "phases/phase-6-deployment" >}}) — run as a system service (LaunchAgent/systemd)
+- [Phase 6 — Deployment]({{< relref "phases/phase-6-deployment" >}}) — run as a system service (LaunchAgent/systemd/Task Scheduler)
 - [Recommended Configuration]({{< relref "examples/config" >}}) — the 2-agent Docker baseline if you want stronger isolation

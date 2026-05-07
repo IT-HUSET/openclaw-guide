@@ -53,7 +53,7 @@ Key differences from WhatsApp/Signal:
 6. Store the downloaded file on your gateway host:
 
 ```bash
-# Docker isolation (production — macOS; on Linux, replace /Users/openclaw/ with /home/openclaw/)
+# Docker isolation (production — macOS; on Linux, replace /Users/openclaw/ with /home/openclaw/; on Windows use C:/Users/openclaw/)
 sudo -u openclaw mkdir -p /Users/openclaw/.openclaw/credentials/googlechat
 sudo mv ~/Downloads/openclaw-chat-*.json \
   /Users/openclaw/.openclaw/credentials/googlechat/service-account.json
@@ -251,7 +251,7 @@ For production, use `serviceAccountFile` or the env var — keeps secrets out of
 1. Start/restart the gateway:
    ```bash
    openclaw start                    # Foreground (development)
-   # or restart the LaunchAgent/systemd service (production)
+   # or restart the LaunchAgent/systemd/Task Scheduler service (production)
    ```
 
 2. Check channel status:
@@ -396,6 +396,8 @@ For production, prefer the env var approach:
 ```bash
 # In LaunchAgent plist or systemd env file:
 GOOGLE_CHAT_SERVICE_ACCOUNT_FILE=/Users/openclaw/.openclaw/credentials/googlechat/service-account.json
+# Windows .env example:
+# GOOGLE_CHAT_SERVICE_ACCOUNT_FILE=C:/Users/openclaw/.openclaw/credentials/googlechat/service-account.json
 ```
 
 ### Public endpoint hardening
@@ -433,7 +435,7 @@ Google Cloud Logs shows `status code: 405`:
 3. **Gateway not restarted** after adding config:
    ```bash
    openclaw gateway restart          # Development
-   # or restart LaunchAgent/systemd  # Production
+   # or restart LaunchAgent/systemd/Task Scheduler  # Production
    ```
 
 ### No messages arriving

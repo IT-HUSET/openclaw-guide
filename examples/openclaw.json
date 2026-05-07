@@ -31,16 +31,21 @@
   //                      internal agent isolation via Docker sandboxing.
   //   VM: macOS VMs — Lume / Parallels: stronger host isolation, no Docker inside VM.
   //                   Remove all "sandbox" blocks; tool policy provides internal isolation.
-  //   VM: Linux VMs — Multipass / KVM: strongest combined posture (VM boundary + Docker).
+  //   VM: Linux VMs — Multipass / KVM / Hyper-V: strongest combined posture (VM boundary + Docker).
   //                   Keep "sandbox" blocks — Docker works inside Linux VMs.
+  //   Windows native — works with Docker Desktop (WSL2 backend). Use C:/Users/openclaw/...
+  //                    paths and Task Scheduler; use Linux VM/WSL2-side firewall for strict egress.
   //   See Phase 3 — Security for the full trade-off analysis.
   //
   // Replace placeholder values:
   //   +46XXXXXXXXX  → your phone number
   //   user@yourdomain.com → your Google Chat email
   //   <node-name>.<tailnet> → your Tailscale node
+  //   /Users/openclaw → your home path. On Windows, use forward slashes:
+  //                     C:/Users/openclaw/.openclaw/...
   //
-  // Environment variables (set in LaunchAgent plist or systemd EnvironmentFile, or LaunchDaemon for hardened setup):
+  // Environment variables (set in LaunchAgent plist, systemd EnvironmentFile,
+  // Windows .env file, or LaunchDaemon for hardened setup):
   //   OPENCLAW_GATEWAY_TOKEN
   //   ANTHROPIC_API_KEY
   //   BRAVE_API_KEY (or OPENROUTER_API_KEY for Perplexity)

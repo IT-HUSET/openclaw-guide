@@ -8,6 +8,6 @@ Complete annotated `openclaw.json` implementing the recommended two-agent archit
 
 Main runs on `openclaw-egress` — a custom Docker network with host-level firewall rules restricting outbound to pre-approved hosts (npm, git, Playwright CDN, etc.). See [`scripts/network-egress/`](https://github.com/IT-HUSET/openclaw-guide/tree/main/scripts/network-egress/) for setup. For exec-separated architecture with a dedicated computer agent, see [Hardened Multi-Agent](../hardened-multi-agent.md). For a minimal starting point (single channel, two agents, no egress), see [Basic Configuration](basic-config.md).
 
-Three deployment postures are covered: Docker isolation (this config), macOS VM isolation (remove sandbox blocks), and Linux VM isolation (keep sandbox blocks). See [Phase 3 — Security](../phases/phase-3-security.md#deployment-isolation-options) for the full trade-off analysis.
+Deployment postures are covered for macOS, Linux, and Windows: Docker isolation (this config), macOS VM isolation (remove sandbox blocks), and Linux VM isolation (keep sandbox blocks). On Windows, use Docker Desktop's WSL2 backend and forward-slash paths such as `C:/Users/openclaw/.openclaw/...`; use a Linux VM/WSL2-side firewall for strict egress allowlisting. See [Phase 3 — Security](../phases/phase-3-security.md#deployment-isolation-options) for the full trade-off analysis.
 
 {{< readfile "examples/openclaw.json" "json5" >}}

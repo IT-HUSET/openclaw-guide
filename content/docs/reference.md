@@ -340,6 +340,7 @@ Use `openclaw config file` (added in 2026.3.1) to print the active config file p
 
 ```bash
 openclaw config file                  # Prints e.g. /Users/openclaw/.openclaw/openclaw.json
+                                      # or C:/Users/openclaw/.openclaw/openclaw.json on Windows
 ```
 
 Use `openclaw config schema` (added in 2026.3.28) to print the generated JSON schema for `openclaw.json`:
@@ -350,7 +351,7 @@ openclaw config schema                # Print full JSON schema for openclaw.json
 
 ### Environment Files
 
-OpenClaw reads `.env` files (non-overriding) from: CWD `.env` → `~/.openclaw/.env` → config `env` block. Alternative to putting secrets in plist/systemd env vars.
+OpenClaw reads `.env` files (non-overriding) from: CWD `.env` → `~/.openclaw/.env` → config `env` block. Alternative to putting secrets in plist/systemd env vars, and the recommended Windows Task Scheduler secret mechanism. On Windows this is typically `C:\Users\openclaw\.openclaw\.env` locked down with `icacls`.
 
 ---
 
@@ -565,7 +566,7 @@ These are owner-only even when enabled. Tool policy still applies — `/elevated
 
 30. **Environment variable substitution only matches `[A-Z_][A-Z0-9_]*`** — lowercase vars won't resolve. Missing vars throw errors at config load.
 
-31. **`openclaw gateway stop/restart` works with LaunchAgent but not LaunchDaemon** — OpenClaw's built-in gateway commands (`openclaw gateway stop`, `openclaw gateway restart`) manage LaunchAgents (`gui/<uid>` domain) and systemd user services. The default LaunchAgent setup works with these commands. If you use the hardened **LaunchDaemon** alternative (`system` domain) or systemd **system** service, these commands won't find it — use `launchctl bootout`/`bootstrap` or `systemctl restart` directly. Additionally, `KeepAlive: true` (launchd) or `Restart=always` (systemd) causes the service manager to immediately respawn a killed process, which can race with OpenClaw's own restart logic.
+31. **`openclaw gateway stop/restart` works with LaunchAgent but not LaunchDaemon/system services** — OpenClaw's built-in gateway commands (`openclaw gateway stop`, `openclaw gateway restart`) manage LaunchAgents (`gui/<uid>` domain) and systemd user services. The default LaunchAgent setup works with these commands. If you use the hardened **LaunchDaemon** alternative (`system` domain), systemd **system** service, or Windows Task Scheduler task, these commands won't find it — use `launchctl bootout`/`bootstrap`, `systemctl restart`, or `Stop-ScheduledTask`/`Start-ScheduledTask` directly. Additionally, `KeepAlive: true` (launchd), `Restart=always` (systemd), or scheduled-task restart settings can immediately respawn a killed process, which can race with OpenClaw's own restart logic.
 
 ### Plugins
 
@@ -751,14 +752,19 @@ openclaw status                             # Gateway status
 openclaw dashboard                          # Open browser UI
 openclaw logs                               # View logs
 
-# Gateway management — LaunchDaemon (macOS) / systemd (Linux)
-# scripts/docker-isolation/gateway.sh wraps these for both platforms + multi-instance
+# Gateway management — LaunchDaemon (macOS) / systemd (Linux) / Task Scheduler (Windows)
+# scripts/docker-isolation/gateway.sh wraps macOS/Linux service management + multi-instance
 bash scripts/gateway.sh start    [instance]  # Start
 bash scripts/gateway.sh stop     [instance]  # Stop
 bash scripts/gateway.sh restart  [instance]  # Restart
 bash scripts/gateway.sh status   [instance]  # Status
 bash scripts/gateway.sh reload   [instance]  # Reload config (SIGUSR1, no restart)
 bash scripts/gateway.sh logs     <instance>  # Tail logs (instance required for multi)
+
+# Windows Task Scheduler
+Start-ScheduledTask -TaskName "OpenClaw Gateway"
+Stop-ScheduledTask -TaskName "OpenClaw Gateway"
+Get-ScheduledTaskInfo -TaskName "OpenClaw Gateway"
 
 # Diagnostics & security
 openclaw doctor                             # Diagnose config issues
