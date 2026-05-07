@@ -230,7 +230,7 @@ describe("extractFilePathsFromCommand", () => {
 // Section 4: Plugin integration (mock OpenClaw API)
 // ---------------------------------------------------------------------------
 describe("plugin before_tool_call", () => {
-  async function getHandler(pluginCfg: Record<string, any> = {}) {
+  async function getHandler(pluginCfg: Record<string, any> = {}, apiExtras: Record<string, any> = {}) {
     // Dynamic import to get a fresh module
     const mod = await import("../index.ts");
     const plugin = mod.default;
@@ -245,6 +245,7 @@ describe("plugin before_tool_call", () => {
           },
         },
       },
+      ...apiExtras,
       on(event: string, fn: Function) {
         if (event === "before_tool_call") handler = fn;
       },
@@ -574,9 +575,8 @@ describe("plugin before_tool_call", () => {
       // "search" agent should be blocked from internal-docs
       const blockedAgent = await handler!({
         toolName: "read",
-        agentId: "search",
         params: { file_path: "/Users/test/project/internal-docs/secret.md" },
-      });
+      }, { agentId: "search" });
       assert.ok(blockedAgent?.block, "search agent should be blocked from internal-docs");
 
       // Default agent (no agentId) should NOT be blocked from internal-docs
@@ -589,13 +589,38 @@ describe("plugin before_tool_call", () => {
       // Both agents should be blocked from .env (base config)
       const blockedBase = await handler!({
         toolName: "read",
-        agentId: "search",
         params: { file_path: "/Users/test/.env" },
-      });
+      }, { agentId: "search" });
       assert.ok(blockedBase?.block, "search agent inherits base .env block");
     } finally {
       fs.unlinkSync(baseFile);
       fs.unlinkSync(agentFile);
+    }
+  });
+
+  it("uses the runtime workspace resolver when resolving relative paths", async () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "file-guard-workspace-"));
+    const envPath = path.join(workspace, ".env");
+    fs.writeFileSync(envPath, "SECRET=value");
+
+    try {
+      const handler = await getHandler({}, {
+        runtime: {
+          agent: {
+            resolveAgentWorkspaceDir(_config: unknown, agentId?: string) {
+              assert.equal(agentId, "main");
+              return workspace;
+            },
+          },
+        },
+      });
+      const result = await handler({
+        toolName: "bash",
+        params: { command: "cat .env" },
+      }, { agentId: "main" });
+      assert.ok(result?.block, "relative .env should resolve against the runtime workspace");
+    } finally {
+      fs.rmSync(workspace, { recursive: true, force: true });
     }
   });
 });

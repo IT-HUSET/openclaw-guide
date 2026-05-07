@@ -10,7 +10,7 @@ Scans incoming channel messages (WhatsApp, Signal, Google Chat) for prompt injec
 
 ## How it works
 
-Hooks into `message_received` (fires when a channel message arrives, before the agent processes it) and classifies message text with an LLM via OpenRouter (default model: `anthropic/claude-haiku-4-5`).
+Hooks into `before_dispatch` (fires after channel routing and before the agent processes the message) and classifies message text with an LLM via OpenRouter (default model: `anthropic/claude-haiku-4-5`). OpenClaw 2026.5.6 treats `message_received` as fire-and-forget, so blocking must happen in `before_dispatch`.
 
 **Three-tier response based on detection score:**
 
@@ -83,8 +83,8 @@ WhatsApp/Signal/Google Chat message
         |
         v
   +-----------------+
-  | message_        |
-  | received        |--> OpenRouter LLM classifier
+  | before_         |
+  | dispatch        |--> OpenRouter LLM classifier
   | hook            |         |
   +-----------------+         v
         |          score < 0.4 --> pass
@@ -99,7 +99,7 @@ WhatsApp/Signal/Google Chat message
 
 | | content-guard | channel-guard |
 |---|---|---|
-| **Hook** | `before_tool_call` | `message_received` |
+| **Hook** | `before_tool_call` | `before_dispatch` |
 | **Intercepts** | `sessions_send` | Inbound channel messages |
 | **Protects** | Inter-agent sessions_send boundary | Inbound channel messages |
 | **Threat** | Poisoned web content crossing agent boundary | Adversarial user messages |
@@ -107,7 +107,7 @@ WhatsApp/Signal/Google Chat message
 
 ## Limitations
 
-- **Channel messages only**: The `message_received` hook fires only for configured channel messages (WhatsApp, Signal, Google Chat bridges). It does **not** fire for HTTP chat completions API requests or Control UI messages. This is by design — channel-guard protects the channel perimeter, not the API surface. (Tested against OpenClaw 2026.2.12.)
+- **Channel messages only**: The `before_dispatch` hook runs for configured channel messages (WhatsApp, Signal, Google Chat bridges). It does **not** protect HTTP chat completions API requests or Control UI messages. This is by design — channel-guard protects the channel perimeter, not the API surface. (Reviewed against OpenClaw 2026.5.6.)
 - **TOCTOU**: The model sees the message text at hook time. If the platform modifies the message after the hook fires, the classification may not match the final content the agent sees. In practice this is unlikely for channel messages.
 - **Probabilistic detection**: LLM classification can still produce false positives/negatives. Tune `warnThreshold`/`blockThreshold` for your risk tolerance.
-- **Warn mechanism**: The `warn` return value depends on OpenClaw's `message_received` hook supporting `{ warn: true, warnMessage }`. If unsupported, warnings are logged but not injected into agent context. Blocking (`{ block: true }`) is the primary defense.
+- **Warn mechanism**: Warnings are queued with `enqueueNextTurnInjection` when OpenClaw provides a `sessionKey` for the dispatch. If warning injection fails while `failOpen: false`, the message is blocked; if the runtime cannot provide a session key, warnings are logged and the message passes without injected context. Blocking uses `before_dispatch` handling and is the primary defense.

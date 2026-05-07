@@ -19,10 +19,13 @@ This changelog tracks documentation changes — not OpenClaw releases themselves
 
 ## 2026-05-07 — Search provider configuration correction
 
+- Bumped the guide baseline to **OpenClaw 2026.5.6** and updated the docs index, hardened multi-agent prerequisite, project memory, and security review checklist references
+- Patched guard extensions for the current OpenClaw plugin SDK: `channel-guard` now blocks via `before_dispatch`, queues medium-confidence warnings through `enqueueNextTurnInjection`, and fails closed when warning injection cannot be queued; `content-guard`, `file-guard`, and `network-guard` now use hook context for agent/workspace resolution instead of stale event fields
+- Updated guard extension tests for the 2026.5.6 hook shapes, including coverage for `before_dispatch`, search-agent caller detection, runtime workspace resolution, and failed warning injection
 - Updated Phase 5 web search setup to match current OpenClaw docs: shared search settings stay under `tools.web.search.*`, while provider credentials and provider-specific options live under `plugins.entries.<provider>.config.webSearch.*`
 - Updated DuckDuckGo, Brave, Perplexity/OpenRouter, Grok/xAI, and SearXNG examples, including Brave `llm-context` mode and SearXNG `baseUrl`
 - Updated recommended, basic, and pragmatic example configs to use DuckDuckGo by default, explicitly enable `plugins.bundledDiscovery: "allowlist"`, and include the selected `web_search` provider plugin in restrictive `plugins.allow` lists
-- Updated tool group references so `group:web` includes `x_search`
+- Updated tool group references so `group:web` includes `x_search`, and documented `x_search` alongside `web_search`/`web_fetch` in restrictive-agent deny lists
 - Added a Personal Assistant Setup recipe for a private OpenClaw assistant reachable from WhatsApp, Signal, Slack, or Telegram
 - Included channel-specific starter blocks for WhatsApp, Signal, Slack, and Telegram with conservative allowlist, group policy, and mention-gating guidance
 - Added reusable AGENTS.md operating instructions for personal-assistant behavior, privacy boundaries, memory use, task/reminder conventions, outbound-message confirmation, and group-chat etiquette

@@ -81,7 +81,7 @@ The **computer agent** does the actual work — full runtime access + browser au
 
 | Layer | What it stops | Enforcement |
 |-------|--------------|-------------|
-| channel-guard | Prompt injection from channels | Plugin hook (`message_received`) |
+| channel-guard | Prompt injection from channels | Plugin hook (`before_dispatch`) |
 | content-guard | Prompt injection in search agent results | Plugin hook (`before_tool_call`/`sessions_send`) |
 | file-guard | Read/write/delete of sensitive file paths | Plugin hook (`before_tool_call`) — deterministic |
 | network-guard | Network requests to non-allowlisted domains | Plugin hook (`before_tool_call`) — deterministic |
@@ -237,7 +237,7 @@ Starting from the [recommended 2-agent config](examples/config.md), you need to:
         "agentDir": "~/.openclaw/agents/computer/agent",
         "tools": {
           "allow": ["group:runtime", "group:fs", "memory_search", "memory_get", "group:sessions", "browser"],
-          "deny": ["web_search", "web_fetch", "canvas", "message"],
+          "deny": ["web_search", "web_fetch", "x_search", "canvas", "message"],
           "elevated": { "enabled": false }
         },
         "subagents": { "allowAgents": ["search"] },
@@ -510,7 +510,7 @@ Add a fourth agent (on top of this 3-agent hardened variant) for unsandboxed ope
   "workspace": "~/.openclaw/workspaces/dev",
   "agentDir": "~/.openclaw/agents/dev/agent",
   "tools": {
-    "deny": ["web_search", "web_fetch", "browser", "message"]
+    "deny": ["web_search", "web_fetch", "x_search", "browser", "message"]
   },
   "sandbox": { "mode": "off" },
   "subagents": { "allowAgents": ["search"] }
@@ -545,7 +545,7 @@ Run the computer agent with `sandbox.mode: "off"`:
   "agentDir": "~/.openclaw/agents/computer/agent",
   "tools": {
     "allow": ["group:runtime", "group:fs", "memory_search", "memory_get", "group:sessions", "browser"],
-    "deny": ["web_search", "web_fetch", "message"]
+    "deny": ["web_search", "web_fetch", "x_search", "message"]
   },
   "sandbox": { "mode": "off" },  // No Docker, runs on host
   "subagents": { "allowAgents": ["search"] }

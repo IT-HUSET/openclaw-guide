@@ -197,7 +197,7 @@ Add a dedicated Google Chat agent alongside the existing WhatsApp/Signal agents:
         "workspace": "/Users/openclaw/.openclaw/workspaces/googlechat",
         "agentDir": "/Users/openclaw/.openclaw/agents/googlechat/agent",
         "tools": {
-          "deny": ["web_search", "web_fetch", "browser", "exec", "process"],
+          "deny": ["web_search", "web_fetch", "x_search", "browser", "exec", "process"],
           "elevated": { "enabled": false }
         },
         "subagents": { "allowAgents": ["main", "search", "browser"] }
@@ -410,7 +410,7 @@ GOOGLE_CHAT_SERVICE_ACCOUNT_FILE=/Users/openclaw/.openclaw/credentials/googlecha
 
 ### Channel-guard compatibility
 
-The [channel-guard plugin](extensions/channel-guard.md) scans inbound channel messages for prompt injection. Google Chat messages flow through the same `message_received` hook as WhatsApp/Signal — channel-guard works with Google Chat if the channel bridge is configured.
+The [channel-guard plugin](extensions/channel-guard.md) scans inbound channel messages for prompt injection. Google Chat messages flow through the same `before_dispatch` path as WhatsApp/Signal — channel-guard works with Google Chat if the channel bridge is configured.
 
 ---
 

@@ -166,7 +166,7 @@ Different agents can have additional protection rules:
 
 | | channel-guard | content-guard | file-guard | network-guard | command-guard |
 |---|---|---|---|---|---|
-| **Hook** | `message_received` | `before_tool_call` | `before_tool_call` | `before_tool_call` | `before_tool_call` |
+| **Hook** | `before_dispatch` | `before_tool_call` | `before_tool_call` | `before_tool_call` | `before_tool_call` |
 | **Method** | LLM via OpenRouter | LLM via OpenRouter | Deterministic patterns | Deterministic regex + glob | Regex patterns |
 | **Protects** | Inbound channels | Inter-agent boundary | File system | Network access | Shell execution |
 | **Latency** | ~100-500ms | ~500ms-2s | <10ms | <5ms | <5ms |

@@ -96,7 +96,7 @@ A pipe-to-shell match is only blocked if at least one pipe target is **not** in 
 
 | | channel-guard | content-guard | file-guard | network-guard | command-guard |
 |---|---|---|---|---|---|
-| **Hook** | `message_received` | `before_tool_call` | `before_tool_call` | `before_tool_call` | `before_tool_call` |
+| **Hook** | `before_dispatch` | `before_tool_call` | `before_tool_call` | `before_tool_call` | `before_tool_call` |
 | **Protects** | Inbound channel messages | Inter-agent boundary | File system | Network access | Shell execution |
 | **Method** | LLM via OpenRouter | LLM via OpenRouter | Deterministic patterns | Deterministic regex + glob | Regex patterns |
 | **Dependencies** | OpenRouter API key | OpenRouter API key | None | None | None |

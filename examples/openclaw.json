@@ -357,7 +357,7 @@
       // Add when using hardening plugins:
       // "file-guard", "network-guard", "command-guard"
       // Add/swap when using alternate search providers:
-      // "perplexity", "xai", "searxng", "firecrawl", "exa", "gemini", "kimi", "tavily"
+      // "perplexity", "xai", "searxng", "firecrawl", "exa", "google", "kimi", "tavily"
     ],
     "entries": {
       "duckduckgo": { "enabled": true },

@@ -115,7 +115,7 @@ All tests are mock-based — no API key needed, completes in <1s.
 
 | | channel-guard | content-guard | file-guard | network-guard | command-guard |
 |---|---|---|---|---|---|
-| **Hook** | `message_received` | `before_tool_call` | `before_tool_call` | `before_tool_call` | `before_tool_call` |
+| **Hook** | `before_dispatch` | `before_tool_call` | `before_tool_call` | `before_tool_call` | `before_tool_call` |
 | **Method** | LLM (OpenRouter) | LLM (OpenRouter) | Deterministic patterns | Deterministic regex + glob | Regex patterns |
 | **Protects** | Inbound channels | Agent-to-agent messages | File system | Network access | Shell execution |
 | **Latency** | ~100–500ms | ~500ms–2s | <10ms | <5ms | <5ms |

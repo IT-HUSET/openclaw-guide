@@ -314,10 +314,12 @@ export default {
       return { blocked: false };
     }
 
-    api.on("before_tool_call", async (event: any) => {
+    api.on("before_tool_call", async (event: any, ctx: any = {}) => {
       if (!GUARDED_TOOLS.includes(event.toolName)) return;
 
       try {
+        const agentId = ctx.agentId ?? event.agentId;
+
         // --- web_fetch ---
         if (event.toolName === "web_fetch") {
           const url = event.params?.url as string;
@@ -331,11 +333,11 @@ export default {
             };
           }
 
-          const result = await checkDomain(domain, event.agentId);
+          const result = await checkDomain(domain, agentId);
           if (result.blocked) {
             if (logBlocks) {
               console.warn(
-                `[network-guard] BLOCKED web_fetch (agent: ${event.agentId ?? "unknown"}, domain: ${domain}): ${result.reason}`,
+                `[network-guard] BLOCKED web_fetch (agent: ${agentId ?? "unknown"}, domain: ${domain}): ${result.reason}`,
               );
             }
             return {
@@ -359,7 +361,7 @@ export default {
           if (blockedPattern) {
             if (logBlocks) {
               console.warn(
-                `[network-guard] BLOCKED exec (agent: ${event.agentId ?? "unknown"}): matched exfiltration pattern`,
+                `[network-guard] BLOCKED exec (agent: ${agentId ?? "unknown"}): matched exfiltration pattern`,
               );
             }
             return {
@@ -374,11 +376,11 @@ export default {
             const domain = extractDomain(url);
             if (!domain) continue;
 
-            const result = await checkDomain(domain, event.agentId);
+            const result = await checkDomain(domain, agentId);
             if (result.blocked) {
               if (logBlocks) {
                 console.warn(
-                  `[network-guard] BLOCKED exec (agent: ${event.agentId ?? "unknown"}, domain: ${domain}): ${result.reason}`,
+                  `[network-guard] BLOCKED exec (agent: ${agentId ?? "unknown"}, domain: ${domain}): ${result.reason}`,
                 );
               }
               return {

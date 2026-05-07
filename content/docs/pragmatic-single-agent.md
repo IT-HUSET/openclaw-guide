@@ -61,7 +61,7 @@ No Docker means no filesystem boundary, no network namespace, no process isolati
 |-------|--------------|-------------|
 | **OS user** (non-admin, no sudo) | Privilege escalation, system modification | OS kernel |
 | **VM boundary** (optional) | Host compromise, personal data access | Hypervisor |
-| **channel-guard** | Prompt injection from channels | ML hook (`message_received`) |
+| **channel-guard** | Prompt injection from channels | ML hook (`before_dispatch`) |
 | **content-guard** | Prompt injection in search results (sessions_send) | LLM hook (`before_tool_call`) |
 | **file-guard** | Reads/writes to `.env`, `.ssh/*`, `*.pem`, credentials | Deterministic hook (`before_tool_call`) |
 | **network-guard** | Exfiltration via `curl`, `wget`, non-allowlisted domains | Deterministic hook (`before_tool_call`) |

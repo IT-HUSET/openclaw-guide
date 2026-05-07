@@ -73,7 +73,7 @@ Primarily documentation (Markdown + annotated JSON config examples), plus TypeSc
 - **VM: Linux VMs:** single Linux VM with Docker inside, dedicated user (docker group, no sudo), multi-agent gateway. macOS, Linux, or Windows hosts. No VM count limit
 - **Multi-gateway options:** profiles (`--profile` flag, simplest), multi-user (separate OS users), VM variants (one VM per channel)
 - Official docs: https://docs.openclaw.ai
-- **Guide baseline version:** stored in `.guide-version` (currently 2026.2.22). The changelog review workflow (`.github/workflows/changelog-review.yml`) runs weekly to detect drift
+- **Guide baseline version:** stored in `.guide-version` (currently 2026.5.6). The changelog review workflow (`.github/workflows/changelog-review.yml`) runs weekly to detect drift
 
 ## Testing
 
@@ -103,7 +103,7 @@ cd .openclaw-test && npm install && npm test
 ```
 Starts an OpenClaw gateway, sends messages via HTTP chat completions API, verifies plugin behavior. Requires `.env` at project root with `ANTHROPIC_API_KEY` and `OPENCLAW_GATEWAY_TOKEN`.
 
-**Known behavior:** `message_received` hook (used by channel-guard) only fires for configured channel bridges (WhatsApp/Signal), not for HTTP API messages. `before_tool_call` (used by content-guard and network-guard) fires for all tool calls regardless of message source. Computer-use smoke tests require a running Lume VM and `cua-computer-server`.
+**Known behavior:** `before_dispatch` (used by channel-guard) protects configured channel bridges (WhatsApp/Signal/Google Chat), not HTTP API messages. `message_received` is fire-and-forget in current OpenClaw releases and should be used for logging/metrics rather than blocking. `before_tool_call` (used by content-guard and network-guard) fires for all tool calls regardless of message source. Computer-use smoke tests require a running Lume VM and `cua-computer-server`.
 
 ## Conventions
 

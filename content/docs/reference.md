@@ -648,6 +648,8 @@ Features below require the listed version or later. Check yours with `openclaw -
 | 2026.4.11 | Dreaming ChatGPT import ingestion + `Imported Insights`/`Memory Palace` diary subtabs; `asyncCompletion` recognized in config schema (previously failed with unrecognized-key error); `video_generate` URL-only asset delivery, typed `providerOptions`, reference audio inputs, `adaptive` aspect-ratio support | — |
 | 2026.4.12 | Bundled LM Studio provider with local model discovery and memory-search embeddings; Active Memory plugin improvements (default QMD recall to search, stronger recall paths); busybox/toybox removed from exec safe-bins; empty approver list fails closed; shell-wrapper/env-argv injection blocked; gateway fails startup on placeholder credentials from `.env.example` | Security: see [Phase 3](phases/phase-3-security.md) version note; if safe-bins relied on busybox/toybox, add paths to `tools.exec.safeBinTrustedDirs` |
 | 2026.4.14 | Security hardening: model-facing `config.patch`/`config.apply` blocked for all `openclaw security audit`-flagged flags; browser SSRF enforced on snapshot/screenshot/tab routes; Control UI ReDoS fix (marked.js → markdown-it); doctor/systemd no longer re-embeds dotenv secrets on repair; Slack `allowFrom` applied to block-action/modal events; Ollama streaming usage fix (prevents premature compaction); `sendPolicy: "deny"` no longer blocks inbound processing | See [Phase 3](phases/phase-3-security.md) version note for security details |
+| 2026.5.5 | Channel/provider fixes and dependency hardening: Slack startup allowlist gating, LINE webhook DM validation, vulnerable `ip-address` override, and security overrides applied inside managed external plugin npm roots | Recommended for plugin-heavy deployments |
+| 2026.5.6 | Runtime fetch/header cleanup for plugins and debug proxy; guarded web-fetch timeout cleanup | Guard extensions reviewed against this version |
 
 ---
 
@@ -666,7 +668,7 @@ Features below require the listed version or later. Check yours with `openclaw -
 | `image-gen` | Generate images from text prompts via OpenRouter | `OPENROUTER_API_KEY` |
 | `computer-use` | VM computer interaction (Lume) | — (WebSocket to cua-computer-server) |
 
-The `content-guard` plugin intercepts `sessions_send` calls at the search→main trust boundary, classifying message content for prompt injection using an LLM (claude-haiku-4-5 via OpenRouter). It identifies search-agent traffic by the `params.sessionKey` of the `sessions_send` call (sessions targeting `agent:search:*`); all other `sessions_send` calls (e.g. proactive group delivery) are skipped without scanning. Note: `event.agentId` is not populated by the runtime for `before_tool_call` events — rely on `params.sessionKey` for caller identification. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages before agent processing using an OpenRouter LLM classifier with warn/block thresholds, fail-closed by default (`failOpen: false`). Both are included in the [recommended configuration](examples/config.md).
+The `content-guard` plugin intercepts `sessions_send` calls at the search→main trust boundary, classifying message content for prompt injection using an LLM (claude-haiku-4-5 via OpenRouter). It identifies search-agent traffic from the `before_tool_call` hook context (`ctx.agentId`); all other `sessions_send` calls (for example, main→search delegation, proactive group delivery, or hook events without a caller agent id) are skipped without scanning. The `channel-guard` plugin scans incoming WhatsApp/Signal/Google Chat messages in `before_dispatch` using an OpenRouter LLM classifier with warn/block thresholds, fail-closed by default (`failOpen: false`). Both are included in the [recommended configuration](examples/config.md).
 
 The `file-guard`, `network-guard`, and `command-guard` plugins provide deterministic enforcement — no ML model, no external dependencies. `file-guard` enforces path-based file protection with three levels (no_access, read_only, no_delete). `network-guard` enforces application-level domain allowlisting for `web_fetch` and `exec` tool calls. `command-guard` blocks dangerous shell commands (rm -rf, fork bombs, force push, etc.) via regex. All three are included in the [hardened multi-agent](hardened-multi-agent.md) configuration and can optionally be added to any deployment. See [Phase 5](phases/phase-5-web-search.md#additional-hardening-guards) for overview and the [extension docs](extensions/) for full configuration.
 
@@ -677,7 +679,8 @@ Plugins can register handlers for these lifecycle hooks:
 | Hook | When it fires | Example use |
 |------|--------------|-------------|
 | `before_tool_call` | Before a tool executes; supports async `requireApproval` (2026.3.28+) to pause execution for user approval | content-guard: classify sessions_send content |
-| `message_received` | Incoming channel message (WhatsApp/Signal/Google Chat) | channel-guard: scan for injection |
+| `before_dispatch` | After channel routing and before an inbound channel message is dispatched to the agent; can handle/block the dispatch | channel-guard: scan and block inbound injection |
+| `message_received` | Incoming channel message notification; fire-and-forget in current OpenClaw releases | Logging and metrics |
 | `llm_input` | Before prompt is sent to the model (added 2026.2.16) | Input logging, token counting, content filtering |
 | `llm_output` | After model response received (added 2026.2.16) | Output logging, response filtering, compliance checks |
 

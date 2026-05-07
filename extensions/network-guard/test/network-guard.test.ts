@@ -423,24 +423,21 @@ describe("plugin before_tool_call", () => {
     // search agent can access npmjs.org (override) + github.com (base)
     const r1 = await handler({
       toolName: "web_fetch",
-      agentId: "search",
       params: { url: "https://npmjs.org/package/foo" },
-    });
+    }, { agentId: "search" });
     assert.equal(r1, undefined);
 
     const r2 = await handler({
       toolName: "web_fetch",
-      agentId: "search",
       params: { url: "https://github.com/repo" },
-    });
+    }, { agentId: "search" });
     assert.equal(r2, undefined);
 
     // main agent cannot access npmjs.org (no override)
     const r3 = await handler({
       toolName: "web_fetch",
-      agentId: "main",
       params: { url: "https://npmjs.org/package/foo" },
-    });
+    }, { agentId: "main" });
     assert.ok(r3?.block);
   });
 

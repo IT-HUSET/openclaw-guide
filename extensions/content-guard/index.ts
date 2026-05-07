@@ -152,18 +152,19 @@ export default {
       `[content-guard] Registered — model: ${cfg.model}, maxContentLength: ${cfg.maxContentLength}`,
     );
 
-    api.on("before_tool_call", async (event: any) => {
+    api.on("before_tool_call", async (event: any, ctx: any = {}) => {
       if (event.toolName !== "sessions_send") return;
 
       // Only scan sessions_send from search agent sessions — guards the search→main boundary.
-      // The runtime doesn't populate event.agentId, but params.sessionKey identifies the
-      // target session: search agent sends target "agent:search:*" sessions.
+      // OpenClaw 2026.5.6 exposes the caller agent through the hook context.
+      const callerAgentId: string = ctx.agentId ?? event.agentId ?? "";
       const sessionKey: string = event.params?.sessionKey ?? "";
-      const isSearchAgent = sessionKey.startsWith("agent:search:");
+      const isSearchAgent = callerAgentId === "search";
 
       if (cfg.logDetections) {
         console.log(
-          `[content-guard] sessions_send to ${sessionKey || "<none>"} — ${isSearchAgent ? "scanning" : "skipping"}`,
+          `[content-guard] sessions_send from ${callerAgentId || "<unknown>"} ` +
+          `to ${sessionKey || "<none>"} — ${isSearchAgent ? "scanning" : "skipping"}`,
         );
       }
       if (!isSearchAgent) return;

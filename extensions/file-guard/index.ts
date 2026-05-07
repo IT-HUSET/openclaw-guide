@@ -392,7 +392,7 @@ export default {
       `(failOpen: ${failOpen}, levels: ${[...baseMatchers.levels.keys()].join(", ")})`,
     );
 
-    api.on("before_tool_call", async (event: any) => {
+    api.on("before_tool_call", async (event: any, ctx: any = {}) => {
       if (!GUARDED_TOOLS.includes(event.toolName)) return;
 
       try {
@@ -404,9 +404,14 @@ export default {
           };
         }
 
-        const cwd = event.cwd ?? process.cwd();
-        const matchers = (event.agentId && agentMatchers.has(event.agentId))
-          ? agentMatchers.get(event.agentId)!
+        const agentId = ctx.agentId ?? event.agentId;
+        const cwd =
+          event.cwd ??
+          ctx.workspaceDir ??
+          api.runtime?.agent?.resolveAgentWorkspaceDir?.(api.config, agentId) ??
+          process.cwd();
+        const matchers = (agentId && agentMatchers.has(agentId))
+          ? agentMatchers.get(agentId)!
           : baseMatchers;
 
         // --- Direct file tools ---
@@ -421,7 +426,7 @@ export default {
             const selfMatch = checkPath(filePath, cwd, matchers, selfProtectionMatcher);
             if (selfMatch?.selfProtection) {
               if (logBlocks) {
-                console.warn(`[file-guard] BLOCKED ${event.toolName} of ${filePath} (self-protection, agent: ${event.agentId ?? "unknown"})`);
+                console.warn(`[file-guard] BLOCKED ${event.toolName} of ${filePath} (self-protection, agent: ${agentId ?? "unknown"})`);
               }
               return {
                 block: true,
@@ -436,7 +441,7 @@ export default {
 
           if (match.level === "no_access") {
             if (logBlocks) {
-              console.warn(`[file-guard] BLOCKED ${event.toolName} of ${filePath} (${match.level}, pattern: ${match.pattern}, agent: ${event.agentId ?? "unknown"})`);
+              console.warn(`[file-guard] BLOCKED ${event.toolName} of ${filePath} (${match.level}, pattern: ${match.pattern}, agent: ${agentId ?? "unknown"})`);
             }
             return {
               block: true,
@@ -446,7 +451,7 @@ export default {
 
           if (match.level === "read_only" && isWrite) {
             if (logBlocks) {
-              console.warn(`[file-guard] BLOCKED ${event.toolName} of ${filePath} (${match.level}, pattern: ${match.pattern}, agent: ${event.agentId ?? "unknown"})`);
+              console.warn(`[file-guard] BLOCKED ${event.toolName} of ${filePath} (${match.level}, pattern: ${match.pattern}, agent: ${agentId ?? "unknown"})`);
             }
             return {
               block: true,
@@ -470,7 +475,7 @@ export default {
 
             if (match.level === "no_access" || match.level === "read_only" || match.selfProtection) {
               if (logBlocks) {
-                console.warn(`[file-guard] BLOCKED apply_patch targeting ${p} (${match.selfProtection ? "self-protection" : match.level}, agent: ${event.agentId ?? "unknown"})`);
+                console.warn(`[file-guard] BLOCKED apply_patch targeting ${p} (${match.selfProtection ? "self-protection" : match.level}, agent: ${agentId ?? "unknown"})`);
               }
               return {
                 block: true,
@@ -493,7 +498,7 @@ export default {
             const match = checkPath(p, cwd, matchers, selfProtectionMatcher);
             if (match?.level === "no_access") {
               if (logBlocks) {
-                console.warn(`[file-guard] BLOCKED ${event.toolName} reading ${p} (${match.level}, agent: ${event.agentId ?? "unknown"})`);
+                console.warn(`[file-guard] BLOCKED ${event.toolName} reading ${p} (${match.level}, agent: ${agentId ?? "unknown"})`);
               }
               return {
                 block: true,
@@ -507,7 +512,7 @@ export default {
             const match = checkPath(p, cwd, matchers, selfProtectionMatcher);
             if (match && (match.level === "no_access" || match.level === "read_only" || match.selfProtection)) {
               if (logBlocks) {
-                console.warn(`[file-guard] BLOCKED ${event.toolName} writing ${p} (${match.selfProtection ? "self-protection" : match.level}, agent: ${event.agentId ?? "unknown"})`);
+                console.warn(`[file-guard] BLOCKED ${event.toolName} writing ${p} (${match.selfProtection ? "self-protection" : match.level}, agent: ${agentId ?? "unknown"})`);
               }
               return {
                 block: true,
@@ -521,7 +526,7 @@ export default {
             const match = checkPath(p, cwd, matchers, selfProtectionMatcher);
             if (match) {
               if (logBlocks) {
-                console.warn(`[file-guard] BLOCKED ${event.toolName} deleting ${p} (${match.selfProtection ? "self-protection" : match.level}, agent: ${event.agentId ?? "unknown"})`);
+                console.warn(`[file-guard] BLOCKED ${event.toolName} deleting ${p} (${match.selfProtection ? "self-protection" : match.level}, agent: ${agentId ?? "unknown"})`);
               }
               return {
                 block: true,
