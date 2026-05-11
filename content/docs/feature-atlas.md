@@ -177,6 +177,7 @@ How external users communicate with agents through messaging platforms.
 | WhatsApp Channel/Newsletter targets | Send outbound messages to WhatsApp Channel or Newsletter feeds using `@newsletter` target syntax | `channels.whatsapp` — `@newsletter` target | 2026.5.2 | [Official docs](https://docs.openclaw.ai) |
 | Streaming progress drafts | Unified `streaming.mode: "progress"` with auto-labelled draft previews and shared `streaming.progress.*` config across Discord, Telegram, Matrix, Slack, and Microsoft Teams | `channels.<ch>.streaming.mode: "progress"` | 2026.5.3 | [Official docs](https://docs.openclaw.ai) |
 | Streaming command-text control | Hide exec/command text in preview progress lines (`"status"`) while keeping full command visible in raw progress mode; separate preview and progress controls | `streaming.preview.commandText`, `streaming.progress.commandText` | 2026.5.4 | [Official docs](https://docs.openclaw.ai) |
+| Discord voice silence grace | Extend post-speech silence window (default 2.5 s) to reduce choppy voice capture; configurable for noisy Discord sessions | `channels.discord.voice.captureSilenceGraceMs` | 2026.5.7 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -324,6 +325,9 @@ Layers of protection from sandbox isolation to network controls.
 | Workspace state-directory env override blocked | Workspace `.env` cannot override the gateway state-directory path | — | 2026.5.2 | [Phase 3](phases/phase-3-security.md) |
 | Gateway env file operator secrets preservation | Operator-added secrets in the Gateway env file preserved across re-stage; only OpenClaw-managed keys are cleared | — | 2026.5.3 | [Phase 6](phases/phase-6-deployment.md) |
 | Docker gateway container hardening | Bundled `docker-compose.yml` drops `NET_RAW` and `NET_ADMIN` capabilities and enables `no-new-privileges` for the gateway container | `docker-compose.yml` | 2026.5.5 | [Phase 6](phases/phase-6-deployment.md) |
+| Active Memory admin scope | Global Active Memory toggles require `operator.admin` scope; non-admin sessions cannot change global memory state | `active-memory` plugin | 2026.5.7 | [Phase 3](phases/phase-3-security.md) |
+| Auto-reply skill authorization | Inline skill tool dispatch via auto-reply now gated by `before_tool_call` authorization hooks, extending content-guard and network-guard coverage to skill-driven tool calls | Plugin API | 2026.5.7 | [Reference](reference.md#plugin-hooks) |
+| Native command owner enforcement | Owner-enforcement checks apply to native command handlers, preventing non-owner senders from reaching owner-only native commands | `commands.enforceOwnerForCommands` | 2026.5.7 | [Phase 3](phases/phase-3-security.md) |
 
 ### Use Cases
 

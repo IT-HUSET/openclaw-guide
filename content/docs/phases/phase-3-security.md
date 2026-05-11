@@ -149,6 +149,11 @@ The fix isn't one setting — it's layered defense. Each setting below blocks a 
 >
 > **Version note (2026.4.21):**
 > - **`enforceOwnerForCommands` bypass fix** — non-owner senders can no longer reach owner-only commands through a permissive `allowFrom` wildcard or empty `commands.ownerAllowFrom` when `enforceOwnerForCommands: true`; owner identity (owner-candidate match or internal `operator.admin`) is now required
+>
+> **Version note (2026.5.7):**
+> - **Active Memory admin scope** — global Active Memory toggles (`/active-memory on|off`) now require `operator.admin` scope; non-admin sessions receive a permission error when attempting to change global memory state
+> - **Auto-reply skill authorization** — inline skill tool dispatch through auto-reply is now gated by `before_tool_call` authorization hooks, so content-guard and network-guard plugins cover skill-driven tool calls in auto-reply sessions
+> - **Native command owner enforcement** — owner-enforcement checks now apply to native command handlers, closing a path where non-owner senders could reach owner-only native commands
 
 ---
 

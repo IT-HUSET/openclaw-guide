@@ -96,6 +96,7 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
         // maxSpawnDepth: 2,           // Max nesting depth for nested sub-agents; default 2 as of 2026.2.21 (added 2026.2.16)
         // maxChildrenPerAgent: 10,    // Max concurrent children per parent agent (added 2026.2.16)
         // announceTimeoutMs: 60000,   // Announce call timeout in ms (added 2026.2.22)
+        // archiveAfterMinutes: 5,     // TTL for completed session-mode subagent registry rows (added 2026.5.7; previously hardcoded 5 min)
       },
       // params: {},                   // Global default provider parameters applied to all agents (added 2026.4.1)
       // toolProgressDetail: "compact",  // Tool progress verbosity in progress drafts: "compact" (default) | "raw" (added 2026.5.4)
@@ -650,6 +651,7 @@ Features below require the listed version or later. Check yours with `openclaw -
 | 2026.4.14 | Security hardening: model-facing `config.patch`/`config.apply` blocked for all `openclaw security audit`-flagged flags; browser SSRF enforced on snapshot/screenshot/tab routes; Control UI ReDoS fix (marked.js → markdown-it); doctor/systemd no longer re-embeds dotenv secrets on repair; Slack `allowFrom` applied to block-action/modal events; Ollama streaming usage fix (prevents premature compaction); `sendPolicy: "deny"` no longer blocks inbound processing | See [Phase 3](phases/phase-3-security.md) version note for security details |
 | 2026.5.5 | Channel/provider fixes and dependency hardening: Slack startup allowlist gating, LINE webhook DM validation, vulnerable `ip-address` override, and security overrides applied inside managed external plugin npm roots | Recommended for plugin-heavy deployments |
 | 2026.5.6 | Runtime fetch/header cleanup for plugins and debug proxy; guarded web-fetch timeout cleanup | Guard extensions reviewed against this version |
+| 2026.5.7 | Channels CLI redesign; Active Memory admin scope; auto-reply skill authorization; subagent retention TTL; Discord voice silence grace | `openclaw channels list` is now channel-only by default (`--all` for bundled/catalog); Active Memory global toggles require admin scope; `before_tool_call` hooks gate inline skill dispatch; `agents.defaults.subagents.archiveAfterMinutes` replaces hardcoded 5-min TTL; `voice.captureSilenceGraceMs` for Discord voice; `cron list/show --json` include computed `status` field |
 
 ---
 
@@ -755,6 +757,8 @@ openclaw plugins install --link /path/to/plugin
 ```bash
 # Setup & channels
 openclaw setup                              # First-time setup (creates ~/.openclaw/)
+openclaw channels list                      # List connected channels (installed/configured/enabled state) (2026.5.7+)
+openclaw channels list --all                # Include bundled and catalog channels (2026.5.7+)
 openclaw channels login                     # Link a channel (QR code for WhatsApp)
 openclaw channels login --account <id>      # Link a specific account
 openclaw channels logout                    # Unlink channel
