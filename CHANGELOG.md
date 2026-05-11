@@ -3,6 +3,18 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-05-11 — OpenClaw 2026.5.6 → 2026.5.7
+
+- Updated guide baseline to **2026.5.7** in `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md`
+- Added **2026.5.7 version compatibility row** to `reference.md`: documents channels CLI redesign, Active Memory admin scope, auto-reply skill authorization, `archiveAfterMinutes`, Discord voice silence grace, and cron JSON status field
+- Added `openclaw channels list` and `openclaw channels list --all` to **useful commands** in `reference.md` — the command is now channel-only by default (2026.5.7+); `--all` shows bundled and catalog channels
+- Added `agents.defaults.subagents.archiveAfterMinutes` commented option to **config quick reference** in `reference.md` — replaces the previously hardcoded 5-minute subagent registry TTL
+- Added **version note (2026.5.7)** to `phase-3-security.md` covering: Active Memory admin scope for global toggles, auto-reply skill dispatch now gated by `before_tool_call` hooks, and native command owner enforcement hardened
+- Added **Discord voice silence grace** (`channels.discord.voice.captureSilenceGraceMs`) row to Channels features table in `feature-atlas.md`
+- Added three **Security & Hardening** rows to `feature-atlas.md`: Active Memory admin scope, auto-reply skill authorization, and native command owner enforcement
+- **Note:** `.claude/commands/security-review.md` checklist item for ≥ 2026.5.7 requires permission approval — add manually: `- [ ] Version ≥ 2026.5.7 (Active Memory global toggles require admin scope; auto-reply skill dispatch gated by before_tool_call hooks; native command owner enforcement hardened)`
+- **Pass 2 (improvement scan):** No pending cleanup items from `CLAUDE.md` are resolved by 2026.5.7 — `#11758` (WhatsApp `requireMention` LID bug) remains open as the 2026.5.7 WhatsApp LID fix addresses proactive sends only, not mention detection. No correctness, consistency, or completeness issues found beyond the changelog-driven updates.
+
 ## 2026-05-07 — OpenClaw 2026.5.3-1 → 2026.5.6
 
 - Bumped guide version to 2026.5.6 in `.guide-version`, `_index.md` callout, and `hardened-multi-agent.md` prerequisite line
