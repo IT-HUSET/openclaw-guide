@@ -126,6 +126,9 @@ How agents are defined, routed, and connected to each other.
 | Post-compaction loop guard | Abort agent run with `compaction_loop_persisted` after same `(tool, args, result)` triple repeats N times following auto-compaction-retry; tunable window size | `tools.loopDetection.postCompactionGuard.windowSize` | 2026.5.4 | [Reference](reference.md#config-quick-reference) |
 | Config schema | Print generated JSON schema for `openclaw.json` | CLI: `openclaw config schema` | 2026.3.28 | [Reference](reference.md#config-validation) |
 | Environment files | `.env` loading from CWD → `~/.openclaw/` → config `env` block | `.env` files | — | [Reference](reference.md#environment-files) |
+| ACP runtime fallbacks | Try configured backup ACP runtime backends when the primary is unavailable before any output is emitted | `acp.fallbacks` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
+| Per-agent message context restriction | Restrict `message` sends to the current conversation for sandboxed or public-facing agents | `agents.list[].tools.message.crossContext` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
+| Per-agent send-only message policy | Expose and enforce send-only message tools for sandboxed or public-facing agents | `agents.list[].tools.message.actions.allow` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -178,6 +181,10 @@ How external users communicate with agents through messaging platforms.
 | Streaming progress drafts | Unified `streaming.mode: "progress"` with auto-labelled draft previews and shared `streaming.progress.*` config across Discord, Telegram, Matrix, Slack, and Microsoft Teams | `channels.<ch>.streaming.mode: "progress"` | 2026.5.3 | [Official docs](https://docs.openclaw.ai) |
 | Streaming command-text control | Hide exec/command text in preview progress lines (`"status"`) while keeping full command visible in raw progress mode; separate preview and progress controls | `streaming.preview.commandText`, `streaming.progress.commandText` | 2026.5.4 | [Official docs](https://docs.openclaw.ai) |
 | Discord voice silence grace | Extend post-speech silence window (default 2.5 s) to reduce choppy voice capture; configurable for noisy Discord sessions | `channels.discord.voice.captureSilenceGraceMs` | 2026.5.7 | [Official docs](https://docs.openclaw.ai) |
+| WhatsApp external plugin | WhatsApp channel externalized as a ClawHub/npm plugin; requires `openclaw plugins install whatsapp` before use | `channels.whatsapp` | 2026.5.12 | [Phase 4](phases/phase-4-multi-agent.md) |
+| Slack link/media preview control | Suppress Slack link and media previews in bot replies; per-account overrides supported | `channels.slack.unfurlLinks`, `channels.slack.unfurlMedia` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
+| Discord voice channel restriction | Restrict voice joins and bot voice-state moves to configured channels | `channels.discord.voice.allowedChannels` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
+| Talk realtime voice instructions | Append operator voice style instructions to realtime sessions while preserving built-in agent-consult guidance | `talk.realtime.instructions` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -328,6 +335,9 @@ Layers of protection from sandbox isolation to network controls.
 | Active Memory admin scope | Global Active Memory toggles require `operator.admin` scope; non-admin sessions cannot change global memory state | `active-memory` plugin | 2026.5.7 | [Phase 3](phases/phase-3-security.md) |
 | Auto-reply skill authorization | Inline skill tool dispatch via auto-reply now gated by `before_tool_call` authorization hooks, extending content-guard and network-guard coverage to skill-driven tool calls | Plugin API | 2026.5.7 | [Reference](reference.md#plugin-hooks) |
 | Native command owner enforcement | Owner-enforcement checks apply to native command handlers, preventing non-owner senders from reaching owner-only native commands | `commands.enforceOwnerForCommands` | 2026.5.7 | [Phase 3](phases/phase-3-security.md) |
+| Tool restrictions for delegated sessions | Tool deny/allow policies inherited by delegated sessions so subagents and ACP relays cannot exceed the parent's tool policy | — | 2026.5.12 | [Phase 3](phases/phase-3-security.md) |
+| Skill archive upload gate | Opt-in gate for trusted gateway clients to install zip-backed skills; disabled by default | `skills.install.allowUploadedArchives` | 2026.5.12 | [Phase 3](phases/phase-3-security.md) |
+| Gateway/browser/pairing hardening | Sandbox browser CDP relay requires auth; browser navigation enforcement; exec approval chain validation; node exec event provenance; pairing scope changes blocked; trusted-proxy source validation; gateway command scope enforcement; MCP redirect header scrubbing | — | 2026.5.12 | [Phase 3](phases/phase-3-security.md) |
 
 ### Use Cases
 
@@ -393,6 +403,10 @@ The 44 built-in tools, cron scheduling, web search, browser, and extended capabi
 | File-transfer plugin | Bundled plugin with `file_fetch`, `dir_list`, `dir_fetch`, and `file_write` for binary file operations on paired nodes; path policy under `plugins.entries.file-transfer.config.nodes`; symlinks refused by default; 16 MB per-round-trip ceiling | `file_fetch`, `dir_list`, `dir_fetch`, `file_write` tools | 2026.5.3 | [Official docs](https://docs.openclaw.ai) |
 | `/steer` command | Queue-independent steering of the active current-session run without starting a new turn | CLI: `/steer <message>` | 2026.5.3 | [Official docs](https://docs.openclaw.ai) |
 | `/side` command alias | `/side` as a text and native slash-command alias for `/btw` side questions | CLI: `/side <message>` | 2026.5.3 | [Official docs](https://docs.openclaw.ai) |
+| Exec command highlighting | Parser-derived command highlighting in exec approval prompts; enable globally or per agent | `tools.exec.commandHighlighting` | 2026.5.12 | [Reference](reference.md#config-quick-reference) |
+| Per-sender tool policies | Restrict dangerous tools by requester identity using canonical channel-scoped sender keys; configurable across global, agent, group, core, bundled, and plugin surfaces | `tools.perSender` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
+| `openclaw cron get <id>` | Inspect one stored cron job by id via CLI or the `cron.get` agent tool | CLI: `openclaw cron get <id>` | 2026.5.12 | [Reference](reference.md#cron-jobs) |
+| `/context map` | Send a treemap image of the current session context contributors | CLI: `/context map` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -451,6 +465,7 @@ Running OpenClaw in production: service management, infrastructure, and day-to-d
 | `OPENCLAW_SKIP_ONBOARDING` | Skip the interactive onboarding wizard for automated Docker installs while still applying gateway defaults | `OPENCLAW_SKIP_ONBOARDING=1` env var | 2026.4.29 | [Phase 6](phases/phase-6-deployment.md) |
 | Models auth list | Inspect saved per-agent auth profiles without dumping secrets; filterable by provider | CLI: `openclaw models auth list [--provider <id>] [--json]` | 2026.5.4 | [Reference](reference.md#useful-commands) |
 | Sessions list pagination | `openclaw sessions` capped at 100 rows by default with `--limit <n\|all>` override to control output size on large stores | CLI: `openclaw sessions list --limit` | 2026.5.4 | [Reference](reference.md#useful-commands) |
+| `openclaw channels status --channel` | Filter channel status by name to probe a single channel without starting all monitors | CLI: `openclaw channels status --channel <name>` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -498,6 +513,7 @@ How the gateway works under the hood — the module system, plugin lifecycle, an
 | Control UI Model Auth status | Overview card showing OAuth token health and provider rate-limit pressure; attention callouts when tokens are expiring or expired; backed by `models.authStatus` gateway method (cached 60s, credentials stripped) | Control UI overview | 2026.4.15 | [Official docs](https://docs.openclaw.ai) |
 | mDNS discovery | Local network service discovery | `discovery.mdns` | — | [Reference](reference.md#config-quick-reference) |
 | Tool system | Unified tool dispatch with policy enforcement | — | — | [Architecture](architecture.md) |
+| `session_end` shutdown/restart reasons | `session_end` plugin hook fires for all active sessions on gateway stop or restart with reason `shutdown` or `restart`; bounded 2 s drain budget prevents slow plugins from blocking process exit | Plugin API | 2026.5.12 | [Reference](reference.md#plugin-hooks) |
 
 #### Use Cases
 

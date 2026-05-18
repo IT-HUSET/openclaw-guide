@@ -18,7 +18,15 @@ Your agent has been local-only via the Control UI until now. Connecting a messag
 
 WhatsApp is the easiest channel to start with — just scan a QR code.
 
-**1. Add channel config**
+> **Note (2026.5.12+):** WhatsApp is now an external plugin and must be installed before use.
+
+**1. Install the WhatsApp plugin**
+
+```bash
+openclaw plugins install whatsapp
+```
+
+**2. Add channel config**
 
 Edit `~/.openclaw/openclaw.json` and add:
 
@@ -37,7 +45,7 @@ Replace `+YOUR_PHONE_NUMBER` with your phone number in E.164 format (e.g., `+155
 
 > **Warning:** If you leave a placeholder value in `allowFrom`, all incoming messages are **silently dropped** — no error, no log warning. Always verify your real phone number is configured.
 
-**2. Link WhatsApp**
+**3. Link WhatsApp**
 
 ```bash
 openclaw channels login
@@ -47,14 +55,14 @@ Scan the QR code with **WhatsApp > Linked Devices > Link a Device**.
 
 > **Tip:** If the QR code expires, run `openclaw channels login` again.
 
-**3. Restart the gateway**
+**4. Restart the gateway**
 
 ```bash
 # Stop the running gateway (Ctrl-C if foreground), then:
 openclaw start
 ```
 
-**4. Verify**
+**5. Verify**
 
 Send a message from your phone:
 
