@@ -3,6 +3,18 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-05-18 — OpenClaw 2026.5.7 → 2026.5.12
+
+- **WhatsApp externalized as plugin**: Phase 4 WhatsApp setup now opens with `openclaw plugins install whatsapp` (step 1 of 5) before the config and channel-login steps, reflecting that WhatsApp was moved out of the core npm bundle in 2026.5.12
+- **Feature Atlas — Channels & Messaging**: added rows for WhatsApp external plugin requirement, Slack `unfurlLinks`/`unfurlMedia` preview suppression, Discord `voice.allowedChannels` restriction, and `talk.realtime.instructions` for realtime voice style config
+- **Feature Atlas — Security & Hardening**: added rows for tool restrictions inherited by delegated sessions (subagents and ACP relays cannot exceed parent tool policy), `skills.install.allowUploadedArchives` security gate for skill archive uploads, and a batch entry covering the 2026.5.12 gateway/browser/pairing/sandbox/transcript hardening pass
+- **Feature Atlas — Tools & Automation**: added rows for `tools.exec.commandHighlighting` (exec approval command highlighting), `tools.perSender` per-sender tool policies, `openclaw cron get <id>` single-job inspect command, and `/context map` context treemap command
+- **Feature Atlas — Agents & Configuration**: added rows for `acp.fallbacks` (backup ACP runtime backends), `tools.message.crossContext` (per-agent message send restriction), and `tools.message.actions.allow` (per-agent send-only message policy)
+- **Feature Atlas — Deployment & Operations**: added `openclaw channels status --channel <name>` filtering for targeted per-channel status probes
+- **Feature Atlas — Internals**: added `session_end` `shutdown`/`restart` hook reasons (fires for all active sessions on gateway stop/restart with 2 s drain budget)
+- **Version housekeeping**: bumped `.guide-version`, docs index callout, and hardened-multi-agent prerequisite line to 2026.5.12
+- **Note**: security-review.md version checklist entry (≥ 2026.5.12: gateway/browser/pairing/sandbox hardening) could not be written due to environment permission restrictions on `.claude/commands/`; no pending cleanup items from CLAUDE.md were resolved in this release
+
 ## 2026-05-11 — OpenClaw 2026.5.6 → 2026.5.7
 
 - Updated guide baseline to **2026.5.7** in `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md`
