@@ -177,7 +177,7 @@ Use forward-slash paths in `openclaw.json`:
 As the `openclaw` user (or inside the VM):
 
 ```bash
-# Install Node.js 22.14+
+# Install Node.js 22.19+
 # macOS:
 brew install node@22
 

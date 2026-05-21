@@ -259,6 +259,26 @@ docker build \
 
 This is most useful when running multiple containers from the same image — each container starts faster because extension deps are already present.
 
+### Extra packages via build args (2026.5.19+)
+
+Two build args let you install additional packages into the official sandbox image without forking the Dockerfile:
+
+| Build arg | What it installs | Example |
+|-----------|-----------------|---------|
+| `OPENCLAW_IMAGE_APT_PACKAGES` | Extra apt packages (runtime-neutral; replaces legacy `OPENCLAW_DOCKER_APT_PACKAGES`) | `"ffmpeg imagemagick"` |
+| `OPENCLAW_IMAGE_PIP_PACKAGES` | Extra Python packages via pip | `"requests pandas"` |
+
+```bash
+# Build the official sandbox image with extra apt and pip packages
+docker build \
+  --build-arg OPENCLAW_IMAGE_APT_PACKAGES="ffmpeg imagemagick" \
+  --build-arg OPENCLAW_IMAGE_PIP_PACKAGES="requests pandas" \
+  -f Dockerfile.sandbox \
+  -t my-sandbox:latest .
+```
+
+> **Note:** `OPENCLAW_DOCKER_APT_PACKAGES` still works as a legacy fallback; prefer `OPENCLAW_IMAGE_APT_PACKAGES` for new builds.
+
 ---
 
 ## Multi-Machine Deployment

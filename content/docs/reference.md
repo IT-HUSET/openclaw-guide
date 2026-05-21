@@ -652,6 +652,8 @@ Features below require the listed version or later. Check yours with `openclaw -
 | 2026.5.5 | Channel/provider fixes and dependency hardening: Slack startup allowlist gating, LINE webhook DM validation, vulnerable `ip-address` override, and security overrides applied inside managed external plugin npm roots | Recommended for plugin-heavy deployments |
 | 2026.5.6 | Runtime fetch/header cleanup for plugins and debug proxy; guarded web-fetch timeout cleanup | Guard extensions reviewed against this version |
 | 2026.5.7 | Channels CLI redesign; Active Memory admin scope; auto-reply skill authorization; subagent retention TTL; Discord voice silence grace | `openclaw channels list` is now channel-only by default (`--all` for bundled/catalog); Active Memory global toggles require admin scope; `before_tool_call` hooks gate inline skill dispatch; `agents.defaults.subagents.archiveAfterMinutes` replaces hardcoded 5-min TTL; `voice.captureSilenceGraceMs` for Discord voice; `cron list/show --json` include computed `status` field |
+| 2026.5.12 | WhatsApp channel externalized as plugin (requires `openclaw plugins install whatsapp`); per-agent message policy (`tools.message.crossContext`, `tools.message.actions.allow`); ACP runtime fallbacks; tool restrictions for delegated sessions; skill archive upload gate; `session_end` hook on shutdown/restart; exec command highlighting; per-sender tool policies; `openclaw cron get <id>`; `/context map`; Security: sandbox browser CDP auth, browser navigation enforcement, exec approval chain, pairing scope, trusted-proxy source, MCP redirect scrubbing | **Breaking:** WhatsApp needs `openclaw plugins install whatsapp` — gateway won't start with a WhatsApp config if the plugin isn't installed |
+| 2026.5.19 | Node.js 22.19+ minimum (raised from 22.14); `OPENCLAW_IMAGE_APT_PACKAGES` / `OPENCLAW_IMAGE_PIP_PACKAGES` Docker build args; `defineToolPlugin` + `openclaw plugins build/validate/init`; `openclaw skills install/update --global`; `openclaw browser evaluate --timeout-ms`; `streaming.progress.maxLineChars`; HTTPS proxy + `proxy.tls.caFile`; config lookup reload metadata; `openclaw sessions list` alias; Security: admin HTTP RPC bound to accepting gateway instance (#83486), SSRF/exec-approval realpath hardening | Node.js 22.19+ required — update before upgrading if you are still on 22.14–22.18 |
 
 ---
 
@@ -806,6 +808,7 @@ openclaw memory search "<query>"            # Search memory from terminal
 openclaw memory search --query "<query>"    # Equivalent long-form (2026.2.24+)
 
 # Session management
+openclaw sessions                           # List active sessions (alias: openclaw sessions list — 2026.5.19+)
 openclaw sessions list                      # List active sessions (newest 100 by default)
 openclaw sessions list --limit <n|all>      # Override row cap (2026.5.4+)
 openclaw sessions reset                     # Reset all sessions

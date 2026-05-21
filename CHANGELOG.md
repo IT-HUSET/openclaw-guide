@@ -3,6 +3,21 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-05-21 — OpenClaw 2026.5.12 → 2026.5.19
+
+- Raised Node.js minimum from 22.14 to 22.19 in Phase 1 (all OS sections), pragmatic-single-agent.md, and Feature Atlas — matches the 2026.5.19 Node.js floor enforcement
+- Added `OPENCLAW_IMAGE_APT_PACKAGES` and `OPENCLAW_IMAGE_PIP_PACKAGES` Docker image build args to custom-sandbox-images.md with a new "Extra packages via build args" section and Feature Atlas entry; `OPENCLAW_IMAGE_APT_PACKAGES` supersedes legacy `OPENCLAW_DOCKER_APT_PACKAGES`
+- Added Feature Atlas row for `defineToolPlugin` + `openclaw plugins build/validate/init` typed tool plugin scaffold (Plugin System section)
+- Added Feature Atlas row for `openclaw skills install/update --global` shared managed skill targeting (Agents section)
+- Updated Feature Atlas Streaming progress drafts row to document `streaming.progress.maxLineChars` config option
+- Updated Feature Atlas Outbound proxy routing row to document HTTPS managed proxy support and `proxy.tls.caFile` CA trust (Security section)
+- Added Feature Atlas row for gateway config lookup reload metadata distinguishing restart-required, hot-reloadable, and no-op fields (Deployment section)
+- Added Feature Atlas row for `openclaw browser evaluate --timeout-ms` extended timeout flag (Tools section)
+- Added `openclaw sessions list` alias note to reference.md useful commands (2026.5.19+)
+- Added 2026.5.12 and 2026.5.19 entries to the reference.md version compatibility table (both were missing)
+- Updated version references: `.guide-version` → 2026.5.19, docs index callout, hardened-multi-agent.md prerequisite
+- Note: `.claude/commands/security-review.md` version ≥ 2026.5.19 checklist item (admin HTTP RPC binding fix #83486; SSRF/exec-approval hardening) was not added — write permission was denied by the harness
+
 ## 2026-05-18 — OpenClaw 2026.5.7 → 2026.5.12
 
 - **WhatsApp externalized as plugin**: Phase 4 WhatsApp setup now opens with `openclaw plugins install whatsapp` (step 1 of 5) before the config and channel-login steps, reflecting that WhatsApp was moved out of the core npm bundle in 2026.5.12

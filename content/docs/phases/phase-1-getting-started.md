@@ -12,12 +12,12 @@ Get a working OpenClaw agent in minutes — no channels, no external exposure.
 
 ## Prerequisites
 
-- **Node.js 22.14+** and npm (Node 24 recommended; 22.14 is the minimum)
+- **Node.js 22.19+** and npm (Node 24 recommended; 22.19 is the minimum)
 - **macOS, Linux, or Windows**
 
 {{% details title="macOS Setup" %}}
 
-Install Node.js 22.14+ via [Homebrew](https://brew.sh) (macOS package manager, recommended) or [nvm](https://github.com/nvm-sh/nvm):
+Install Node.js 22.19+ via [Homebrew](https://brew.sh) (macOS package manager, recommended) or [nvm](https://github.com/nvm-sh/nvm):
 
 ```bash
 # Option A: Homebrew (recommended)
@@ -33,7 +33,7 @@ Verify: `node -v && npm -v`
 
 {{% details title="Linux Setup" %}}
 
-Install Node.js 22.14+ via [nvm](https://github.com/nvm-sh/nvm) (recommended) or [NodeSource](https://github.com/nodesource/distributions):
+Install Node.js 22.19+ via [nvm](https://github.com/nvm-sh/nvm) (recommended) or [NodeSource](https://github.com/nodesource/distributions):
 
 ```bash
 # Option A: nvm (recommended — no sudo needed)
@@ -55,7 +55,7 @@ Verify `node` and `npm` are on PATH: `node -v && npm -v`. All commands below wor
 
 {{% details title="Windows Setup" %}}
 
-Install Node.js 22.14+ via `winget` or the official installer:
+Install Node.js 22.19+ via `winget` or the official installer:
 
 ```powershell
 winget install OpenJS.NodeJS.LTS
