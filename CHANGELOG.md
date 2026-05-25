@@ -3,6 +3,18 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-05-25 — OpenClaw 2026.5.19 → 2026.5.22
+
+- Bumped guide baseline to 2026.5.22 in `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md` (mechanical version housekeeping)
+- **Phase 3 (Security):** Added version notes for 2026.5.20 (credential symlink hardening for Telegram/LINE/Zalo/IRC/Nextcloud tokens, doctor now warns on plaintext API keys in `openclaw.json`) and 2026.5.22 (XSS sink removed from Control UI diffs viewer, workspace provider plugins fail-closed during setup-mode discovery)
+- **Phase 4 (Multi-Agent):** Added version note for 2026.5.22 sub-agent bootstrap context change — `sessions_spawn`-spawned workers now receive only `AGENTS.md` and `TOOLS.md` by default; SOUL.md, USER.md, IDENTITY.md, and HEARTBEAT.md are excluded from dynamic sub-tasks (configured channel agents unaffected)
+- **Feature Atlas (Agents):** Updated `localModelLean` entry to document per-agent support since 2026.5.20; added new "Sub-agent bootstrap context limit" entry (2026.5.22)
+- **Feature Atlas (Channels):** Added Discord voice channel follow feature (2026.5.20) and Discord voice bootstrap context files config (`voice.realtime.bootstrapContextFiles`, 2026.5.20)
+- **Feature Atlas (Security):** Added entries for credential symlink hardening (2026.5.20), doctor plaintext secret detection (2026.5.20), bundled Policy plugin (2026.5.20), diffs viewer XSS fix (2026.5.22), and workspace provider plugins fail-closed (2026.5.22)
+- **Feature Atlas (Tools):** Added Meeting Notes external plugin entry with `openclaw meeting-notes` CLI access and Discord voice as first live source (2026.5.22)
+- **Reference:** Added version compatibility table rows for 2026.5.20 and 2026.5.22 summarizing key changes and upgrade notes
+- **Note:** `.claude/commands/security-review.md` version ≥ 2026.5.22 checklist item (credential symlink fix, XSS fix, provider plugin fail-closed) could not be written — the permission mode does not grant write access to `.claude/` paths; this should be added manually
+
 ## 2026-05-21 — OpenClaw 2026.5.12 → 2026.5.19
 
 - Raised Node.js minimum from 22.14 to 22.19 in Phase 1 (all OS sections), pragmatic-single-agent.md, and Feature Atlas — matches the 2026.5.19 Node.js floor enforcement

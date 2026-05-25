@@ -496,6 +496,8 @@ Control which agents can spawn which other agents as subagents:
 
 > **Version note (2026.2.16):** Nested sub-agents now support depth and fan-out limits via `subagents.maxSpawnDepth` (max nesting depth) and `subagents.maxChildrenPerAgent` (max concurrent children per parent). Useful for controlling recursive spawning in complex delegation chains. See [Reference: Config Quick Reference](../reference.md#most-important-keys) for defaults.
 
+> **Version note (2026.5.22):** Sub-agents spawned via `sessions_spawn` now receive only `AGENTS.md` and `TOOLS.md` as bootstrap context by default — SOUL.md, USER.md, IDENTITY.md, HEARTBEAT.md, and other workspace files are excluded from dynamically spawned workers to keep delegated sub-tasks lean. This is intentional for instrumental sub-tasks. For channel agents with their own configured workspace (defined in `agents.list[]`), full workspace bootstrap context is unaffected.
+
 ### Agent-to-agent tool (optional)
 
 For direct agent-to-agent messaging (beyond `sessions_send`), there's a global opt-in tool:

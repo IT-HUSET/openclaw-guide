@@ -154,6 +154,14 @@ The fix isn't one setting — it's layered defense. Each setting below blocks a 
 > - **Active Memory admin scope** — global Active Memory toggles (`/active-memory on|off`) now require `operator.admin` scope; non-admin sessions receive a permission error when attempting to change global memory state
 > - **Auto-reply skill authorization** — inline skill tool dispatch through auto-reply is now gated by `before_tool_call` authorization hooks, so content-guard and network-guard plugins cover skill-driven tool calls in auto-reply sessions
 > - **Native command owner enforcement** — owner-enforcement checks now apply to native command handlers, closing a path where non-owner senders could reach owner-only native commands
+>
+> **Version note (2026.5.20):**
+> - **Credential symlink hardening** — credential loaders for Telegram, LINE, Zalo, IRC, and Nextcloud Talk tokens now refuse symlinked credential files instead of silently accepting them, restoring fail-closed behavior for symlink-sensitive credential paths
+> - **Doctor plaintext secret detection** — `openclaw doctor` and `openclaw security audit` now warn when `openclaw.json` contains hardcoded API keys or sensitive provider headers. Run `openclaw secrets audit` to find them and migrate to `${ENV_VAR}` references (see [Phase 6: Secrets Management](phase-6-deployment.md#secrets-management-all-methods))
+>
+> **Version note (2026.5.22):**
+> - **Diffs viewer XSS fix** — toolbar icons are now rendered from a closed icon-name map instead of HTML strings; XSS sink removed from the Control UI diffs viewer
+> - **Workspace provider plugins fail-closed** — untrusted workspace plugins are blocked during provider setup-mode discovery unless explicitly trusted in config, preventing untrusted workspace code from running during provider setup flows
 
 ---
 

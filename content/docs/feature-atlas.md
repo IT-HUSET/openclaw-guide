@@ -114,7 +114,8 @@ How agents are defined, routed, and connected to each other.
 | Native image generation model | Set the default model for the built-in `image_generate` tool | `agents.defaults.imageGenerationModel.primary` | 2026.3.22 | [Reference](reference.md#config-quick-reference) |
 | Global default provider parameters | Set default provider parameters applied to all agents | `agents.defaults.params` | 2026.4.1 | [Reference](reference.md#config-quick-reference) |
 | System prompt override | Controlled prompt experiments and heartbeat prompt-section controls | `agents.defaults.systemPromptOverride` | 2026.4.7 | [Reference](reference.md#config-quick-reference) |
-| Local model lean mode (experimental) | Drop heavyweight default tools (`browser`, `cron`, `message`) to reduce prompt size for weaker local-model setups; has no effect on normal (non-local) paths | `agents.defaults.experimental.localModelLean: true` | 2026.4.15 | [Official docs](https://docs.openclaw.ai) |
+| Local model lean mode (experimental) | Drop heavyweight default tools (`browser`, `cron`, `message`) to reduce prompt size for weaker local-model setups; can be enabled per-agent (`agents.list[].experimental.localModelLean`) since 2026.5.20, in addition to the global default | `agents.defaults.experimental.localModelLean: true` | 2026.4.15 | [Official docs](https://docs.openclaw.ai) |
+| Sub-agent bootstrap context limit | `sessions_spawn`-spawned workers receive only `AGENTS.md` and `TOOLS.md` by default; SOUL.md, USER.md, IDENTITY.md, HEARTBEAT.md excluded to keep delegated sub-tasks lean | `agents.defaults.subagents` | 2026.5.22 | [Phase 4](phases/phase-4-multi-agent.md) |
 | Config validation | Validate config before gateway startup | CLI: `openclaw config validate` | 2026.3.2 | [Reference](reference.md#config-validation) |
 | DeepSeek V4 bundled catalog | DeepSeek V4 Flash and V4 Pro in bundled model catalog; V4 Flash is the onboarding default | `agents.list[].model` | 2026.4.24 | [Official docs](https://docs.openclaw.ai) |
 | Bootstrap context injection control | Disable workspace bootstrap file injection for agents that fully own their prompt lifecycle | `agents.defaults.contextInjection: "never"` | 2026.4.24 | [Reference](reference.md#config-quick-reference) |
@@ -186,6 +187,8 @@ How external users communicate with agents through messaging platforms.
 | Slack link/media preview control | Suppress Slack link and media previews in bot replies; per-account overrides supported | `channels.slack.unfurlLinks`, `channels.slack.unfurlMedia` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
 | Discord voice channel restriction | Restrict voice joins and bot voice-state moves to configured channels | `channels.discord.voice.allowedChannels` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
 | Talk realtime voice instructions | Append operator voice style instructions to realtime sessions while preserving built-in agent-consult guidance | `talk.realtime.instructions` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
+| Discord voice channel follow | Voice sessions follow configured Discord users into voice channels with allowed-channel checks, multi-user handoff, bounded reconciliation, and DAVE recovery preservation | `channels.discord.voice` | 2026.5.20 | [Official docs](https://docs.openclaw.ai) |
+| Discord voice bootstrap context files | Bounded IDENTITY.md, USER.md, and SOUL.md profile context included in realtime voice session instructions by default; disable with `voice.realtime.bootstrapContextFiles: []` | `channels.discord.voice.realtime.bootstrapContextFiles` | 2026.5.20 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -339,6 +342,11 @@ Layers of protection from sandbox isolation to network controls.
 | Tool restrictions for delegated sessions | Tool deny/allow policies inherited by delegated sessions so subagents and ACP relays cannot exceed the parent's tool policy | — | 2026.5.12 | [Phase 3](phases/phase-3-security.md) |
 | Skill archive upload gate | Opt-in gate for trusted gateway clients to install zip-backed skills; disabled by default | `skills.install.allowUploadedArchives` | 2026.5.12 | [Phase 3](phases/phase-3-security.md) |
 | Gateway/browser/pairing hardening | Sandbox browser CDP relay requires auth; browser navigation enforcement; exec approval chain validation; node exec event provenance; pairing scope changes blocked; trusted-proxy source validation; gateway command scope enforcement; MCP redirect header scrubbing | — | 2026.5.12 | [Phase 3](phases/phase-3-security.md) |
+| Credential symlink hardening | Credential loaders for Telegram, LINE, Zalo, IRC, and Nextcloud Talk tokens refuse symlinked credential files (`rejectSymlink: true`) — fail-closed behavior restored | — | 2026.5.20 | [Phase 3](phases/phase-3-security.md) |
+| Doctor plaintext secret detection | `openclaw doctor` and `openclaw security audit` warn when `openclaw.json` contains hardcoded API keys or sensitive provider headers | — | 2026.5.20 | [Phase 3](phases/phase-3-security.md) |
+| Policy plugin (bundled) | Bundled Policy plugin for policy-backed channel conformance checks, doctor lint findings, and opt-in workspace repair | `plugins.entries.policy` | 2026.5.20 | [Official docs](https://docs.openclaw.ai) |
+| Diffs viewer XSS fix | Control UI diffs viewer toolbar icons rendered from a closed icon-name map; HTML-string XSS sink removed | — | 2026.5.22 | [Phase 3](phases/phase-3-security.md) |
+| Workspace provider plugins fail-closed | Untrusted workspace plugins blocked during provider setup-mode discovery unless explicitly trusted | — | 2026.5.22 | [Phase 3](phases/phase-3-security.md) |
 
 ### Use Cases
 
@@ -409,6 +417,7 @@ The 44 built-in tools, cron scheduling, web search, browser, and extended capabi
 | Per-sender tool policies | Restrict dangerous tools by requester identity using canonical channel-scoped sender keys; configurable across global, agent, group, core, bundled, and plugin surfaces | `tools.perSender` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
 | `openclaw cron get <id>` | Inspect one stored cron job by id via CLI or the `cron.get` agent tool | CLI: `openclaw cron get <id>` | 2026.5.12 | [Reference](reference.md#cron-jobs) |
 | `/context map` | Send a treemap image of the current session context contributors | CLI: `/context map` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
+| Meeting Notes plugin | External meeting-notes plugin with auto-start capture config, manual transcript imports, read-only `openclaw meeting-notes` CLI access, and Discord voice as the first live source | `openclaw meeting-notes` CLI | 2026.5.22 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
