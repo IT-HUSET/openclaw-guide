@@ -170,6 +170,7 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
   cron: {
     // webhookToken: "...",          // Auth token for external cron webhook triggers
     // notify: { channel: "whatsapp", peer: "+..." },  // Deliver cron output to a channel
+    // maxConcurrentRuns: 8,         // Max parallel cron runs; defaults to 8 as of 2026.5.26 (was 1 previously)
     jobs: [/* ... */]
   }
 }
@@ -656,6 +657,7 @@ Features below require the listed version or later. Check yours with `openclaw -
 | 2026.5.19 | Node.js 22.19+ minimum (raised from 22.14); `OPENCLAW_IMAGE_APT_PACKAGES` / `OPENCLAW_IMAGE_PIP_PACKAGES` Docker build args; `defineToolPlugin` + `openclaw plugins build/validate/init`; `openclaw skills install/update --global`; `openclaw browser evaluate --timeout-ms`; `streaming.progress.maxLineChars`; HTTPS proxy + `proxy.tls.caFile`; config lookup reload metadata; `openclaw sessions list` alias; Security: admin HTTP RPC bound to accepting gateway instance (#83486), SSRF/exec-approval realpath hardening | Node.js 22.19+ required — update before upgrading if you are still on 22.14–22.18 |
 | 2026.5.20 | Discord voice channel follow + bootstrap context files (`voice.realtime.bootstrapContextFiles`); per-agent `localModelLean`; bundled Policy plugin; exec approvals: skill files must use read tool (old `cat SKILL.md` compat path removed); Security: credential symlink hardening for Telegram/LINE/Zalo/IRC/Nextcloud tokens, doctor warns on plaintext API keys in config | Exec approval allowlist entries using the old skill-wrapper pattern must be updated to the real skill executable path |
 | 2026.5.22 | Meeting Notes external plugin (`openclaw meeting-notes`); sub-agent bootstrap context limited to `AGENTS.md` + `TOOLS.md` by default; gateway startup performance improvements; Security: XSS sink removed from diffs viewer, workspace provider plugins fail-closed in setup mode, `OPENCLAW_STATE_DIR` relative overrides pinned at startup | No breaking config changes |
+| 2026.5.26 | `cron.maxConcurrentRuns` defaults to 8; Signal/iMessage/WhatsApp reaction approvals for mobile approval flows; Control UI Activity tab (ephemeral live tool summaries); named model login profiles; Security: `memory_store` injection filter, gateway auth rate limiter default on, browser snapshot SSRF validation, system-event text sanitization, exec approval hardening, audit findings for `hooks.token` reuse and YOLO permission override | See [Phase 3](phases/phase-3-security.md) version note for security details |
 
 ---
 

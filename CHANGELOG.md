@@ -3,6 +3,17 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-05-28 — OpenClaw 2026.5.22 → 2026.5.26
+
+- Updated version references to 2026.5.26 in `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md` (mechanical housekeeping)
+- Added Phase 3 security version note for 2026.5.26 covering: `memory_store` prompt injection filter, gateway auth rate limiter now on by default, browser snapshot SSRF validation, system-event text sanitization, exec approval hardening (durable actions hidden when unavailable, tokens local-only), and two new `openclaw security audit` findings (`gateway.auth.hooks_token_reuse` and YOLO exec permission override warning)
+- Added `cron.maxConcurrentRuns` default-of-8 comment to the cron config block in `reference.md` and a new version-compatibility row for 2026.5.26
+- Added 10 new Feature Atlas security entries (2026.5.26): `memory_store` injection filter, gateway auth rate limiter default, browser snapshot SSRF validation, system-event text sanitization, exec approval hardening, hooks.token reuse audit finding, YOLO permission override audit warning, plugin lock owner verification
+- Added Feature Atlas channels entry: reaction approvals for Signal/iMessage/WhatsApp (mobile approval without textual `/approve`)
+- Added Feature Atlas tools entry: `cron.maxConcurrentRuns` defaults to 8
+- Added Feature Atlas deployment entry: Control UI Activity tab (ephemeral live tool activity summaries)
+- Note: `.claude/commands/security-review.md` version checklist update was blocked by tool permissions and could not be applied
+
 ## 2026-05-25 — OpenClaw 2026.5.19 → 2026.5.22
 
 - Bumped guide baseline to 2026.5.22 in `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md` (mechanical version housekeeping)
