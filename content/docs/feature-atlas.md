@@ -189,6 +189,7 @@ How external users communicate with agents through messaging platforms.
 | Talk realtime voice instructions | Append operator voice style instructions to realtime sessions while preserving built-in agent-consult guidance | `talk.realtime.instructions` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
 | Discord voice channel follow | Voice sessions follow configured Discord users into voice channels with allowed-channel checks, multi-user handoff, bounded reconciliation, and DAVE recovery preservation | `channels.discord.voice` | 2026.5.20 | [Official docs](https://docs.openclaw.ai) |
 | Discord voice bootstrap context files | Bounded IDENTITY.md, USER.md, and SOUL.md profile context included in realtime voice session instructions by default; disable with `voice.realtime.bootstrapContextFiles: []` | `channels.discord.voice.realtime.bootstrapContextFiles` | 2026.5.20 | [Official docs](https://docs.openclaw.ai) |
+| Reaction approvals (Signal/iMessage/WhatsApp) | Thumbs-up reaction on pending approval prompts approves them on Signal, iMessage, and WhatsApp, enabling mobile approval flows without requiring textual `/approve` commands | — | 2026.5.26 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -347,6 +348,14 @@ Layers of protection from sandbox isolation to network controls.
 | Policy plugin (bundled) | Bundled Policy plugin for policy-backed channel conformance checks, doctor lint findings, and opt-in workspace repair | `plugins.entries.policy` | 2026.5.20 | [Official docs](https://docs.openclaw.ai) |
 | Diffs viewer XSS fix | Control UI diffs viewer toolbar icons rendered from a closed icon-name map; HTML-string XSS sink removed | — | 2026.5.22 | [Phase 3](phases/phase-3-security.md) |
 | Workspace provider plugins fail-closed | Untrusted workspace plugins blocked during provider setup-mode discovery unless explicitly trusted | — | 2026.5.22 | [Phase 3](phases/phase-3-security.md) |
+| `memory_store` prompt injection filter | `memory_store` tool rejects prompt-like text before embedding or storage, matching the existing auto-capture prompt-injection filter | — | 2026.5.26 | [Phase 3](phases/phase-3-security.md) |
+| Gateway auth rate limiter default on | `gateway.auth.rateLimit` enabled by default for remote non-browser and HTTP gateway auth failures when unset; loopback exemption preserved | `gateway.auth.rateLimit` | 2026.5.26 | [Phase 3](phases/phase-3-security.md) |
+| Browser snapshot SSRF validation | Snapshot tab URLs validated against SSRF policy before ChromeMCP or direct CDP reads | `browser.ssrfPolicy` | 2026.5.26 | [Phase 3](phases/phase-3-security.md) |
+| System-event text sanitization | Untrusted plugin/channel event labels sanitized so they cannot spoof nested prompt markers | — | 2026.5.26 | [Phase 3](phases/phase-3-security.md) |
+| Exec approval hardening | Durable approval actions unavailable for the current prompt hidden; approval runtime tokens kept local-only to prevent stale prompts from offering misleading controls | — | 2026.5.26 | [Phase 3](phases/phase-3-security.md) |
+| Security audit: hooks.token reuse detection | `openclaw security audit` flags `gateway.auth.hooks_token_reuse` when `hooks.token` reuses the active gateway password auth | — | 2026.5.26 | [Phase 3](phases/phase-3-security.md) |
+| Security audit: YOLO exec permission override warning | `openclaw security audit` warns when YOLO exec policy overrides a restrictive raw Claude `--permission-mode` for managed live sessions | — | 2026.5.26 | [Phase 3](phases/phase-3-security.md) |
+| Plugin lock owner verification | Owner identity proof required before stale plugin locks can be removed | — | 2026.5.26 | [Phase 3](phases/phase-3-security.md) |
 
 ### Use Cases
 
@@ -418,6 +427,7 @@ The 44 built-in tools, cron scheduling, web search, browser, and extended capabi
 | `openclaw cron get <id>` | Inspect one stored cron job by id via CLI or the `cron.get` agent tool | CLI: `openclaw cron get <id>` | 2026.5.12 | [Reference](reference.md#cron-jobs) |
 | `/context map` | Send a treemap image of the current session context contributors | CLI: `/context map` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
 | Meeting Notes plugin | External meeting-notes plugin with auto-start capture config, manual transcript imports, read-only `openclaw meeting-notes` CLI access, and Discord voice as the first live source | `openclaw meeting-notes` CLI | 2026.5.22 | [Official docs](https://docs.openclaw.ai) |
+| Cron max concurrent runs default | `cron.maxConcurrentRuns` defaults to 8 so scheduled automations run in parallel without explicit configuration | `cron.maxConcurrentRuns` | 2026.5.26 | [Reference](reference.md#cron-jobs) |
 
 ### Use Cases
 
@@ -479,6 +489,7 @@ Running OpenClaw in production: service management, infrastructure, and day-to-d
 | Models auth list | Inspect saved per-agent auth profiles without dumping secrets; filterable by provider | CLI: `openclaw models auth list [--provider <id>] [--json]` | 2026.5.4 | [Reference](reference.md#useful-commands) |
 | Sessions list pagination | `openclaw sessions` capped at 100 rows by default with `--limit <n\|all>` override to control output size on large stores | CLI: `openclaw sessions list --limit` | 2026.5.4 | [Reference](reference.md#useful-commands) |
 | `openclaw channels status --channel` | Filter channel status by name to probe a single channel without starting all monitors | CLI: `openclaw channels status --channel <name>` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
+| Control UI Activity tab | Ephemeral Activity tab in Control UI showing sanitized live tool activity summaries without persisting raw telemetry | Control UI | 2026.5.26 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 

@@ -162,6 +162,15 @@ The fix isn't one setting — it's layered defense. Each setting below blocks a 
 > **Version note (2026.5.22):**
 > - **Diffs viewer XSS fix** — toolbar icons are now rendered from a closed icon-name map instead of HTML strings; XSS sink removed from the Control UI diffs viewer
 > - **Workspace provider plugins fail-closed** — untrusted workspace plugins are blocked during provider setup-mode discovery unless explicitly trusted in config, preventing untrusted workspace code from running during provider setup flows
+>
+> **Version note (2026.5.26):**
+> - **`memory_store` prompt injection filter** — the `memory_store` tool now rejects prompt-like text before embedding or storage, matching the existing auto-capture prompt-injection filter
+> - **Gateway auth rate limiter default on** — `gateway.auth.rateLimit` is now enabled by default for remote non-browser and HTTP gateway auth failures when unset; the loopback exemption is preserved. No config change is required — existing installations gain auth rate limiting automatically
+> - **Browser snapshot SSRF validation** — snapshot tab URLs are now validated against SSRF policy before ChromeMCP or direct CDP reads (previously only navigation requests were checked)
+> - **System-event text sanitization** — untrusted plugin/channel event labels can no longer spoof nested prompt markers in system-event text
+> - **Exec approval hardening** — durable approval actions unavailable for the current prompt are now hidden; approval runtime tokens are kept local-only so stale prompts cannot offer misleading controls
+> - **Security audit new findings** — `openclaw security audit` now flags: (1) `gateway.auth.hooks_token_reuse` when `hooks.token` reuses the active gateway password auth (2) `agents.yolo_exec_permission_override` when YOLO OpenClaw exec policy overrides a restrictive raw Claude `--permission-mode` for managed live sessions
+> - **Locking hardening** — owner identity proof is now required before stale plugin locks can be removed
 
 ---
 
