@@ -234,6 +234,7 @@ How conversations are scoped, persisted, and how agents remember across sessions
 | QMD cross-agent collections | Opt specific agents into searching another agent's session history by name | `memorySearch.qmd.extraCollections` | 2026.3.31 | [Phase 2](phases/phase-2-memory.md) |
 | Amazon Bedrock embeddings | Memory embeddings via Titan, Cohere, Nova, TwelveLabs; AWS credential-chain auto-detection | `memorySearch.provider: "bedrock"` | 2026.4.5 | [Phase 2](phases/phase-2-memory.md) |
 | GitHub Copilot embeddings | Memory search embedding provider using GitHub Copilot transport with token refresh and remote override support | `memorySearch.provider: "copilot"` | 2026.4.15 | [Phase 2](phases/phase-2-memory.md) |
+| OpenAI-compatible embedding provider | Core embedding provider for any OpenAI-style API endpoint (LM Studio, Ollama, vLLM, self-hosted); includes config, doctor, and docs support | `memorySearch.provider: "openai-compatible"` | 2026.5.27 | [Phase 2](phases/phase-2-memory.md) |
 | LanceDB cloud storage | `memory-lancedb` backend supports remote object storage so durable memory indexes can run on cloud storage instead of local disk | `memory-lancedb` plugin | 2026.4.15 | [Official docs](https://docs.openclaw.ai) |
 | Memory dreaming (experimental) | Background promotion of daily-log content into durable `MEMORY.md`; three phases (light, deep, REM) | `dreaming.enabled`, `dreaming.frequency` | 2026.4.5 | [Phase 2](phases/phase-2-memory.md) |
 | Dreaming aging controls | Tune recall decay and promotion decisions | `dreaming.recencyHalfLifeDays`, `dreaming.maxAgeDays` | 2026.4.5 | [Phase 2](phases/phase-2-memory.md) |
@@ -345,7 +346,7 @@ Layers of protection from sandbox isolation to network controls.
 | Gateway/browser/pairing hardening | Sandbox browser CDP relay requires auth; browser navigation enforcement; exec approval chain validation; node exec event provenance; pairing scope changes blocked; trusted-proxy source validation; gateway command scope enforcement; MCP redirect header scrubbing | — | 2026.5.12 | [Phase 3](phases/phase-3-security.md) |
 | Credential symlink hardening | Credential loaders for Telegram, LINE, Zalo, IRC, and Nextcloud Talk tokens refuse symlinked credential files (`rejectSymlink: true`) — fail-closed behavior restored | — | 2026.5.20 | [Phase 3](phases/phase-3-security.md) |
 | Doctor plaintext secret detection | `openclaw doctor` and `openclaw security audit` warn when `openclaw.json` contains hardcoded API keys or sensitive provider headers | — | 2026.5.20 | [Phase 3](phases/phase-3-security.md) |
-| Policy plugin (bundled) | Bundled Policy plugin for policy-backed channel conformance checks, doctor lint findings, and opt-in workspace repair | `plugins.entries.policy` | 2026.5.20 | [Official docs](https://docs.openclaw.ai) |
+| Policy plugin (bundled) | Bundled Policy plugin for policy-backed channel conformance checks, doctor lint findings, and opt-in workspace repair; adds policy comparison, ingress-channel conformance, and sandbox-posture conformance checks (2026.5.28) | `plugins.entries.policy` | 2026.5.20 | [Official docs](https://docs.openclaw.ai) |
 | Diffs viewer XSS fix | Control UI diffs viewer toolbar icons rendered from a closed icon-name map; HTML-string XSS sink removed | — | 2026.5.22 | [Phase 3](phases/phase-3-security.md) |
 | Workspace provider plugins fail-closed | Untrusted workspace plugins blocked during provider setup-mode discovery unless explicitly trusted | — | 2026.5.22 | [Phase 3](phases/phase-3-security.md) |
 | `memory_store` prompt injection filter | `memory_store` tool rejects prompt-like text before embedding or storage, matching the existing auto-capture prompt-injection filter | — | 2026.5.26 | [Phase 3](phases/phase-3-security.md) |
@@ -356,6 +357,13 @@ Layers of protection from sandbox isolation to network controls.
 | Security audit: hooks.token reuse detection | `openclaw security audit` flags `gateway.auth.hooks_token_reuse` when `hooks.token` reuses the active gateway password auth | — | 2026.5.26 | [Phase 3](phases/phase-3-security.md) |
 | Security audit: YOLO exec permission override warning | `openclaw security audit` warns when YOLO exec policy overrides a restrictive raw Claude `--permission-mode` for managed live sessions | — | 2026.5.26 | [Phase 3](phases/phase-3-security.md) |
 | Plugin lock owner verification | Owner identity proof required before stale plugin locks can be removed | — | 2026.5.26 | [Phase 3](phases/phase-3-security.md) |
+| No-auth Tailscale exposure rejected | Gateway startup rejects configurations that bind via Tailscale without gateway auth; raises critical `gateway.tailscale.no_auth` audit finding | — | 2026.5.27 | [Phase 3](phases/phase-3-security.md), [Phase 6](phases/phase-6-deployment.md) |
+| Exec side-effecting wrapper blocking | Additional exec wrapper patterns that invoke side-effecting behavior blocked in exec allowlist resolution | — | 2026.5.27 | [Phase 3](phases/phase-3-security.md) |
+| Node runtime env override blocking | Additional Node.js runtime env vars that redirect module resolution blocked in exec env sanitizers | — | 2026.5.27 | [Phase 3](phases/phase-3-security.md) |
+| Node/device-role approval admin gate | Node and device role elevation requests require `operator.admin` authority; non-admin operators cannot self-approve role changes | — | 2026.5.27 | [Phase 3](phases/phase-3-security.md) |
+| Group prompt metadata fencing (extended) | Untrusted group prompt metadata routed outside the system prompt, extending group-chat prompt injection fencing to additional metadata vectors | — | 2026.5.27 | [Phase 3](phases/phase-3-security.md) |
+| Phone-control mutation authorization | Phone-control mutations require explicit admin authorization; non-admin sessions cannot modify phone-control state | — | 2026.5.28 | [Phase 3](phases/phase-3-security.md) |
+| Directive persistence authorization | Directive persistence (e.g., `/think` across sessions) enforces consistent authorization policy for channel-originated decisions | — | 2026.5.28 | [Phase 3](phases/phase-3-security.md) |
 
 ### Use Cases
 
@@ -403,8 +411,8 @@ The 44 built-in tools, cron scheduling, web search, browser, and extended capabi
 | Background task flows | Unified background-run control plane with `openclaw flows list\|show\|cancel` | `openclaw flows` | 2026.3.31 | [Reference](reference.md#useful-commands) |
 | Image generation (native) | Built-in image generation via `image_generate` tool | `agents.defaults.imageGenerationModel.primary` | 2026.3.22 | [Reference](reference.md#config-quick-reference) |
 | Image generation (plugin) | Generate images via OpenRouter API (FLUX, Gemini, GPT, MiniMax image-01) | `generate_image` tool (image-gen plugin) | — (MiniMax: 2026.3.28) | [Extension](extensions/image-gen.md) |
-| Video generation (native) | Built-in `video_generate` tool; providers include xAI, Alibaba Wan, Runway | `video_generate` tool | 2026.4.5 | [Official docs](https://docs.openclaw.ai) |
-| Music generation (native) | Built-in `music_generate` tool; bundled Google Lyria and MiniMax providers; async delivery | `music_generate` tool | 2026.4.5 | [Official docs](https://docs.openclaw.ai) |
+| Video generation (native) | Built-in `video_generate` tool; providers include xAI, Alibaba Wan, Runway, Pixverse (with API region selection) | `video_generate` tool | 2026.4.5 | [Official docs](https://docs.openclaw.ai) |
+| Music generation (native) | Built-in `music_generate` tool; bundled Google Lyria and MiniMax providers; MiniMax delivers via streaming response (2026.5.28), others via async delivery | `music_generate` tool | 2026.4.5 | [Official docs](https://docs.openclaw.ai) |
 | ComfyUI workflows | Bundled `comfy` plugin for local/cloud ComfyUI; image, video, and music generation | `comfy` plugin | 2026.4.5 | [Official docs](https://docs.openclaw.ai) |
 | Computer use | VM-based macOS interaction via 7 `vm_*` tools | `vm_*` tools (computer-use plugin) | — | [Phase 8](phases/phase-8-computer-use.md), [Extension](extensions/computer-use.md) |
 | `openclaw infer` | First-class CLI hub for provider-backed inference workflows: model, media, web, and embedding tasks | `openclaw infer` | 2026.4.7 | [Official docs](https://docs.openclaw.ai) |
@@ -428,6 +436,9 @@ The 44 built-in tools, cron scheduling, web search, browser, and extended capabi
 | `/context map` | Send a treemap image of the current session context contributors | CLI: `/context map` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
 | Meeting Notes plugin | External meeting-notes plugin with auto-start capture config, manual transcript imports, read-only `openclaw meeting-notes` CLI access, and Discord voice as the first live source | `openclaw meeting-notes` CLI | 2026.5.22 | [Official docs](https://docs.openclaw.ai) |
 | Cron max concurrent runs default | `cron.maxConcurrentRuns` defaults to 8 so scheduled automations run in parallel without explicit configuration | `cron.maxConcurrentRuns` | 2026.5.26 | [Reference](reference.md#cron-jobs) |
+| Cron rate-limit retry | Recurring cron jobs retry after transient model rate limits before waiting for the next scheduled slot; preflight model fallbacks before skipping scheduled work | `cron.jobs` | 2026.5.27 | [Reference](reference.md#cron-jobs) |
+| Encrypted PDF extraction | ClawPDF-backed PDF tool supports encrypted PDF extraction in addition to standard PDF reading; MCP structured content surfaced in agent tool results | `pdf` tool | 2026.5.28 | [Reference](reference.md#tool-list) |
+| Workboard | Agent coordination tools for tracking and handing off active agent work across sessions | — | 2026.5.28 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -539,6 +550,7 @@ How the gateway works under the hood — the module system, plugin lifecycle, an
 | mDNS discovery | Local network service discovery | `discovery.mdns` | — | [Reference](reference.md#config-quick-reference) |
 | Tool system | Unified tool dispatch with policy enforcement | — | — | [Architecture](architecture.md) |
 | `session_end` shutdown/restart reasons | `session_end` plugin hook fires for all active sessions on gateway stop or restart with reason `shutdown` or `restart`; bounded 2 s drain budget prevents slow plugins from blocking process exit | Plugin API | 2026.5.12 | [Reference](reference.md#plugin-hooks) |
+| Plugin reply payload sending hook | New Plugin SDK hook for plugins that need to deliver channel-owned replies; package types flattened for SDK declarations | Plugin API | 2026.5.28 | [Reference](reference.md#plugin-hooks) |
 
 #### Use Cases
 

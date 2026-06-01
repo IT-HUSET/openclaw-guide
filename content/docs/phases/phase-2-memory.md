@@ -146,6 +146,7 @@ By default, the agent can only see today's and yesterday's memory files. **Memor
 |----------|----------|---------|---------|
 | `local` (GGUF) | ~600MB disk, first-run download | ~50ms | Full — nothing leaves your machine |
 | `openai` | `OPENAI_API_KEY` | ~200ms | Embeddings sent to OpenAI |
+| `openai-compatible` | Custom endpoint URL + optional API key | ~200ms | Embeddings sent to configured endpoint. Supports any OpenAI-compatible embedding API — LM Studio, Ollama, vLLM, or any self-hosted OpenAI-style server (2026.5.27+) |
 | `gemini` | `GEMINI_API_KEY` | ~200ms | Embeddings sent to Google. `gemini-embedding-2-preview` available (2026.3.11+) with configurable output dimensions |
 | `voyage` | `VOYAGE_API_KEY` | ~200ms | Embeddings sent to Voyage AI |
 | `bedrock` | AWS credentials (IAM or env) | ~200ms | Embeddings sent to AWS. Supports Titan, Cohere, Nova, and TwelveLabs models. `provider: "auto"` uses AWS credential-chain auto-detection (2026.4.5+) |
