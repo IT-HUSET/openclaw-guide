@@ -171,6 +171,17 @@ The fix isn't one setting — it's layered defense. Each setting below blocks a 
 > - **Exec approval hardening** — durable approval actions unavailable for the current prompt are now hidden; approval runtime tokens are kept local-only so stale prompts cannot offer misleading controls
 > - **Security audit new findings** — `openclaw security audit` now flags: (1) `gateway.auth.hooks_token_reuse` when `hooks.token` reuses the active gateway password auth (2) `agents.yolo_exec_permission_override` when YOLO OpenClaw exec policy overrides a restrictive raw Claude `--permission-mode` for managed live sessions
 > - **Locking hardening** — owner identity proof is now required before stale plugin locks can be removed
+>
+> **Version note (2026.5.27):**
+> - **No-auth Tailscale exposure rejected** — gateway startup now rejects configurations that bind via Tailscale without gateway auth enabled; raises a critical `gateway.tailscale.no_auth` audit finding. If you use Tailscale for remote access, ensure `gateway.auth.mode: "token"` is configured (already required by the security baseline in this guide)
+> - **Side-effecting exec wrapper blocking** — additional exec wrapper patterns that can invoke side-effecting behavior are blocked in exec allowlist resolution
+> - **Unsafe Node runtime env overrides blocked** — additional Node.js runtime env vars that can redirect module resolution or override runtime behavior are blocked in exec env sanitizers
+> - **Node/device-role approvals require admin** — node and device role elevation requests now require `operator.admin` authority; non-admin operators can no longer self-approve role changes
+> - **Group prompt metadata fenced** — untrusted group prompt metadata is routed outside the system prompt, extending the existing group-chat prompt injection fencing to additional metadata vectors
+>
+> **Version note (2026.5.28):**
+> - **Phone-control mutation authorization tightened** — phone-control mutations now require explicit admin authorization; non-admin sessions cannot modify phone-control state
+> - **Directive persistence authorization clarified** — directive persistence (e.g., `/think` persisting across sessions) enforces consistent authorization policy for channel-originated decisions so channel-sourced directives retain their intended context
 
 ---
 

@@ -3,6 +3,21 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-06-01 — OpenClaw 2026.5.26 → 2026.5.28
+
+- Bumped `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md` to `2026.5.28` (mechanical housekeeping)
+- Added Phase 3 security version notes for **2026.5.27**: no-auth Tailscale exposure now rejected at gateway startup (breaking for installs using Tailscale without `gateway.auth`), exec side-effecting wrapper blocking, Node runtime env override blocking, node/device-role approvals require `operator.admin`, and extended group prompt metadata fencing
+- Added Phase 3 security version notes for **2026.5.28**: phone-control mutation authorization tightened, directive persistence authorization clarified
+- Added two new checklist items to `.claude/commands/security-review.md` for versions ≥ 2026.5.27 and ≥ 2026.5.28 — **note: write was blocked by the environment's permission settings; this item remains unupdated**
+- Added `openai-compatible` embedding provider row to Phase 2 memory search provider table (2026.5.27 — enables LM Studio, Ollama, vLLM, and any self-hosted OpenAI-style endpoint)
+- Feature Atlas — Sessions & Memory: added `openai-compatible` embedding provider entry (2026.5.27)
+- Feature Atlas — Security & Hardening: added 5 entries for 2026.5.27 (Tailscale no-auth rejection, exec wrapper blocking, Node env blocking, node/device-role admin gate, group prompt fencing extension) and 2 entries for 2026.5.28 (phone-control auth, directive persistence auth)
+- Feature Atlas — Security & Hardening: updated Policy plugin entry (2026.5.20) to include the new policy comparison, ingress-channel conformance, and sandbox-posture conformance checks added in 2026.5.28
+- Feature Atlas — Tools & Automation: added cron rate-limit retry (2026.5.27), encrypted PDF extraction via ClawPDF (2026.5.28), and Workboard agent coordination tools (2026.5.28)
+- Feature Atlas — Tools & Automation: updated video generation entry to include Pixverse provider (2026.5.27), updated music generation entry to note MiniMax now delivers via streaming response (2026.5.28)
+- Feature Atlas — Internals: added plugin reply payload sending hook entry (2026.5.28)
+- Pass 2 (improvement scan): no Pending Cleanup items resolved — issues #15176, #9857, #11758, and #14046 are not mentioned as fixed in 2026.5.27 or 2026.5.28
+
 ## 2026-05-28 — OpenClaw 2026.5.22 → 2026.5.26
 
 - Updated version references to 2026.5.26 in `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md` (mechanical housekeeping)
