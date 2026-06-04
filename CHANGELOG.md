@@ -3,6 +3,13 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-06-04 — OpenClaw 2026.5.28 → 2026.6.1
+
+- Added **Skill Workshop** to the Feature Atlas (Agents & Configuration) — governed skill creation flow with proposals, CLI/Gateway review actions, `skill_workshop` agent tool, rollback metadata, approved support-file bundles, and full Control UI (proposal list, today view, revision dialog, searchable file previews); since 2026.6.1
+- Updated version callout in `content/docs/_index.md` to OpenClaw 2026.6.1
+- Updated prerequisite line in `content/docs/hardened-multi-agent.md` to OpenClaw 2026.6.1+
+- **Note (manual action needed):** `.claude/commands/security-review.md` could not be updated due to session permissions — add `- [ ] Version ≥ 2026.6.1 (config parsing: unsafe OAuth/token lifetimes, retry-after delays, sandbox observer TTLs, and WebSocket-after-close calls rejected)` to the Version & Known Vulnerabilities checklist
+
 ## 2026-06-01 — OpenClaw 2026.5.26 → 2026.5.28
 
 - Bumped `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md` to `2026.5.28` (mechanical housekeeping)
