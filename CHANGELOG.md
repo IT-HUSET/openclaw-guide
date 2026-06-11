@@ -3,6 +3,19 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-06-11 — OpenClaw 2026.6.1 → 2026.6.5
+
+- Added **Parallel** as a new bundled `web_search` provider (Phase 5): config example with `PARALLEL_API_KEY`, bundled discovery note; mirrors Brave/Perplexity/Grok/SearXNG pattern
+- Added **QMD rerank toggle** version note to Phase 2 (2026.6.5): opt-in cross-encoder reranking pass for QMD hybrid queries
+- Added **Google Chat native approval cards** note to google-chat.md (2026.6.5+): tool approval prompts now render as interactive cards with click-to-approve buttons
+- Added **version 2026.6.5 row** to reference.md Version Compatibility table covering: Parallel provider, approval cards, QMD rerank, Matrix voice/thread, auth-profiles SQLite, config.patch fix, and security fixes
+- Feature Atlas — Channels table: added rows for **Google Chat native approval cards**, **QQBot reasoning strip**, and **Matrix voice notes + thread awareness** (all 2026.6.5)
+- Feature Atlas — Sessions & Memory table: added **QMD rerank toggle** row (2026.6.5)
+- Feature Atlas — Security table: added **MCP HTTP redirect guard**, **transcript image payload redaction**, and **owner-only HTTP tool gating** rows (all 2026.6.5)
+- Feature Atlas — Tools & Automation: updated **web search providers** row description and Since field to include Parallel (2026.6.5)
+- Feature Atlas — Agents & Configuration: added **ClawHub GitHub-backed skills** row (2026.6.5)
+- Note: `.claude/commands/security-review.md` checklist item for version ≥ 2026.6.5 (MCP HTTP redirect guard, transcript image redaction, owner-only HTTP tool gating) was blocked by permission settings and requires manual addition
+
 ## 2026-06-04 — OpenClaw 2026.5.28 → 2026.6.1
 
 - Added **Skill Workshop** to the Feature Atlas (Agents & Configuration) — governed skill creation flow with proposals, CLI/Gateway review actions, `skill_workshop` agent tool, rollback metadata, approved support-file bundles, and full Control UI (proposal list, today view, revision dialog, searchable file previews); since 2026.6.1

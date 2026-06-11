@@ -772,6 +772,8 @@ The `qmd` binary must be on the gateway's `PATH`. QMD runs fully locally via Bun
 
 > **Version note (2026.3.31):** Per-agent `memorySearch.qmd.extraCollections` lets agents opt into cross-agent session search by name, without flattening every agent's transcript collection into one shared QMD namespace. Useful when you want a specific agent (e.g., a research agent) to search another agent's session history without merging all collections globally.
 
+> **Version note (2026.6.5):** QMD search supports an opt-in rerank toggle (`memory.qmd.rerank.enabled`). When enabled, a cross-encoder reranking pass runs over candidate results before final delivery, improving relevance ordering for hybrid queries. See [official docs](https://docs.openclaw.ai/concepts/memory) for the config key.
+
 > **Limitations:** QMD is experimental — may not survive OpenClaw updates, has no official documentation, and behavior may change without notice. Test thoroughly before relying on it in production.
 
 For most users, the default built-in backend is sufficient.
