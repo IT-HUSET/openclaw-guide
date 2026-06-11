@@ -110,6 +110,7 @@ How agents are defined, routed, and connected to each other.
 | Skills | Bundled skill packages (coding-agent, github, healthcheck) | `skills.allowBundled` | — | [Reference](reference.md#config-quick-reference) |
 | Skills global install | Install or update shared managed skills accessible to all agents with `openclaw skills install --global` / `openclaw skills update --global` | CLI: `openclaw skills install/update --global` | 2026.5.19 | [Official docs](https://docs.openclaw.ai) |
 | Skill Workshop | Governed skill creation flow: pending proposals, CLI/Gateway review actions, `skill_workshop` agent tool, rollback metadata, approved support-file bundles, and full Control UI with proposal list, today view, revision dialog, and searchable file previews | CLI: `openclaw skill_workshop`, Control UI | 2026.6.1 | [Official docs](https://docs.openclaw.ai) |
+| ClawHub GitHub-backed skills | Install ClawHub skills backed by GitHub repositories via the resolved install API; downloads the pinned commit, keeps install-policy checks, and reports install telemetry | CLI: `openclaw skills install <name>` | 2026.6.5 | [Official docs](https://docs.openclaw.ai) |
 | Config includes | Split config across multiple files with `$include` | `$include` | — | [Reference](reference.md#config-includes-include) |
 | Per-agent thinking/reasoning defaults | Configure thinking/reasoning/fast mode per agent with automatic fallback | `agents.list[].defaults.think` | 2026.3.22 | [Reference](reference.md#config-quick-reference) |
 | Native image generation model | Set the default model for the built-in `image_generate` tool | `agents.defaults.imageGenerationModel.primary` | 2026.3.22 | [Reference](reference.md#config-quick-reference) |
@@ -191,6 +192,9 @@ How external users communicate with agents through messaging platforms.
 | Discord voice channel follow | Voice sessions follow configured Discord users into voice channels with allowed-channel checks, multi-user handoff, bounded reconciliation, and DAVE recovery preservation | `channels.discord.voice` | 2026.5.20 | [Official docs](https://docs.openclaw.ai) |
 | Discord voice bootstrap context files | Bounded IDENTITY.md, USER.md, and SOUL.md profile context included in realtime voice session instructions by default; disable with `voice.realtime.bootstrapContextFiles: []` | `channels.discord.voice.realtime.bootstrapContextFiles` | 2026.5.20 | [Official docs](https://docs.openclaw.ai) |
 | Reaction approvals (Signal/iMessage/WhatsApp) | Thumbs-up reaction on pending approval prompts approves them on Signal, iMessage, and WhatsApp, enabling mobile approval flows without requiring textual `/approve` commands | — | 2026.5.26 | [Official docs](https://docs.openclaw.ai) |
+| Google Chat native approval cards | Tool call approval prompts rendered as interactive Google Chat cards with click-to-approve buttons instead of plain text | `channels.googlechat` | 2026.6.5 | [Google Chat](google-chat.md) |
+| QQBot reasoning strip | QQBot strips model reasoning/thinking scaffolding before channel delivery, preventing raw `<thinking>` content from appearing in replies | `channels.qqbot` | 2026.6.5 | [Official docs](https://docs.openclaw.ai) |
+| Matrix voice notes + thread awareness | Matrix preflight voice notes before mention gating; thread reads and replies preserved through Matrix relations pagination | `channels.matrix` | 2026.6.5 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -253,6 +257,7 @@ How conversations are scoped, persisted, and how agents remember across sessions
 | Hybrid search raw scores | `vectorScore` and `textScore` exposed alongside combined `score` on hybrid results for retrieval contribution inspection | `memorySearch.query.hybrid` | 2026.4.24 | [Phase 2](phases/phase-2-memory.md) |
 | Asymmetric embedding config | Separate `queryInputType` and `documentInputType` for OpenAI-compatible providers that use different input types for queries vs. documents (e.g., `query` vs. `passage`) | `memorySearch.queryInputType`, `memorySearch.documentInputType` | 2026.4.26 | [Phase 2](phases/phase-2-memory.md) |
 | Dream Diary model override | Dedicated `dreaming.model` knob for Dream Diary narrative subagents to avoid paid conversation models during memory housekeeping | `dreaming.model` | 2026.4.26 | [Phase 2](phases/phase-2-memory.md) |
+| QMD rerank toggle | QMD backend supports an opt-in cross-encoder reranking pass for improved result ordering on hybrid queries | `memory.qmd.rerank.enabled` | 2026.6.5 | [Phase 2](phases/phase-2-memory.md) |
 
 ### Use Cases
 
@@ -365,6 +370,9 @@ Layers of protection from sandbox isolation to network controls.
 | Group prompt metadata fencing (extended) | Untrusted group prompt metadata routed outside the system prompt, extending group-chat prompt injection fencing to additional metadata vectors | — | 2026.5.27 | [Phase 3](phases/phase-3-security.md) |
 | Phone-control mutation authorization | Phone-control mutations require explicit admin authorization; non-admin sessions cannot modify phone-control state | — | 2026.5.28 | [Phase 3](phases/phase-3-security.md) |
 | Directive persistence authorization | Directive persistence (e.g., `/think` across sessions) enforces consistent authorization policy for channel-originated decisions | — | 2026.5.28 | [Phase 3](phases/phase-3-security.md) |
+| MCP HTTP redirect guard | MCP HTTP fetches blocked from following redirects to private-network or unexpected hosts; prevents SSRF via redirect chains from MCP tool results | — | 2026.6.5 | [Phase 3](phases/phase-3-security.md) |
+| Transcript image payload redaction | Inline image data URLs and repaired transcript images redacted from stored session transcripts before raw image bytes can be leaked | `logging.redactSensitive` | 2026.6.5 | [Phase 3](phases/phase-3-security.md) |
+| Owner-only HTTP tool gating | HTTP tools marked `ownerOnly` are gated and inaccessible to non-owner sessions; prevents privilege escalation via owner-scoped tool exposure | — | 2026.6.5 | [Phase 3](phases/phase-3-security.md) |
 
 ### Use Cases
 
@@ -400,7 +408,7 @@ The 44 built-in tools, cron scheduling, web search, browser, and extended capabi
 | Messaging tools | `message` — send messages to channels with explicit targets | `group:messaging` | — | [Reference](reference.md#tool-list) |
 | Node tools | `nodes` — remote paired device operations | `group:nodes` | — | [Reference](reference.md#tool-list) |
 | PDF tool | Read and extract content from PDF files | `pdf` tool | 2026.3.2 | [Reference](reference.md#tool-list) |
-| Web search providers | DuckDuckGo and other bundled providers, plus official external providers such as Brave and Perplexity | `tools.web.search.provider`, `plugins.entries.<provider>.config.webSearch` | Exa/Tavily/Firecrawl: 2026.3.22; SearXNG: 2026.4.1 | [Phase 5](phases/phase-5-web-search.md) |
+| Web search providers | DuckDuckGo, Parallel, and other bundled providers, plus official external providers such as Brave and Perplexity | `tools.web.search.provider`, `plugins.entries.<provider>.config.webSearch` | Exa/Tavily/Firecrawl: 2026.3.22; SearXNG: 2026.4.1; Parallel: 2026.6.5 | [Phase 5](phases/phase-5-web-search.md) |
 | Browser automation | Playwright-based browser with CDP protocol | `browser` tool | — | [Reference](reference.md#tool-list) |
 | Cron jobs (isolated) | Fresh throwaway session per run with optional channel delivery | `cron.jobs[].sessionTarget: "isolated"` | — | [Reference](reference.md#cron-jobs) |
 | Cron jobs (main) | Inject events into agent's existing main session | `cron.jobs[].sessionTarget: "main"` | — | [Reference](reference.md#cron-jobs) |

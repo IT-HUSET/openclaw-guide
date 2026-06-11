@@ -326,6 +326,40 @@ OpenRouter supports crypto/prepaid — no credit card needed. For native Perplex
 }
 ```
 
+**Parallel** (AI-native search, bundled provider):
+1. Create account at https://api.parallel.ai/
+2. Generate an API key
+3. Set `PARALLEL_API_KEY` in `~/.openclaw/.env`
+
+```json
+{
+  "tools": {
+    "web": {
+      "search": {
+        "enabled": true,
+        "provider": "parallel"
+      }
+    }
+  },
+  "plugins": {
+    "bundledDiscovery": "allowlist",
+    "allow": ["parallel", "content-guard", "channel-guard"],
+    "entries": {
+      "parallel": {
+        "enabled": true,
+        "config": {
+          "webSearch": {
+            "apiKey": "${PARALLEL_API_KEY}"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Bundled provider (2026.6.5+); include `"parallel"` in `plugins.allow` when using a restrictive allowlist. OpenClaw auto-discovers `PARALLEL_API_KEY` from the environment.
+
 **SearXNG** (self-hosted, no API key, no tracking):
 SearXNG is a self-hosted meta-search engine. Run your own instance (Docker: `docker run -d -p 8888:8080 searxng/searxng`) and point OpenClaw at it:
 

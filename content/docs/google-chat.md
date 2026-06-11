@@ -36,6 +36,7 @@ Key differences from WhatsApp/Signal:
 - **Threaded replies** — in spaces (group chats), replies are always posted in the thread of the original message. No config option to post top-level instead (OpenClaw limitation — the Google Chat API does support it via `messageReplyOption`).
 - **Mention-only in spaces** — Google Chat only forwards @mention messages (and slash commands) to HTTP endpoint apps in group spaces. Non-mention messages never reach the webhook — this is a [Google Chat platform constraint](https://developers.google.com/workspace/chat/api/reference/rest/v1/EventType), not an OpenClaw limitation. `requireMention: false` in OpenClaw config has no practical effect for spaces since Google never delivers non-mention messages. All-message monitoring would require the separate [Workspace Events API + Pub/Sub](https://developers.google.com/workspace/events/guides/events-chat) architecture. DMs always arrive regardless.
 - **Plugin required** — `plugins.entries.googlechat.enabled: true` must be set (WhatsApp/Signal also need their plugin enabled)
+- **Native approval cards** (2026.6.5+) — tool call approval prompts render as interactive Google Chat cards with click-to-approve buttons, instead of plain text. No config change needed.
 
 ---
 
