@@ -3,6 +3,15 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-06-15 — OpenClaw 2026.6.5 → 2026.6.6
+
+- Updated `.guide-version`, docs index callout, and `hardened-multi-agent.md` prerequisite line from 2026.6.5 → 2026.6.6 (mechanical housekeeping)
+- Feature Atlas — Security: added exec approval timeout fail-closed (exec gates now block on timeout rather than pass-through), broad security boundary hardening row covering transcript, sandbox bind, MCP stdio, ACP deleted-agent bypass, and loopback tool tightening, and native hook relay lifetime bounds — all from the 2026.6.6 security highlights
+- Feature Atlas — Agents & Configuration: added OpenRouter OAuth onboarding row and Claude Fable 5 adaptive thinking row reflecting expanded provider support in 2026.6.6
+- Feature Atlas — Sessions & Memory: added llama.cpp provider plugin row documenting the llama.cpp runtime extraction into a dedicated provider plugin and batch embedding improvements
+- Security review checklist (`.claude/commands/security-review.md`): attempted to add Version ≥ 2026.6.6 item covering exec approval fail-closed, sandbox/MCP stdio/ACP hardening — blocked by permission prompt and requires manual addition
+- Pass 2: No Pending Cleanup items resolved in 2026.6.6 (openclaw#15176, #9857, #11758, #14046 all remain open); no broken cross-references or config contradictions found
+
 ## 2026-06-11 — OpenClaw 2026.6.1 → 2026.6.5
 
 - Added **Parallel** as a new bundled `web_search` provider (Phase 5): config example with `PARALLEL_API_KEY`, bundled discovery note; mirrors Brave/Perplexity/Grok/SearXNG pattern

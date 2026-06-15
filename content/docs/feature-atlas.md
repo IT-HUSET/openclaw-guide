@@ -133,6 +133,8 @@ How agents are defined, routed, and connected to each other.
 | ACP runtime fallbacks | Try configured backup ACP runtime backends when the primary is unavailable before any output is emitted | `acp.fallbacks` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
 | Per-agent message context restriction | Restrict `message` sends to the current conversation for sandboxed or public-facing agents | `agents.list[].tools.message.crossContext` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
 | Per-agent send-only message policy | Expose and enforce send-only message tools for sandboxed or public-facing agents | `agents.list[].tools.message.actions.allow` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
+| OpenRouter OAuth onboarding | OAuth-based onboarding flow for OpenRouter provider authentication | `models.providers.openrouter` | 2026.6.6 | [Official docs](https://docs.openclaw.ai) |
+| Claude Fable 5 (adaptive thinking) | Claude Fable 5 model with adaptive thinking support via Anthropic and OpenRouter providers | `agents.list[].model` | 2026.6.6 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -258,6 +260,7 @@ How conversations are scoped, persisted, and how agents remember across sessions
 | Asymmetric embedding config | Separate `queryInputType` and `documentInputType` for OpenAI-compatible providers that use different input types for queries vs. documents (e.g., `query` vs. `passage`) | `memorySearch.queryInputType`, `memorySearch.documentInputType` | 2026.4.26 | [Phase 2](phases/phase-2-memory.md) |
 | Dream Diary model override | Dedicated `dreaming.model` knob for Dream Diary narrative subagents to avoid paid conversation models during memory housekeeping | `dreaming.model` | 2026.4.26 | [Phase 2](phases/phase-2-memory.md) |
 | QMD rerank toggle | QMD backend supports an opt-in cross-encoder reranking pass for improved result ordering on hybrid queries | `memory.qmd.rerank.enabled` | 2026.6.5 | [Phase 2](phases/phase-2-memory.md) |
+| llama.cpp provider plugin | Local llama.cpp runtime extracted into a dedicated provider plugin; batch embedding across files for improved throughput; agent model catalog cache persisted across restarts | `memorySearch.provider: "local"` | 2026.6.6 | [Phase 2](phases/phase-2-memory.md) |
 
 ### Use Cases
 
@@ -373,6 +376,9 @@ Layers of protection from sandbox isolation to network controls.
 | MCP HTTP redirect guard | MCP HTTP fetches blocked from following redirects to private-network or unexpected hosts; prevents SSRF via redirect chains from MCP tool results | — | 2026.6.5 | [Phase 3](phases/phase-3-security.md) |
 | Transcript image payload redaction | Inline image data URLs and repaired transcript images redacted from stored session transcripts before raw image bytes can be leaked | `logging.redactSensitive` | 2026.6.5 | [Phase 3](phases/phase-3-security.md) |
 | Owner-only HTTP tool gating | HTTP tools marked `ownerOnly` are gated and inaccessible to non-owner sessions; prevents privilege escalation via owner-scoped tool exposure | — | 2026.6.5 | [Phase 3](phases/phase-3-security.md) |
+| Exec approval timeout fail-closed | Exec approval gates that receive no user response within the timeout now fail closed (block the exec) instead of passing through | `tools.exec` | 2026.6.6 | [Phase 3](phases/phase-3-security.md) |
+| Security boundary hardening (broad) | Tighter enforcement across transcript boundaries, sandbox binds, host env inheritance, MCP stdio, native search policy, elevated sender checks, deleted-agent ACP bypass, and loopback tools | — | 2026.6.6 | [Phase 3](phases/phase-3-security.md) |
+| Native hook relay lifetime bounds | Abandoned native hook connections are now bounded so they cannot linger indefinitely; reduces relay accumulation attack surface | — | 2026.6.6 | [Phase 3](phases/phase-3-security.md) |
 
 ### Use Cases
 
