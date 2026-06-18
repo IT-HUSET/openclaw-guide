@@ -135,6 +135,8 @@ How agents are defined, routed, and connected to each other.
 | Per-agent send-only message policy | Expose and enforce send-only message tools for sandboxed or public-facing agents | `agents.list[].tools.message.actions.allow` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
 | OpenRouter OAuth onboarding | OAuth-based onboarding flow for OpenRouter provider authentication | `models.providers.openrouter` | 2026.6.6 | [Official docs](https://docs.openclaw.ai) |
 | Claude Fable 5 (adaptive thinking) | Claude Fable 5 model with adaptive thinking support via Anthropic and OpenRouter providers | `agents.list[].model` | 2026.6.6 | [Official docs](https://docs.openclaw.ai) |
+| Claude Haiku 4.5 catalog | Claude Haiku 4.5 static catalog entries for normalized model routing without explicit provider qualification | `agents.list[].model` | 2026.6.8 | [Official docs](https://docs.openclaw.ai) |
+| GLM-5.2 catalog | GLM-5.2 in the bundled model catalog; provider-qualified IDs normalized across OpenRouter and Google Vertex paths | `agents.list[].model` | 2026.6.8 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -197,6 +199,8 @@ How external users communicate with agents through messaging platforms.
 | Google Chat native approval cards | Tool call approval prompts rendered as interactive Google Chat cards with click-to-approve buttons instead of plain text | `channels.googlechat` | 2026.6.5 | [Google Chat](google-chat.md) |
 | QQBot reasoning strip | QQBot strips model reasoning/thinking scaffolding before channel delivery, preventing raw `<thinking>` content from appearing in replies | `channels.qqbot` | 2026.6.5 | [Official docs](https://docs.openclaw.ai) |
 | Matrix voice notes + thread awareness | Matrix preflight voice notes before mention gating; thread reads and replies preserved through Matrix relations pagination | `channels.matrix` | 2026.6.5 | [Official docs](https://docs.openclaw.ai) |
+| Telegram rich message delivery | Tables, lists, expandable blockquotes, intentional line breaks, and CLI-backed replies rendered in Telegram channel output | `channels.telegram` | 2026.6.8 | [Official docs](https://docs.openclaw.ai) |
+| WhatsApp auth durability | WhatsApp login durably persists credentials before reporting success — prevents forced relink after Docker rebuilds or gateway upgrades | `channels.whatsapp` | 2026.6.8 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -379,6 +383,7 @@ Layers of protection from sandbox isolation to network controls.
 | Exec approval timeout fail-closed | Exec approval gates that receive no user response within the timeout now fail closed (block the exec) instead of passing through | `tools.exec` | 2026.6.6 | [Phase 3](phases/phase-3-security.md) |
 | Security boundary hardening (broad) | Tighter enforcement across transcript boundaries, sandbox binds, host env inheritance, MCP stdio, native search policy, elevated sender checks, deleted-agent ACP bypass, and loopback tools | — | 2026.6.6 | [Phase 3](phases/phase-3-security.md) |
 | Native hook relay lifetime bounds | Abandoned native hook connections are now bounded so they cannot linger indefinitely; reduces relay accumulation attack surface | — | 2026.6.6 | [Phase 3](phases/phase-3-security.md) |
+| HTTP admin scope for session and model control | HTTP session kills and model override endpoints require `operator.admin` scope; prevents unauthorized override via the gateway API | Gateway API | 2026.6.8 | [Phase 3](phases/phase-3-security.md) |
 
 ### Use Cases
 
@@ -414,7 +419,7 @@ The 44 built-in tools, cron scheduling, web search, browser, and extended capabi
 | Messaging tools | `message` — send messages to channels with explicit targets | `group:messaging` | — | [Reference](reference.md#tool-list) |
 | Node tools | `nodes` — remote paired device operations | `group:nodes` | — | [Reference](reference.md#tool-list) |
 | PDF tool | Read and extract content from PDF files | `pdf` tool | 2026.3.2 | [Reference](reference.md#tool-list) |
-| Web search providers | DuckDuckGo, Parallel, and other bundled providers, plus official external providers such as Brave and Perplexity | `tools.web.search.provider`, `plugins.entries.<provider>.config.webSearch` | Exa/Tavily/Firecrawl: 2026.3.22; SearXNG: 2026.4.1; Parallel: 2026.6.5 | [Phase 5](phases/phase-5-web-search.md) |
+| Web search providers | DuckDuckGo, Parallel, and other bundled providers, plus official external providers such as Brave and Perplexity. Key-free providers (DuckDuckGo, Parallel Free, etc.) must be explicitly configured via `tools.web.search.provider` — no longer selected automatically as fallbacks when no API-backed provider is set (2026.6.8+) | `tools.web.search.provider`, `plugins.entries.<provider>.config.webSearch` | Exa/Tavily/Firecrawl: 2026.3.22; SearXNG: 2026.4.1; Parallel: 2026.6.5 | [Phase 5](phases/phase-5-web-search.md) |
 | Browser automation | Playwright-based browser with CDP protocol | `browser` tool | — | [Reference](reference.md#tool-list) |
 | Cron jobs (isolated) | Fresh throwaway session per run with optional channel delivery | `cron.jobs[].sessionTarget: "isolated"` | — | [Reference](reference.md#cron-jobs) |
 | Cron jobs (main) | Inject events into agent's existing main session | `cron.jobs[].sessionTarget: "main"` | — | [Reference](reference.md#cron-jobs) |
@@ -454,6 +459,7 @@ The 44 built-in tools, cron scheduling, web search, browser, and extended capabi
 | Cron rate-limit retry | Recurring cron jobs retry after transient model rate limits before waiting for the next scheduled slot; preflight model fallbacks before skipping scheduled work | `cron.jobs` | 2026.5.27 | [Reference](reference.md#cron-jobs) |
 | Encrypted PDF extraction | ClawPDF-backed PDF tool supports encrypted PDF extraction in addition to standard PDF reading; MCP structured content surfaced in agent tool results | `pdf` tool | 2026.5.28 | [Reference](reference.md#tool-list) |
 | Workboard | Agent coordination tools for tracking and handing off active agent work across sessions | — | 2026.5.28 | [Official docs](https://docs.openclaw.ai) |
+| `/usage` full footer renderer | Native templated `/usage` full footer with default template, per-turn `usageState` on `reply_payload_sending` hook, credential-aware limits, and fixed-decimal formatting | CLI: `/usage` | 2026.6.8 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -565,7 +571,7 @@ How the gateway works under the hood — the module system, plugin lifecycle, an
 | mDNS discovery | Local network service discovery | `discovery.mdns` | — | [Reference](reference.md#config-quick-reference) |
 | Tool system | Unified tool dispatch with policy enforcement | — | — | [Architecture](architecture.md) |
 | `session_end` shutdown/restart reasons | `session_end` plugin hook fires for all active sessions on gateway stop or restart with reason `shutdown` or `restart`; bounded 2 s drain budget prevents slow plugins from blocking process exit | Plugin API | 2026.5.12 | [Reference](reference.md#plugin-hooks) |
-| Plugin reply payload sending hook | New Plugin SDK hook for plugins that need to deliver channel-owned replies; package types flattened for SDK declarations | Plugin API | 2026.5.28 | [Reference](reference.md#plugin-hooks) |
+| Plugin reply payload sending hook | Plugin SDK hook for channel-owned replies; per-turn `usageState` included in payload since 2026.6.8 for usage-aware plugins | Plugin API | 2026.5.28 | [Reference](reference.md#plugin-hooks) |
 
 #### Use Cases
 
