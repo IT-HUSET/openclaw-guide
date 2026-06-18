@@ -3,6 +3,19 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-06-18 — OpenClaw 2026.6.6 → 2026.6.8
+
+- Updated version references to 2026.6.8 in `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md`
+- Added version note to Phase 5 (web search): key-free providers (DuckDuckGo, Parallel Free, Ollama, Codex Hosted Search) are no longer auto-selected as fallbacks when no API-backed provider is configured — explicit `tools.web.search.provider` is now required (2026.6.8, #93616)
+- Added Telegram rich message delivery to Feature Atlas Channels & Messaging: tables, lists, expandable blockquotes, intentional line breaks, CLI-backed replies (2026.6.8, #92679/#93164)
+- Added WhatsApp auth durability to Feature Atlas Channels & Messaging: login now durably persists credentials before reporting success, preventing forced relink after Docker rebuilds (2026.6.8, #92095)
+- Added Claude Haiku 4.5 static catalog and GLM-5.2 catalog entries to Feature Atlas Agents & Configuration (2026.6.8, #90116/#92796)
+- Added HTTP admin scope for session and model control to Feature Atlas Security & Hardening: session kills and model override HTTP endpoints now require `operator.admin` scope (2026.6.8, #92646/#92651)
+- Updated Feature Atlas Tools & Automation web search providers description to document the explicit opt-in requirement for key-free providers (2026.6.8)
+- Added `/usage` full footer renderer to Feature Atlas Tools & Automation: native templated footer with default template, per-turn `usageState`, and credential-aware limits (2026.6.8, #92657/#89835/#89629)
+- Updated Feature Atlas Internals plugin reply payload sending hook description to note per-turn `usageState` available since 2026.6.8
+- Note: `.claude/commands/security-review.md` version checklist item for 2026.6.8 admin HTTP scope changes could not be written — permission was denied by session settings
+
 ## 2026-06-15 — OpenClaw 2026.6.5 → 2026.6.6
 
 - Updated `.guide-version`, docs index callout, and `hardened-multi-agent.md` prerequisite line from 2026.6.5 → 2026.6.6 (mechanical housekeeping)

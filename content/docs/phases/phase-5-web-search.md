@@ -200,6 +200,8 @@ Key points:
 
 ### 6. Configure web search provider
 
+> **Version note (2026.6.8):** Key-free providers (DuckDuckGo, Parallel Free, Ollama, Codex Hosted Search) are no longer automatically selected as fallbacks when no API-backed provider is configured. You must explicitly set `tools.web.search.provider` — the explicit configuration shown below is required, not optional.
+
 OpenClaw separates shared `web_search` settings from provider-specific plugin settings:
 
 - `tools.web.search.*` selects and tunes the search tool
