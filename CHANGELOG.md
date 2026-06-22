@@ -3,6 +3,17 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-06-22 — OpenClaw 2026.6.8 → 2026.6.9
+
+- Bumped guide version to 2026.6.9 in `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md` (mechanical housekeeping)
+- Added **Phase 3 security version note (2026.6.9)**: secrets now redacted from `/debug show`, `/debug set`, and `config show` output; internal HTTP session override blocking; plugin write ownership enforcement
+- Added **Feature Atlas — Security & Hardening**: four new 2026.6.9 rows — debug/config output secret redaction, internal HTTP session override blocking, plugin write ownership enforcement, and SIEM security event export
+- Added **Feature Atlas — Sessions & Memory**: local GGUF embedding output dimensionality truncation (`memorySearch.local.outputDimensionality`, 2026.6.9)
+- Added **Feature Atlas — Channels & Messaging**: `/name` chat command for session renaming (2026.6.9)
+- Added **Feature Atlas — Tools & Automation**: Firecrawl keyless web scrape support without an API key (2026.6.9)
+- Added **Feature Atlas — Deployment & Operations**: Control UI session workspace rail and plugin health status rows (2026.6.9)
+- Note: `.claude/commands/security-review.md` version checklist item for 2026.6.9 could not be written (permission not granted for that directory); a `- [ ] Version ≥ 2026.6.9 (secrets redacted from /debug and config show output; internal HTTP session overrides blocked; plugin write owner enforcement)` item should be added under "Version & Known Vulnerabilities"
+
 ## 2026-06-18 — OpenClaw 2026.6.6 → 2026.6.8
 
 - Updated version references to 2026.6.8 in `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md`
