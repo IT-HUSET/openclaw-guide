@@ -182,6 +182,11 @@ The fix isn't one setting — it's layered defense. Each setting below blocks a 
 > **Version note (2026.5.28):**
 > - **Phone-control mutation authorization tightened** — phone-control mutations now require explicit admin authorization; non-admin sessions cannot modify phone-control state
 > - **Directive persistence authorization clarified** — directive persistence (e.g., `/think` persisting across sessions) enforces consistent authorization policy for channel-originated decisions so channel-sourced directives retain their intended context
+>
+> **Version note (2026.6.9):**
+> - **Secrets redacted from debug and config output** — `/debug show`, `/debug set`, and `config show` now redact secrets from output; credential material can no longer leak when inspecting live gateway configuration or debug state via these commands
+> - **Internal HTTP session override blocking** — the gateway rejects model-facing HTTP requests that attempt to override internal session state, closing a privilege escalation path via crafted gateway API payloads
+> - **Plugin write ownership enforcement** — plugin write operations require verified owner identity; unauthorized callers cannot modify gateway-managed plugin state through the plugin API
 
 ---
 

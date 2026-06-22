@@ -174,6 +174,7 @@ How external users communicate with agents through messaging platforms.
 | Mention gating | Require @mention before agent responds in groups | `channels.<ch>.groups.*.requireMention` | — | [Reference](reference.md#group-policy--mention-gating) |
 | Mention patterns | Regex patterns for channels without native @mention (Signal) | `agents.list[].groupChat.mentionPatterns` | — | [Reference](reference.md#mention-patterns) |
 | Chat commands | User-facing `/help`, `/reset`, `/status`, `/whoami`, `/compact`, `/stop` | — | — | [Reference](reference.md#chat-commands) |
+| `/name` command | Rename the current session from chat | Chat command | 2026.6.9 | [Reference](reference.md#chat-commands) |
 | Directives | Session modifiers: `/think`, `/elevated`, `/model` | — | — | [Reference](reference.md#directives-session-modifiers) |
 | Dangerous commands | Gated commands: `/bash`, `/config`, `/debug`, `/restart` | `commands.*` | — | [Reference](reference.md#dangerous-commands-disabled-by-default) |
 | Proactive messaging | Send messages to any chat via `message` tool with explicit `target` | `message` tool | — | [Reference](reference.md#tool-list) |
@@ -265,6 +266,7 @@ How conversations are scoped, persisted, and how agents remember across sessions
 | Dream Diary model override | Dedicated `dreaming.model` knob for Dream Diary narrative subagents to avoid paid conversation models during memory housekeeping | `dreaming.model` | 2026.4.26 | [Phase 2](phases/phase-2-memory.md) |
 | QMD rerank toggle | QMD backend supports an opt-in cross-encoder reranking pass for improved result ordering on hybrid queries | `memory.qmd.rerank.enabled` | 2026.6.5 | [Phase 2](phases/phase-2-memory.md) |
 | llama.cpp provider plugin | Local llama.cpp runtime extracted into a dedicated provider plugin; batch embedding across files for improved throughput; agent model catalog cache persisted across restarts | `memorySearch.provider: "local"` | 2026.6.6 | [Phase 2](phases/phase-2-memory.md) |
+| Local GGUF embedding output dimensionality | Truncate local GGUF embedding output to a configured number of dimensions, reducing memory index storage for high-dimensional local models | `memorySearch.local.outputDimensionality` | 2026.6.9 | [Phase 2](phases/phase-2-memory.md) |
 
 ### Use Cases
 
@@ -384,6 +386,10 @@ Layers of protection from sandbox isolation to network controls.
 | Security boundary hardening (broad) | Tighter enforcement across transcript boundaries, sandbox binds, host env inheritance, MCP stdio, native search policy, elevated sender checks, deleted-agent ACP bypass, and loopback tools | — | 2026.6.6 | [Phase 3](phases/phase-3-security.md) |
 | Native hook relay lifetime bounds | Abandoned native hook connections are now bounded so they cannot linger indefinitely; reduces relay accumulation attack surface | — | 2026.6.6 | [Phase 3](phases/phase-3-security.md) |
 | HTTP admin scope for session and model control | HTTP session kills and model override endpoints require `operator.admin` scope; prevents unauthorized override via the gateway API | Gateway API | 2026.6.8 | [Phase 3](phases/phase-3-security.md) |
+| Debug/config output secret redaction | `/debug show`, `/debug set`, and `config show` now redact secrets from output, preventing credential leakage when inspecting live gateway state | — | 2026.6.9 | [Phase 3](phases/phase-3-security.md) |
+| Internal HTTP session override blocking | Gateway rejects model-facing HTTP requests that attempt to override internal session state; closes privilege escalation via crafted API payloads | `gateway.*` | 2026.6.9 | [Phase 3](phases/phase-3-security.md) |
+| Plugin write ownership enforcement | Plugin write operations require verified owner identity; unauthorized callers cannot modify gateway-managed plugin state | Plugin API | 2026.6.9 | [Phase 3](phases/phase-3-security.md) |
+| SIEM security event export | Structured security events emitted for SIEM integration via the gateway diagnostics pipeline | `diagnostics.*` | 2026.6.9 | [Phase 6](phases/phase-6-deployment.md) |
 
 ### Use Cases
 
@@ -460,6 +466,7 @@ The 44 built-in tools, cron scheduling, web search, browser, and extended capabi
 | Encrypted PDF extraction | ClawPDF-backed PDF tool supports encrypted PDF extraction in addition to standard PDF reading; MCP structured content surfaced in agent tool results | `pdf` tool | 2026.5.28 | [Reference](reference.md#tool-list) |
 | Workboard | Agent coordination tools for tracking and handing off active agent work across sessions | — | 2026.5.28 | [Official docs](https://docs.openclaw.ai) |
 | `/usage` full footer renderer | Native templated `/usage` full footer with default template, per-turn `usageState` on `reply_payload_sending` hook, credential-aware limits, and fixed-decimal formatting | CLI: `/usage` | 2026.6.8 | [Official docs](https://docs.openclaw.ai) |
+| Firecrawl keyless web scrape | Firecrawl document scraping without an API key; uses Firecrawl's free tier so no account is required for basic fetch-and-scrape use cases | `tools.web.search.provider` | 2026.6.9 | [Phase 5](phases/phase-5-web-search.md) |
 
 ### Use Cases
 
@@ -522,6 +529,8 @@ Running OpenClaw in production: service management, infrastructure, and day-to-d
 | Sessions list pagination | `openclaw sessions` capped at 100 rows by default with `--limit <n\|all>` override to control output size on large stores | CLI: `openclaw sessions list --limit` | 2026.5.4 | [Reference](reference.md#useful-commands) |
 | `openclaw channels status --channel` | Filter channel status by name to probe a single channel without starting all monitors | CLI: `openclaw channels status --channel <name>` | 2026.5.12 | [Official docs](https://docs.openclaw.ai) |
 | Control UI Activity tab | Ephemeral Activity tab in Control UI showing sanitized live tool activity summaries without persisting raw telemetry | Control UI | 2026.5.26 | [Official docs](https://docs.openclaw.ai) |
+| Control UI session workspace rail | Session workspace navigation rail in the Control UI for switching between open agent workspaces | Control UI | 2026.6.9 | [Official docs](https://docs.openclaw.ai) |
+| Control UI plugin health status | Plugin health surfaces in the Control UI status view, showing readiness and error state for each loaded plugin | Control UI | 2026.6.9 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
