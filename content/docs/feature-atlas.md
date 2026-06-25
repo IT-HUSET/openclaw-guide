@@ -137,6 +137,7 @@ How agents are defined, routed, and connected to each other.
 | Claude Fable 5 (adaptive thinking) | Claude Fable 5 model with adaptive thinking support via Anthropic and OpenRouter providers | `agents.list[].model` | 2026.6.6 | [Official docs](https://docs.openclaw.ai) |
 | Claude Haiku 4.5 catalog | Claude Haiku 4.5 static catalog entries for normalized model routing without explicit provider qualification | `agents.list[].model` | 2026.6.8 | [Official docs](https://docs.openclaw.ai) |
 | GLM-5.2 catalog | GLM-5.2 in the bundled model catalog; provider-qualified IDs normalized across OpenRouter and Google Vertex paths | `agents.list[].model` | 2026.6.8 | [Official docs](https://docs.openclaw.ai) |
+| Fast talks auto mode | Automatically enables fast mode for short conversational turns, then returns to normal mode for longer runs; fast-mode state survives retries, fallback transitions, and progress events | automatic | 2026.6.10 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -390,6 +391,7 @@ Layers of protection from sandbox isolation to network controls.
 | Internal HTTP session override blocking | Gateway rejects model-facing HTTP requests that attempt to override internal session state; closes privilege escalation via crafted API payloads | `gateway.*` | 2026.6.9 | [Phase 3](phases/phase-3-security.md) |
 | Plugin write ownership enforcement | Plugin write operations require verified owner identity; unauthorized callers cannot modify gateway-managed plugin state | Plugin API | 2026.6.9 | [Phase 3](phases/phase-3-security.md) |
 | SIEM security event export | Structured security events emitted for SIEM integration via the gateway diagnostics pipeline | `diagnostics.*` | 2026.6.9 | [Phase 6](phases/phase-6-deployment.md) |
+| Trusted policies with hook composition | Composed hook registries preserve trusted tool policies required by approval-sensitive flows; content-guard and network-guard policies survive registry composition | Plugin API | 2026.6.10 | [Reference](reference.md#plugin-hooks) |
 
 ### Use Cases
 

@@ -3,6 +3,13 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-06-25 — OpenClaw 2026.6.9 → 2026.6.10
+
+- Added **Fast talks auto mode** to Feature Atlas (Agents & Configuration): OpenClaw 2026.6.10 automatically enables fast mode for short conversational turns, returning to normal mode for longer runs with bounded fallback and delivery behavior (#85104)
+- Added **Trusted policies with hook composition** to Feature Atlas (Security & Hardening): composed hook registries now preserve trusted tool policies for approval-sensitive flows, fixing a regression that affected content-guard and network-guard in composed setups (#94545)
+- Added `Version ≥ 2026.6.10` checklist item to security-review checklist: trusted tool policies preserved in composed hook registries
+- Bumped guide baseline version to `2026.6.10` in `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md`
+
 ## 2026-06-22 — OpenClaw 2026.6.8 → 2026.6.9
 
 - Bumped guide version to 2026.6.9 in `.guide-version`, `content/docs/_index.md`, and `content/docs/hardened-multi-agent.md` (mechanical housekeeping)
