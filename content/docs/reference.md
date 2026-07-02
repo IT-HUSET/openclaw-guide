@@ -659,6 +659,7 @@ Features below require the listed version or later. Check yours with `openclaw -
 | 2026.5.22 | Meeting Notes external plugin (`openclaw meeting-notes`); sub-agent bootstrap context limited to `AGENTS.md` + `TOOLS.md` by default; gateway startup performance improvements; Security: XSS sink removed from diffs viewer, workspace provider plugins fail-closed in setup mode, `OPENCLAW_STATE_DIR` relative overrides pinned at startup | No breaking config changes |
 | 2026.5.26 | `cron.maxConcurrentRuns` defaults to 8; Signal/iMessage/WhatsApp reaction approvals for mobile approval flows; Control UI Activity tab (ephemeral live tool summaries); named model login profiles; Security: `memory_store` injection filter, gateway auth rate limiter default on, browser snapshot SSRF validation, system-event text sanitization, exec approval hardening, audit findings for `hooks.token` reuse and YOLO permission override | See [Phase 3](phases/phase-3-security.md) version note for security details |
 | 2026.6.5 | Parallel bundled `web_search` provider (`PARALLEL_API_KEY`); Google Chat native approval cards; QMD rerank toggle; Matrix voice-note preflight and thread-aware reads/replies; auth profiles moved to SQLite; `config.patch` explicit array replacement semantics fixed; Security: MCP HTTP redirect guard, transcript image payload redaction, owner-only HTTP tool gating | New provider: see [Phase 5](phases/phase-5-web-search.md#configure-web-search-provider) |
+| 2026.6.11 | `openclaw gateway usage-cost` now views cost per agent or across all agents; `openclaw agent --message-file <path>` for multiline/scripted prompts; Security: Control UI DOMPurify patch (`GHSA-cmwh-pvxp-8882`), trusted package path lookalike-sibling rejection | Mostly channel delivery, provider fallback, and session/memory reliability fixes — no breaking config changes |
 
 ---
 
@@ -824,6 +825,7 @@ openclaw sessions cleanup --fix-missing     # Prune store entries with missing t
 openclaw models auth list                   # List saved per-agent auth profiles (2026.5.4+)
 openclaw models auth list --provider <id>   # Filter by provider
 openclaw models auth list --json            # Machine-readable output
+openclaw gateway usage-cost                 # Cost for one configured agent, or all agents (2026.6.11+)
 
 # Agent routing
 openclaw agents bindings                    # List account-scoped route bindings (2026.2.26+)
