@@ -3,6 +3,10 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-07-16 — OpenClaw 2026.6.11 → 2026.7.1
+
+- Version bump only — no guide content changes needed
+
 ## 2026-07-02 — OpenClaw 2026.6.10 → 2026.6.11
 
 - Added a 2026.6.11 entry to the CLI/config version-compatibility table covering the new per-agent `openclaw gateway usage-cost` view, the `openclaw agent --message-file` flag for multiline/scripted prompts, and two security patches (Control UI DOMPurify XSS fix, trusted package path lookalike-sibling rejection)
