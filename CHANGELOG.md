@@ -3,6 +3,11 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-08-06 — OpenClaw 2026.7.1 → 2026.7.1-2
+
+- Bumped guide baseline version to OpenClaw 2026.7.1-2 (all changelog entries were internal bug fixes — startup repair, WSL permission handling, npm plugin metadata parsing — with no user-facing config, CLI, or behavior changes to document)
+- Fixed a broken internal anchor link in Phase 3 (security) pointing to Phase 6's secrets management section, which had been renamed to "Secrets Management (All Methods)"
+
 ## 2026-07-16 — OpenClaw 2026.6.11 → 2026.7.1
 
 - Version bump only — no guide content changes needed

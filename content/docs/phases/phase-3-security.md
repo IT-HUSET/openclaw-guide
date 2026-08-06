@@ -267,7 +267,7 @@ Generate a gateway token:
 openclaw doctor --generate-gateway-token
 ```
 
-For now, export it in your shell (`export OPENCLAW_GATEWAY_TOKEN=<token>`). For production, store it in the service plist or environment file — see [Phase 6](phase-6-deployment.md#secrets-management). Don't put it in `openclaw.json` directly.
+For now, export it in your shell (`export OPENCLAW_GATEWAY_TOKEN=<token>`). For production, store it in the service plist or environment file — see [Phase 6](phase-6-deployment.md#secrets-management-all-methods). Don't put it in `openclaw.json` directly.
 
 > **Token auth by default (2026.2.19+).** If `gateway.auth` is not configured, the gateway auto-generates and persists a `gateway.auth.token` at startup — connections require this token. To explicitly open the gateway without auth, set `gateway.auth.mode: "none"`. This triggers a `gateway.http.no_auth` audit finding: WARN when bound to loopback, CRITICAL when remote-accessible. Even on loopback, explicit token auth (as shown above) is recommended.
 
