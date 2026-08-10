@@ -3,6 +3,10 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-08-10 — OpenClaw 2026.7.1-2 → 2026.6.34
+
+- Version bump only — no guide content changes needed
+
 ## 2026-08-06 — OpenClaw 2026.7.1 → 2026.7.1-2
 
 - Bumped guide baseline version to OpenClaw 2026.7.1-2 (all changelog entries were internal bug fixes — startup repair, WSL permission handling, npm plugin metadata parsing — with no user-facing config, CLI, or behavior changes to document)
