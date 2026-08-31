@@ -73,7 +73,7 @@ Primarily documentation (Markdown + annotated JSON config examples), plus TypeSc
 - **VM: Linux VMs:** single Linux VM with Docker inside, dedicated user (docker group, no sudo), multi-agent gateway. macOS, Linux, or Windows hosts. No VM count limit
 - **Multi-gateway options:** profiles (`--profile` flag, simplest), multi-user (separate OS users), VM variants (one VM per channel)
 - Official docs: https://docs.openclaw.ai
-- **Guide baseline version:** stored in `.guide-version` (currently 2026.5.6). The changelog review workflow (`.github/workflows/changelog-review.yml`) runs weekly to detect drift
+- **Guide baseline version:** stored in `.guide-version` — read it for the current value. The changelog review workflow (`.github/workflows/changelog-review.yml`) runs weekly to detect drift
 
 ## Testing
 
