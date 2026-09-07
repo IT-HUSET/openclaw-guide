@@ -3,6 +3,10 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-09-07 — OpenClaw 2026.7.1-2 → 2026.9.2
+
+- Version bump only — no guide content changes needed
+
 ## 2026-08-10 — OpenClaw 2026.7.1-2 → 2026.6.34
 
 - Version bump only — no guide content changes needed
