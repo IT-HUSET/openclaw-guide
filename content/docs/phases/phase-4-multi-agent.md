@@ -467,6 +467,8 @@ chmod 600 ~/.openclaw/agents/*/agent/auth-profiles.json
 
 By default, any agent with `sessions_send` or `sessions_spawn` can message any other agent. Restrict this with two mechanisms:
 
+> **Version note (2026.9.1 / 2026.9.2):** `sessions_list`/`sessions_history` visibility — which sessions an agent can see, separate from delegation — also defaults broader now: same-agent sessions by default from 2026.9.1, then all agents' sessions by default from 2026.9.2. Set `tools.sessions.visibility` to `"self"` or `"agent"` on isolation-sensitive agents (e.g. `search`) to restore narrower visibility. Sandbox and `subagents.allowAgents` restrictions below still apply independently.
+
 ### Subagent spawning restrictions
 
 Control which agents can spawn which other agents as subagents:
@@ -495,6 +497,8 @@ Control which agents can spawn which other agents as subagents:
 `allowAgents: []` prevents the agent from spawning anything — important for isolation agents like `search` that should never delegate further.
 
 > **Version note (2026.2.16):** Nested sub-agents now support depth and fan-out limits via `subagents.maxSpawnDepth` (max nesting depth) and `subagents.maxChildrenPerAgent` (max concurrent children per parent). Useful for controlling recursive spawning in complex delegation chains. See [Reference: Config Quick Reference](../reference.md#most-important-keys) for defaults.
+
+> **Version note (2026.9.3):** Recursive delegation (a sub-agent spawning its own sub-agents via `sessions_spawn`) is now enabled by default, bounded by the existing `maxSpawnDepth`/`maxChildrenPerAgent` limits above. `allowAgents: []` on isolation agents like `search` still blocks all further spawning, recursive or not.
 
 > **Version note (2026.5.22):** Sub-agents spawned via `sessions_spawn` now receive only `AGENTS.md` and `TOOLS.md` as bootstrap context by default — SOUL.md, USER.md, IDENTITY.md, HEARTBEAT.md, and other workspace files are excluded from dynamically spawned workers to keep delegated sub-tasks lean. This is intentional for instrumental sub-tasks. For channel agents with their own configured workspace (defined in `agents.list[]`), full workspace bootstrap context is unaffected.
 

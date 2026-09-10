@@ -3,6 +3,17 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-09-10 — OpenClaw 2026.7.1-2 → 2026.6.35
+
+- Documented the broadened default for cross-agent session visibility (`tools.sessions.visibility`, now defaults to all agents' sessions as of 2026.9.2) and how to restore narrower isolation for agents like `search`
+- Noted that recursive sub-agent delegation is now enabled by default (bounded by existing spawn-depth/fan-out limits) as of 2026.9.3
+- Added `openclaw memory reset` (rebuilds memory indexes without deleting sessions, 2026.9.1+) to the memory CLI reference
+- Added Feature Atlas entries for team operator roles (collaboration-scoped access control, not a security isolation boundary), Daytona cloud sandboxes, cross-agent session visibility, recursive delegation, and memory reset
+- Extended the Version Compatibility table through the 2026.6.33–2026.6.35 extended-stable maintenance releases and the 2026.9.1–2026.9.3 mainline releases
+- Bumped the guide's reviewed-against version to OpenClaw 2026.6.35 everywhere it's referenced
+- Reviewed extensions/ for the ongoing Plugin SDK import-path deprecations flagged in this changelog batch — none of the five guard plugins or other extensions use the deprecated paths, so no code changes were needed
+- Could not add the planned `.claude/commands/security-review.md` checklist entry for Version ≥ 2026.6.35 — this session's sandbox denied write access to that file despite the task instructions permitting it; a maintainer should add it manually (suggested text: "network/secret boundary hardening, session visibility, dependency CVE patches")
+
 ## 2026-09-07 — OpenClaw 2026.7.1-2 → 2026.9.2
 
 - Version bump only — no guide content changes needed

@@ -138,6 +138,7 @@ How agents are defined, routed, and connected to each other.
 | Claude Haiku 4.5 catalog | Claude Haiku 4.5 static catalog entries for normalized model routing without explicit provider qualification | `agents.list[].model` | 2026.6.8 | [Official docs](https://docs.openclaw.ai) |
 | GLM-5.2 catalog | GLM-5.2 in the bundled model catalog; provider-qualified IDs normalized across OpenRouter and Google Vertex paths | `agents.list[].model` | 2026.6.8 | [Official docs](https://docs.openclaw.ai) |
 | Fast talks auto mode | Automatically enables fast mode for short conversational turns, then returns to normal mode for longer runs; fast-mode state survives retries, fallback transitions, and progress events | automatic | 2026.6.10 | [Official docs](https://docs.openclaw.ai) |
+| Team operator roles | Assign verified users named roles limiting accessible agents, other people's sessions, and operator scopes; optionally require sandboxed execution for new sessions. Collaboration controls, not a hostile-tenant isolation boundary — see [Multi-User](multi-gateway.md#multi-user) for OS-level separation | — | 2026.8.1 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
 
@@ -268,6 +269,7 @@ How conversations are scoped, persisted, and how agents remember across sessions
 | QMD rerank toggle | QMD backend supports an opt-in cross-encoder reranking pass for improved result ordering on hybrid queries | `memory.qmd.rerank.enabled` | 2026.6.5 | [Phase 2](phases/phase-2-memory.md) |
 | llama.cpp provider plugin | Local llama.cpp runtime extracted into a dedicated provider plugin; batch embedding across files for improved throughput; agent model catalog cache persisted across restarts | `memorySearch.provider: "local"` | 2026.6.6 | [Phase 2](phases/phase-2-memory.md) |
 | Local GGUF embedding output dimensionality | Truncate local GGUF embedding output to a configured number of dimensions, reducing memory index storage for high-dimensional local models | `memorySearch.local.outputDimensionality` | 2026.6.9 | [Phase 2](phases/phase-2-memory.md) |
+| Memory reset | Rebuild derived memory indexes without deleting sessions | `openclaw memory reset` | 2026.9.1 | [Reference](reference.md#useful-commands) |
 
 ### Use Cases
 
@@ -297,6 +299,7 @@ Layers of protection from sandbox isolation to network controls.
 | Docker isolation | Dedicated OS user + Docker sandboxing for agents | — | — | [Phase 6](phases/phase-6-deployment.md), [Scripts](https://github.com/IT-HUSET/openclaw-guide/tree/main/scripts/docker-isolation) |
 | VM isolation (macOS) | macOS VMs via Lume for host isolation | — | — | [Phase 6](phases/phase-6-deployment.md) |
 | VM isolation (Linux) | Linux VMs via Multipass/KVM with Docker inside | — | — | [Phase 6](phases/phase-6-deployment.md) |
+| Daytona sandboxes | Bundled backend plugin for isolated cloud execution (alternative to Docker/VM sandboxing; not covered by this guide's self-hosted deployment postures) | `sandbox` backend plugin | 2026.8.1 | [Official docs](https://docs.openclaw.ai) |
 | Tool policies | 8-layer cascade for tool allow/deny | `tools.*`, `agents.list[].tools.*` | — | [Reference](reference.md#tool-policy-precedence) |
 | Tool profiles | Preset bundles: minimal, coding, messaging, full | `tools.profile` | — | [Reference](reference.md#tool-policy-precedence) |
 | Elevated mode | Escape sandbox for trusted operations | `tools.elevated` | — | [Reference](reference.md#directives-session-modifiers) |
@@ -392,6 +395,8 @@ Layers of protection from sandbox isolation to network controls.
 | Plugin write ownership enforcement | Plugin write operations require verified owner identity; unauthorized callers cannot modify gateway-managed plugin state | Plugin API | 2026.6.9 | [Phase 3](phases/phase-3-security.md) |
 | SIEM security event export | Structured security events emitted for SIEM integration via the gateway diagnostics pipeline | `diagnostics.*` | 2026.6.9 | [Phase 6](phases/phase-6-deployment.md) |
 | Trusted policies with hook composition | Composed hook registries preserve trusted tool policies required by approval-sensitive flows; content-guard and network-guard policies survive registry composition | Plugin API | 2026.6.10 | [Reference](reference.md#plugin-hooks) |
+| Cross-agent session visibility | `sessions_list`/`sessions_history` default scope broadened from same-agent (2026.9.1) to all agents' sessions (2026.9.2); narrow with `"self"`/`"agent"` on isolation-sensitive agents | `tools.sessions.visibility` | 2026.9.1 | [Phase 4](phases/phase-4-multi-agent.md#inter-agent-communication-control) |
+| Recursive delegation enabled by default | Sub-agents can spawn their own sub-agents via `sessions_spawn` by default, bounded by existing depth/fan-out limits | `subagents.maxSpawnDepth`, `subagents.maxChildrenPerAgent` | 2026.9.3 | [Phase 4](phases/phase-4-multi-agent.md#subagent-spawning-restrictions) |
 
 ### Use Cases
 

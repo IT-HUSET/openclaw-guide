@@ -125,6 +125,7 @@ Config cheat sheet, tool list, chat commands, gotchas, and useful commands.
     },
     web: { search: { enabled: true, provider: "duckduckgo", maxResults: 5 } },
     agentToAgent: { enabled: false, allow: [], maxPingPongTurns: 2 },
+    sessions: { visibility: "self" },  // sessions_list/sessions_history scope: "self" | "agent" | "tree" | "all" — default broadened to "agent" (2026.9.1) then "all" (2026.9.2); set explicitly on isolation-sensitive agents
     // loopDetection: {
     //   enabled: true,
     //   postCompactionGuard: { windowSize: 3 }  // Abort run after same (tool,args,result) triple N times post-compaction (added 2026.5.4)
@@ -660,6 +661,10 @@ Features below require the listed version or later. Check yours with `openclaw -
 | 2026.5.26 | `cron.maxConcurrentRuns` defaults to 8; Signal/iMessage/WhatsApp reaction approvals for mobile approval flows; Control UI Activity tab (ephemeral live tool summaries); named model login profiles; Security: `memory_store` injection filter, gateway auth rate limiter default on, browser snapshot SSRF validation, system-event text sanitization, exec approval hardening, audit findings for `hooks.token` reuse and YOLO permission override | See [Phase 3](phases/phase-3-security.md) version note for security details |
 | 2026.6.5 | Parallel bundled `web_search` provider (`PARALLEL_API_KEY`); Google Chat native approval cards; QMD rerank toggle; Matrix voice-note preflight and thread-aware reads/replies; auth profiles moved to SQLite; `config.patch` explicit array replacement semantics fixed; Security: MCP HTTP redirect guard, transcript image payload redaction, owner-only HTTP tool gating | New provider: see [Phase 5](phases/phase-5-web-search.md#configure-web-search-provider) |
 | 2026.6.11 | `openclaw gateway usage-cost` now views cost per agent or across all agents; `openclaw agent --message-file <path>` for multiline/scripted prompts; Security: Control UI DOMPurify patch (`GHSA-cmwh-pvxp-8882`), trusted package path lookalike-sibling rejection | Mostly channel delivery, provider fallback, and session/memory reliability fixes — no breaking config changes |
+| 2026.6.33–2026.6.35 | Extended-stable maintenance line: response-size caps on provider/browser/channel streams, Telegram credential redaction in logs, Gateway HTTP origin checks before unauthenticated handling, MCP status secret redaction, dependency CVE patches (`brace-expansion`, PostCSS, `fast-uri`, `ip-address`, Undici) | No new release-line features; security/reliability backports only — no breaking config changes |
+| 2026.9.1 | `tools.sessions.visibility` broadens `sessions_list`/`sessions_history` scope to same-agent sessions by default; `openclaw memory reset` rebuilds derived memory indexes without deleting sessions; `cron.skipMissedJobs`; SSRF `blockedHostnames` for browser/web_fetch/webhooks | See [Phase 4](phases/phase-4-multi-agent.md#inter-agent-communication-control) for session-visibility isolation guidance |
+| 2026.9.2 | `tools.sessions.visibility` default further broadened to all agents' sessions (ordinary agent-to-agent session access enabled) | Set `tools.sessions.visibility` to `"agent"` or `"self"` on isolation-sensitive agents — see [Phase 4](phases/phase-4-multi-agent.md#inter-agent-communication-control) |
+| 2026.9.3 | Recursive delegation (sub-agent spawning sub-agents via `sessions_spawn`) enabled by default, bounded by `subagents.maxSpawnDepth`/`maxChildrenPerAgent`; Plugin SDK: exec-mode/comparator helpers moved from `infra-runtime` to `execPolicy` on `agent-harness-runtime` | Breaking for plugin authors using the retired `infra-runtime` exec-mode helpers only — no guide config changes |
 
 ---
 
@@ -812,6 +817,7 @@ openclaw memory index                       # Build/rebuild search index
 openclaw memory index --agent <id>          # Rebuild index for specific agent
 openclaw memory search "<query>"            # Search memory from terminal
 openclaw memory search --query "<query>"    # Equivalent long-form (2026.2.24+)
+openclaw memory reset                       # Rebuild derived indexes without deleting sessions (2026.9.1+)
 
 # Session management
 openclaw sessions                           # List active sessions (alias: openclaw sessions list — 2026.5.19+)
