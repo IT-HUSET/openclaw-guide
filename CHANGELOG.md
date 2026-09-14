@@ -3,6 +3,10 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-09-14 — OpenClaw 2026.6.35 → 2026.9.4
+
+- Version bump only — no guide content changes needed
+
 ## 2026-09-10 — OpenClaw 2026.7.1-2 → 2026.6.35
 
 - Documented the broadened default for cross-agent session visibility (`tools.sessions.visibility`, now defaults to all agents' sessions as of 2026.9.2) and how to restore narrower isolation for agents like `search`
