@@ -3,6 +3,13 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-09-21 — OpenClaw 2026.9.4 → 2026.7.35
+
+- Documented the 2026.7.33–2026.7.35 extended-stable security hardening batch (exec escaped-newline command injection blocking, browser Origin enforcement before `auth.mode: "none"` on HTTP, plugin Git install argument-injection hardening, `openclaw backup create` owner-only 0o600 permissions, webhook/phone-number/model-status log redaction, malformed media/node payload rejection, Doctor plugin registry preservation) in Phase 3's version notes, the reference.md version table, and new Feature Atlas rows (Since 2026.7.35)
+- Bumped guide baseline to OpenClaw 2026.7.35 in `.guide-version`, the docs index "last reviewed against" callout, and the Hardened Multi-Agent prerequisites line
+- Reviewed 2026.7.34's new model-provider additions (GPT-6 Astra, Claude Opus 5, Gemini 3.6/3.7, etc.) and confirmed no guide config/examples reference specific model catalogs needing updates; no Pending Cleanup items (#15176, #9857, #11758, #14046) were resolved by this release
+- Could not add the corresponding `.claude/commands/security-review.md` checklist item (`Version ≥ 2026.7.35 (command injection hardening, browser Origin auth checks, backup file permissions, secret/log redaction)`) — write access to `.claude/` is blocked by this environment's permissions despite being in the task's allowed-paths list; a maintainer should add that line manually
+
 ## 2026-09-14 — OpenClaw 2026.6.35 → 2026.9.4
 
 - Version bump only — no guide content changes needed

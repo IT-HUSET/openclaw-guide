@@ -397,6 +397,11 @@ Layers of protection from sandbox isolation to network controls.
 | Trusted policies with hook composition | Composed hook registries preserve trusted tool policies required by approval-sensitive flows; content-guard and network-guard policies survive registry composition | Plugin API | 2026.6.10 | [Reference](reference.md#plugin-hooks) |
 | Cross-agent session visibility | `sessions_list`/`sessions_history` default scope broadened from same-agent (2026.9.1) to all agents' sessions (2026.9.2); narrow with `"self"`/`"agent"` on isolation-sensitive agents | `tools.sessions.visibility` | 2026.9.1 | [Phase 4](phases/phase-4-multi-agent.md#inter-agent-communication-control) |
 | Recursive delegation enabled by default | Sub-agents can spawn their own sub-agents via `sessions_spawn` by default, bounded by existing depth/fan-out limits | `subagents.maxSpawnDepth`, `subagents.maxChildrenPerAgent` | 2026.9.3 | [Phase 4](phases/phase-4-multi-agent.md#subagent-spawning-restrictions) |
+| Exec escaped-newline command hardening | Exec requires fresh approval for command words containing escaped newlines, closing a shell metacharacter bypass path | `tools.exec` | 2026.7.35 | [Phase 3](phases/phase-3-security.md) |
+| Browser Origin enforcement before no-auth HTTP | Gateway rejects a disallowed browser `Origin` header before it will accept `gateway.auth.mode: "none"` on HTTP | `gateway.auth` | 2026.7.35 | [Phase 3](phases/phase-3-security.md) |
+| Plugin Git install argument-injection hardening | Plugin `git:` install specs can no longer inject extra `git clone` option arguments | — | 2026.7.35 | [Phase 3](phases/phase-3-security.md) |
+| Backup archive owner-only permissions | `openclaw backup create` writes the archive with owner-only `0o600` permissions by default | `openclaw backup create` | 2026.7.35 | [Phase 7](phases/phase-7-migration.md) |
+| Webhook/diagnostic log redaction (extended) | Webhook diagnostic tokens (e.g. Twilio `turnToken`), voice-call phone numbers, and synthetic credentials in `openclaw models status --json` are redacted | — | 2026.7.35 | [Phase 3](phases/phase-3-security.md) |
 
 ### Use Cases
 
