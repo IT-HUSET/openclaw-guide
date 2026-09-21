@@ -187,6 +187,15 @@ The fix isn't one setting — it's layered defense. Each setting below blocks a 
 > - **Secrets redacted from debug and config output** — `/debug show`, `/debug set`, and `config show` now redact secrets from output; credential material can no longer leak when inspecting live gateway configuration or debug state via these commands
 > - **Internal HTTP session override blocking** — the gateway rejects model-facing HTTP requests that attempt to override internal session state, closing a privilege escalation path via crafted gateway API payloads
 > - **Plugin write ownership enforcement** — plugin write operations require verified owner identity; unauthorized callers cannot modify gateway-managed plugin state through the plugin API
+>
+> **Version note (2026.7.33–2026.7.35, extended-stable):**
+> - **Command injection hardening** — exec now requires fresh approval for escaped-newline command words, closing a shell metacharacter bypass path
+> - **Browser Origin enforcement** — the gateway rejects a disallowed browser `Origin` header before it will accept `gateway.auth.mode: "none"` on HTTP, and enforces exact-origin matching elsewhere
+> - **Plugin Git install hardening** — plugin `git:` install specs can no longer inject extra `git clone` option arguments
+> - **Backup archive permissions** — `openclaw backup create` now writes the archive with owner-only `0o600` permissions by default
+> - **Webhook and diagnostic redaction** — webhook diagnostic tokens (e.g. Twilio `turnToken`), phone numbers in voice-call event logs, and synthetic auth credentials in `openclaw models status --json` are now redacted
+> - **Malformed payload rejection** — oversized or malformed media/node payloads and non-finite tool schema numbers are rejected instead of processed
+> - **Doctor plugin registry preservation (2026.7.35)** — `openclaw doctor` now preserves the complete bundled plugin inventory when creating or repairing registry state, and recovers from partial registries written by 2026.7.34
 
 ---
 
