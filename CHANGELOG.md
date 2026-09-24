@@ -3,6 +3,11 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-09-24 — OpenClaw 2026.7.35 → 2026.9.6
+
+- Bumped guide baseline version to OpenClaw 2026.9.6 in `.guide-version`, the docs index "last reviewed against" callout, and the Hardened Multi-Agent prerequisites line
+- The 2026.9.6 release notes contain no itemized changelog (only contributor thanks, release-verification hashes, and a note that the initial macOS app build crashed at launch and was replaced by a notarized rebuild — npm package unaffected). No config, CLI, feature, security, plugin API, deployment, sandbox, or memory/session changes were found, so no other guide content was updated this pass.
+
 ## 2026-09-21 — OpenClaw 2026.9.4 → 2026.7.35
 
 - Documented the 2026.7.33–2026.7.35 extended-stable security hardening batch (exec escaped-newline command injection blocking, browser Origin enforcement before `auth.mode: "none"` on HTTP, plugin Git install argument-injection hardening, `openclaw backup create` owner-only 0o600 permissions, webhook/phone-number/model-status log redaction, malformed media/node payload rejection, Doctor plugin registry preservation) in Phase 3's version notes, the reference.md version table, and new Feature Atlas rows (Since 2026.7.35)
