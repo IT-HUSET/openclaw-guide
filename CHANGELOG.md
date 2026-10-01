@@ -3,6 +3,10 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-10-01 — OpenClaw 2026.9.6 → 2026.9.7
+
+- Version bump only — no guide content changes needed
+
 ## 2026-09-24 — OpenClaw 2026.7.35 → 2026.9.6
 
 - Bumped guide baseline version to OpenClaw 2026.9.6 in `.guide-version`, the docs index "last reviewed against" callout, and the Hardened Multi-Agent prerequisites line
