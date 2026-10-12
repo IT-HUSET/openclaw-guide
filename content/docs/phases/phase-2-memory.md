@@ -390,6 +390,8 @@ How it works:
 
 > **Version note (2026.4.7):** `agents.defaults.compaction.provider` enables a pluggable compaction provider registry — plugins can replace the built-in LLM summarization pipeline with a custom implementation. Falls back to LLM summarization on provider failure.
 
+> **Version note (2026.10.2):** OpenAI and Anthropic API-key routes now default to provider-native compaction, and compaction recovers when the primary auth profile is cooling down.
+
 ---
 
 ## Memory Dreaming (Experimental)
