@@ -3,6 +3,10 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-10-15 — OpenClaw 2026.10.2 → 2026.9.33
+
+- Version bump only — no guide content changes needed
+
 ## 2026-10-12 — OpenClaw 2026.9.9 → 2026.10.2
 
 - Added a Phase 2 version note: OpenAI and Anthropic API-key routes now default to provider-native compaction, and compaction recovers when the primary auth profile is cooling down.
