@@ -203,6 +203,7 @@ How external users communicate with agents through messaging platforms.
 | QQBot reasoning strip | QQBot strips model reasoning/thinking scaffolding before channel delivery, preventing raw `<thinking>` content from appearing in replies | `channels.qqbot` | 2026.6.5 | [Official docs](https://docs.openclaw.ai) |
 | Matrix voice notes + thread awareness | Matrix preflight voice notes before mention gating; thread reads and replies preserved through Matrix relations pagination | `channels.matrix` | 2026.6.5 | [Official docs](https://docs.openclaw.ai) |
 | Telegram rich message delivery | Tables, lists, expandable blockquotes, intentional line breaks, and CLI-backed replies rendered in Telegram channel output | `channels.telegram` | 2026.6.8 | [Official docs](https://docs.openclaw.ai) |
+| X (Twitter) mentions channel | Channel plugin answering X mentions with Activity API streaming, repository-question guest mode, and daily/monthly API cost limits | X channel plugin | 2026.10.5 | [Official docs](https://docs.openclaw.ai) |
 | WhatsApp auth durability | WhatsApp login durably persists credentials before reporting success — prevents forced relink after Docker rebuilds or gateway upgrades | `channels.whatsapp` | 2026.6.8 | [Official docs](https://docs.openclaw.ai) |
 
 ### Use Cases
