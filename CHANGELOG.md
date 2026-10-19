@@ -3,6 +3,14 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-10-19 — OpenClaw 2026.9.33 → 2026.10.5
+
+- Added a 2026.10.5 row to the version history in the reference: `before_tool_call` hooks can no longer rewrite approved tool arguments without re-approval, plugin hooks now run under `openclaw agent` exec, and Tool Search results taint the turn.
+- Added the new X (Twitter) mentions channel plugin to the Feature Atlas.
+- Bumped the guide baseline to 2026.10.5.
+- Not done: the new "Version ≥ 2026.10.5" item for the security-review checklist. Writing to `.claude/commands/security-review.md` was denied, so it still needs adding. Suggested text: "tool-approval hooks cannot rewrite approved args; exec hooks enforced".
+- Not done: `hugo --gc` was not run. `hugo` is not installed in this environment, so the docs edits are unbuilt. No extension code was changed, so no extension tests were needed.
+
 ## 2026-10-15 — OpenClaw 2026.10.2 → 2026.9.33
 
 - Version bump only — no guide content changes needed
