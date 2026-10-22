@@ -85,10 +85,10 @@ else
     NODE_VERSION=$(node --version)
     echo -e "${GREEN}Done: $NODE_VERSION${NC}"
 fi
-# OpenClaw requires Node.js 22+
+# OpenClaw requires patched Node.js 24.22.1+ (or 26.12.1+)
 NODE_MAJOR=$(node --version | sed 's/v//' | cut -d. -f1)
-if [[ "$NODE_MAJOR" -lt 22 ]]; then
-    echo -e "${RED}Node.js 22+ required (found v$NODE_MAJOR) — upgrade with: brew upgrade node${NC}"
+if [[ "$NODE_MAJOR" -lt 24 ]]; then
+    echo -e "${RED}Node.js 24.22.1+ required (found v$NODE_MAJOR) — upgrade with: brew upgrade node${NC}"
     exit 1
 fi
 echo ""
