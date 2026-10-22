@@ -256,7 +256,7 @@ graph TD
 %%{init: { "theme": "base", "themeVariables": { "fontFamily": "ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial", "primaryColor": "#1F4E79", "primaryBorderColor": "#93C5FD", "primaryTextColor": "#F8FAFC", "lineColor": "#94A3B8", "secondaryColor": "#334155", "tertiaryColor": "#334155", "clusterBkg": "transparent", "clusterBorder": "#64748B", "background": "transparent" } }}%%
 graph LR
     subgraph Required
-        NODE["Node.js 22+"]
+        NODE["Node.js 24.22.1+"]
     end
 
     subgraph "LLM Providers (at least one)"

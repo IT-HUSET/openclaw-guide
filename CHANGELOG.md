@@ -3,6 +3,15 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-10-22 — OpenClaw 2026.10.5 → 2026.10.6
+
+- Raised the documented Node.js requirement to the patched 24.22.1+ (or 26.12.1+) runtimes in the Phase 1 prerequisites and install steps, the pragmatic single-agent guide, the architecture diagram and the Docker isolation host setup script. 2026.10.6 requires these runtimes, and `openclaw update` refuses to run on older Node.
+- Updated the Feature Atlas Node.js version guard row and added a 2026.10.6 row to the version history table in the reference.
+- Bumped the guide baseline version to 2026.10.6.
+- The rest of the release is reliability fixes with no config or CLI changes, so nothing else in the guide changed.
+- Not done: the security-review checklist item for Version ≥ 2026.10.6 (patched Node requirement), because editing `.claude/commands/security-review.md` was denied by permissions. It still needs adding.
+- Not done: `hugo --gc` and the extension tests. A combined shell command containing `hugo --gc` was blocked by the permission prompt and I didn't re-run it on its own. No extension files were edited.
+
 ## 2026-10-19 — OpenClaw 2026.9.33 → 2026.10.5
 
 - Added a 2026.10.5 row to the version history in the reference: `before_tool_call` hooks can no longer rewrite approved tool arguments without re-approval, plugin hooks now run under `openclaw agent` exec, and Tool Search results taint the turn.

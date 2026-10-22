@@ -527,7 +527,7 @@ Running OpenClaw in production: service management, infrastructure, and day-to-d
 | Diagnostics | `openclaw doctor`, `openclaw doctor --fix` | — | — | [Reference](reference.md#useful-commands) |
 | Light context heartbeat | Reduced context for heartbeat cycles to save tokens | `agents.*.heartbeat.lightContext` | 2026.3.1 | [Reference](reference.md#version-compatibility) |
 | Docker timezone support | `OPENCLAW_TZ` environment variable for container timezone | `OPENCLAW_TZ` env var | 2026.3.13-1 | [Phase 6](phases/phase-6-deployment.md) |
-| Node.js version guard | Runtime enforces Node.js 22.19+ minimum (Node 24 recommended); raised from 22.14 in 2026.5.19 | — | 2026.3.13-1 (raised 2026.5.19) | [Phase 1](phases/phase-1-getting-started.md) |
+| Node.js version guard | Runtime enforces patched Node.js minimum (24.22.1+ or 26.12.1+; previously 22.19+) | — | 2026.3.13-1 (raised 2026.10.6) | [Phase 1](phases/phase-1-getting-started.md) |
 | Gateway diagnostics export | Support-ready diagnostics export with sanitized logs, status, health, config, and stability snapshots | CLI: `openclaw diagnostics` | 2026.4.22 | [Official docs](https://docs.openclaw.ai) |
 | OTEL diagnostics | Opt-in OpenTelemetry span export for runs, model calls, and tool executions; content capture disabled by default | `diagnostics.otel.endpoint` | 2026.4.24 | [Official docs](https://docs.openclaw.ai) |
 | Matrix self device verification | Full cross-signing identity trust for self-device verification via CLI | CLI: `openclaw matrix verify self` | 2026.4.24 | [Official docs](https://docs.openclaw.ai) |
