@@ -3,6 +3,10 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-10-26 — OpenClaw 2026.10.6 → 2026.10.7
+
+- Version bump only — no guide content changes needed
+
 ## 2026-10-22 — OpenClaw 2026.10.5 → 2026.10.6
 
 - Raised the documented Node.js requirement to the patched 24.22.1+ (or 26.12.1+) runtimes in the Phase 1 prerequisites and install steps, the pragmatic single-agent guide, the architecture diagram and the Docker isolation host setup script. 2026.10.6 requires these runtimes, and `openclaw update` refuses to run on older Node.
