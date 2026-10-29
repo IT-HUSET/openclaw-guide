@@ -3,6 +3,12 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-10-29 — OpenClaw 2026.10.7 → 2026.10.9
+
+- Reviewed OpenClaw releases up to 2026.10.9 (mostly reliability fixes, update/rollback recovery and dependency security patches). No documented config, CLI or plugin API changes were found.
+- Bumped the guide baseline version to 2026.10.9 in the docs index and the hardened multi-agent prerequisites.
+- The security-review checklist item for 2026.10.9 (`tools.fs.workspaceOnly` now applies to Gateway-built tools, and dependency advisories were patched) could not be added because the edit to `.claude/commands/security-review.md` was not permitted.
+
 ## 2026-10-26 — OpenClaw 2026.10.6 → 2026.10.7
 
 - Version bump only — no guide content changes needed
