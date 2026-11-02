@@ -3,6 +3,10 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-11-02 — OpenClaw 2026.10.9 → 2026.9.36
+
+- Version bump only — no guide content changes needed
+
 ## 2026-10-29 — OpenClaw 2026.10.7 → 2026.10.9
 
 - Reviewed OpenClaw releases up to 2026.10.9 (mostly reliability fixes, update/rollback recovery and dependency security patches). No documented config, CLI or plugin API changes were found.
