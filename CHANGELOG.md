@@ -3,6 +3,11 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-11-05 — OpenClaw 2026.10.9 → 2026.11.1
+
+- Google Chat known-issues: noted that remote HTTP(S) attachments are now delivered as visible links alongside captions (2026.11.1); local files and native uploads remain unsupported with service-account auth
+- Bumped the guide baseline to 2026.11.1. The releases were mostly reliability and update-recovery fixes, plus security hardening (private-redirect rejection, distrusted emSign root, log redaction) that needs no guide changes. The security-review checklist item for 2026.11.1 could not be added because write permission to that file was denied.
+
 ## 2026-11-02 — OpenClaw 2026.10.9 → 2026.9.36
 
 - Version bump only — no guide content changes needed
