@@ -3,6 +3,10 @@
 All notable guide content updates are documented here.
 This changelog tracks documentation changes — not OpenClaw releases themselves.
 
+## 2026-11-09 — OpenClaw 2026.11.1 → 2026.11.2
+
+- Version bump only — no guide content changes needed
+
 ## 2026-11-05 — OpenClaw 2026.10.9 → 2026.11.1
 
 - Google Chat known-issues: noted that remote HTTP(S) attachments are now delivered as visible links alongside captions (2026.11.1); local files and native uploads remain unsupported with service-account auth
