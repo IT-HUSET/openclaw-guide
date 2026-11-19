@@ -138,6 +138,7 @@ Evaluate each area using the collected data:
 - [ ] Version ≥ 2026.3.11 (WebSocket hijacking in trusted-proxy mode, secret file symlink hardening, plugin/session auth fixes)
 - [ ] Version ≥ 2026.3.12 (workspace plugin auto-load disabled, exec approval Unicode/obfuscation hardening, /config+/debug owner-only, device pairing bootstrap tokens, gateway auth scope fixes)
 - [ ] Version ≥ 2026.5.5 (plugin dependency security overrides, vulnerable ip-address override, Slack/LINE channel allowlist validation fixes)
+- [ ] Version ≥ 2026.11.6 (inline env credential redaction in config reads, SecretRef preservation)
 - [ ] Version compared against guide baseline (`.guide-version`)
 
 ### 2. Security Baseline (Phase 3)
